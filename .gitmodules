@@ -1,4 +1,9 @@
 [submodule "pybind11"]
-	path = pybind11
+	path = ext/pybind11
 	url = https://github.com/pybind/pybind11.git
+	branch = master
+
+[submodule "rapidjson"]
+	path = ext/rapidjson
+	url = https://github.com/Tencent/rapidjson.git
 	branch = master

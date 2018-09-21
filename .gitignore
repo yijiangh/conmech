@@ -5,3 +5,8 @@ _generate/
 *.so
 *.py[cod]
 *.egg-info
+
+# Clion stuff
+.idea/
+cmake-build-debug/
+
