@@ -56,14 +56,20 @@ class CMakeBuild(build_ext):
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
         subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
+# this script is adapted from cmake_example project for pybind11
+# https://github.com/pybind/cmake_example
+
+# for more info for extension modules:
+# https://docs.python.org/2/distutils/setupscript.html
+
 setup(
-    name='cmake_example',
+    name='conmech',
     version='0.0.1',
-    author='Dean Moldovan',
-    author_email='dean0x7d@gmail.com',
-    description='A test project using pybind11 and CMake',
+    author='Yijiang Huang',
+    author_email='yijiangh@mit.edu',
+    description='A test project using pybind11, CMake, and a simple eigen demo inside.',
     long_description='',
-    ext_modules=[CMakeExtension('cmake_example')],
+    ext_modules=[CMakeExtension('eigen_demo_py')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
 )
