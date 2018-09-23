@@ -10,29 +10,13 @@ namespace conmech
 namespace pyconmech
 {
 
-PYBIND11_MODULE(eigen_demo_py, m
-)
+PYBIND11_MODULE(eigen_demo_py, m)
 {
-py::class_<Pet>(m,
-"Pet")
-.
-def (py::init<const std::string &>())
-.def("setName", &Pet::setName)
-.def("getName", &Pet::getName)
 
-.def_property("name", &Pet::getName, &Pet::setName)
-.def_readwrite("file_path", &Pet::file_path)
+py::class_<EigenSolveDemo>(m,"EigenSolveDemo")
+.def(py::init<>())
+.def("testEigen", &EigenSolveDemo::testEigen);
 
-.def("__repr__",
-[](
-const Pet &a
-)
-{
-return "<example.Pet named '" + a.
-getName()
-+ "'>";
-}
-);
 }
 
 } // namespace pyconmech

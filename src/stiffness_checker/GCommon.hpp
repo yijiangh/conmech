@@ -3,7 +3,7 @@
 #define FILENMAX 128
 
 #ifndef VERSION
-#define VERSION "20160826+"
+#define VERSION "20180921+"
 #endif
 
 #ifndef F_PI
