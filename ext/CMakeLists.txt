@@ -1,2 +1,5 @@
 #add_subdirectory(rapidjson)
-add_subdirectory(pybind11)
+
+if(BUILD_PYBINDINGS)
+	add_subdirectory(pybind11)
+endif(BUILD_PYBINDINGS)

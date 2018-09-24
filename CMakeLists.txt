@@ -7,5 +7,7 @@ find_package(Eigen REQUIRED)
 
 #set(JSON_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/ext/json/include)
 
+set(BUILD_PYBINDINGS TRUE)
+
 add_subdirectory(ext)
 add_subdirectory(src)

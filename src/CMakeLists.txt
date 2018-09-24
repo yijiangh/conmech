@@ -6,4 +6,8 @@ include_directories(
 #add_subdirectory(stiffness_checker)
 
 add_subdirectory(eigen_demo)
-add_subdirectory(bindings/pyconmech)
+
+if(BUILD_PYBINDINGS)
+	message(STATUS "Building python bindings.")
+	add_subdirectory(bindings/pyconmech)
+endif(BUILD_PYBINDINGS)
