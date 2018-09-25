@@ -93,6 +93,8 @@ class WF_vert
   void SetID(int id) { id_ = id; }
   void IncreaseDegree() { degree_++; }
 
+  // TODO: b_base_ flag is deprecated
+  // only b_fixed is used for marking pillar node
   void SetFixed(bool b_fixed) { b_fixed_ = b_fixed; }
   void SetBase(bool b_base) { b_base_ = b_base; }
   void SetSubgraph(bool b_subg) { b_subg_ = b_subg; }
@@ -191,9 +193,8 @@ class WireFrame
   ~WireFrame();
 
  public:
-  void LoadFromOBJ(const char *path);
   void LoadFromPWF(const char *path);
-  void WriteToOBJ(const char *path);
+  void LoadFromJson(const std::string& file_path);
   void WriteToPWF(
       bool bVert, bool bLine,
       bool bPillar, bool bCeiling,
@@ -201,25 +202,11 @@ class WireFrame
       const char *path
   );
 
-  void ImportFrom3DD(const char *path);
-
-  void ExportSubgraph(const char *path);
-  void ExportPoints(int min_layer, int max_layer, const char *path);
-  void ExportLines(int min_layer, int max_layer, const char *path);
-
   WF_vert *InsertVertex(const Vec3f p);
   WF_edge *InsertEdge(WF_vert *u, WF_vert *v);
   WF_edge *InsertOneWayEdge(WF_vert *u, WF_vert *v);
 
   void Unify();
-  point Unify(Vec3f p);
-
-  void SimplifyFrame();
-  void ProjectBound(double len);
-  void ModifyProjection(double len);
-  void MakeBase(vector<WF_vert *> &base_v);
-  void MakeCeiling(vector<WF_edge *> &bound_e);
-  void MakeSubGraph(vector<WF_edge *> &subg_e);
 
   void SetUnitScale(double unit_scale) { unit_scale_ = unit_scale; }
 
@@ -338,7 +325,6 @@ class WireFrame
   double unify_size_;
   double delta_tol_;
 
-  // from millimeter to ..
   double unit_scale_;
 };
 

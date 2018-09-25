@@ -1,8 +1,28 @@
-#include "stiffness_checker/Stiffness.h"
-#include "stiffness_checker/StiffnessIO.hpp"
+#include "choreo_task_sequence_planner/utils/Stiffness.h"
 
-Stiffness::Stiffness(const std::string& json_file_path,
-					 const bool& terminal_output, const bool& file_output)
+Stiffness::Stiffness()
+{
+	terminal_output_ = false;
+	file_output_ = false;
+}
+
+
+Stiffness::Stiffness(DualGraph *ptr_dualgraph)
+	:r_(0.6), nr_(0), density_(1210 * 1e-12), g_(-9806.33), G_(1032), E_(1100), v_(0.39), shear_(0)
+{
+	ptr_dualgraph_ = ptr_dualgraph;
+
+	Init();
+
+	terminal_output_ = false;
+	file_output_ = false;
+}
+
+
+Stiffness::Stiffness(
+	DualGraph *ptr_dualgraph, FiberPrintPARM *ptr_parm, char *ptr_path,
+	bool terminal_output, bool file_output
+	)
 {
 	/* in use */
 	ptr_dualgraph_ = ptr_dualgraph;
@@ -19,30 +39,34 @@ Stiffness::Stiffness(const std::string& json_file_path,
 
 	shear_ = 0;
 
-	// TODO: call stiffnessIO to parse the input json file from path
-	// and construct a wireframe
-
-	Init();
+	Init(); 
 
 	terminal_output_ = terminal_output;
 	file_output_ = file_output;
 }
 
+
 Stiffness::~Stiffness()
 {
 }
+
 
 void Stiffness::Init()
 {
 	CreateFe();
 	CreateElasticK();
 
-	Ns_ = ptr_dualgraph_->SizeOfFreeFace();
+    Ns_ = ptr_dualgraph_->SizeOfFreeFace();
 }
 
 
 void Stiffness::CreateFe()
 {
+	if (terminal_output_)
+	{
+		create_fe_.Start();
+	}
+
 	WireFrame *ptr_frame = ptr_dualgraph_->ptr_frame_;
 	int Nd = ptr_dualgraph_->SizeOfVertList();
 	int Fd = ptr_dualgraph_->SizeOfFaceList();
@@ -65,7 +89,7 @@ void Stiffness::CreateFe()
 
 		double t0, t1, t2, t3, t4, t5, t6, t7, t8;
 		coord_trans.CreateTransMatrix(ej->pvert_->Position(), ei->pvert_->Position(),
-									  t0, t1, t2, t3, t4, t5, t6, t7, t8, 0.0);
+			t0, t1, t2, t3, t4, t5, t6, t7, t8, 0.0);
 
 		VectorXd Fei(12);
 		Fei.setZero();
@@ -74,11 +98,11 @@ void Stiffness::CreateFe()
 		Fei[0] = Fei[6] = density_ * Ax * L * gx / 2.0;
 		Fei[1] = Fei[7] = density_ * Ax * L * gy / 2.0;
 		Fei[2] = Fei[8] = density_ * Ax * L * gz / 2.0;
-
+		
 		Fei[3] = density_ * Ax * L * L / 12.0 * ((-t3*t7 + t4*t6)*gy + (-t3*t8 + t5*t6)*gz);
 		Fei[4] = density_ * Ax * L * L / 12.0 * ((-t4*t6 + t3*t7)*gx + (-t4*t8 + t5*t7)*gz);
 		Fei[5] = density_ * Ax * L * L / 12.0 * ((-t5*t6 + t3*t8)*gx + (-t5*t7 + t4*t8)*gy);
-
+		
 		Fei[9] = density_ * Ax * L * L / 12.0 * ((t3*t7 - t4*t6)*gy + (t3*t8 - t5*t6)*gz);
 		Fei[10] = density_ * Ax * L * L / 12.0 * ((t4*t6 - t3*t7)*gx + (t4*t8 - t5*t7)*gz);
 		Fei[11] = density_ * Ax * L * L / 12.0 * ((t5*t6 - t3*t8)*gx + (t5*t7 - t4*t8)*gy);
@@ -86,11 +110,20 @@ void Stiffness::CreateFe()
 		Fe_[i] = Fei;
 	}
 
+	if (terminal_output_)
+	{
+		create_fe_.Stop();
+	}
 }
 
 
 void Stiffness::CreateF(VX *ptr_x)
 {
+	if (terminal_output_)
+	{
+		create_f_.Start();
+	}
+
 	/* Run only after CreadFe is done! */
 	WireFrame *ptr_frame = ptr_dualgraph_->ptr_frame_;
 	int Nd = ptr_dualgraph_->SizeOfVertList();
@@ -116,22 +149,32 @@ void Stiffness::CreateF(VX *ptr_x)
 
 		for (int j = 0; j < 6; j++)
 		{
-			// only unrestrained node is added into stiffness equation
-			if (dual_u < Ns_)
-			{
-				F_[dual_u * 6 + j] += (*ptr_x)[i] * Fe_[i][j];
-			}
-			if (dual_v < Ns_)
-			{
+            // only unrestrained node is added into stiffness equation
+            if (dual_u < Ns_)
+            {
+                F_[dual_u * 6 + j] += (*ptr_x)[i] * Fe_[i][j];
+            }
+            if (dual_v < Ns_)
+            {
 				F_[dual_v * 6 + j] += (*ptr_x)[i] * Fe_[i][j + 6];
-			}
+            }
 		}
+	}
+
+	if (terminal_output_)
+	{
+		create_f_.Stop();
 	}
 }
 
 
 void Stiffness::CreateElasticK()
 {
+	if (terminal_output_)
+	{
+		create_ek_.Start();
+	}
+
 	WireFrame		  *ptr_frame   = ptr_dualgraph_->ptr_frame_;
 	vector<WF_edge *> wf_edge_list = *ptr_frame->GetEdgeList();
 	vector<WF_vert *> wf_vert_list = *ptr_frame->GetVertList();
@@ -146,7 +189,7 @@ void Stiffness::CreateElasticK()
 
 	/* torsion constant */
 	double Jxx = 0.5 * F_PI * r_ * r_ * r_ * r_;
-
+	
 	/* shear deformation constant */
 	double Ksy = 0;
 	double Ksz = 0;
@@ -181,7 +224,7 @@ void Stiffness::CreateElasticK()
 		point node_v = wf_vert_list[v]->Position();
 
 		transf_.CreateTransMatrix(node_u, node_v, t0, t1, t2, t3, t4, t5, t6, t7, t8, 0);
-
+		
 		if (1 == shear_)
 		{
 			/* for circular cross-sections, the shape factor for shear(fs) = 1.2 (ref. Aslam's book) */
@@ -195,8 +238,8 @@ void Stiffness::CreateElasticK()
 			Ksz = 0;
 		}
 
-		int n1 = ptr_dualgraph_->v_dual_id(u);
-		int n2 = ptr_dualgraph_->v_dual_id(v);
+        int n1 = ptr_dualgraph_->v_dual_id(u);
+        int n2 = ptr_dualgraph_->v_dual_id(v);
 
 		eKuv(0,0) = eKuv(6,6) = E_ * Ax / Le;
 		eKuv(1,1) = eKuv(7,7) = 12. * E_ * Izz / (Le * Le * Le * (1. + Ksy));
@@ -229,9 +272,9 @@ void Stiffness::CreateElasticK()
 				if (eKuv(k, l) != eKuv(l, k))
 				{
 					if (fabs(eKuv(k,l) / eKuv(l,k) - 1.0) > SPT_EPS
-							&&
-									(fabs(eKuv(k, l) / eKuv(k, k)) > SPT_EPS || fabs(eKuv(l, k) / eKuv(k, k)) > SPT_EPS)
-							)
+						&& 
+						(fabs(eKuv(k, l) / eKuv(k, k)) > SPT_EPS || fabs(eKuv(l, k) / eKuv(k, k)) > SPT_EPS)
+						)
 					{
 						fprintf(stderr, "elastic_K: element stiffness matrix not symetric ...\n");
 						fprintf(stderr, " ... k[%d][%d] = %15.6e \n", k, l, eKuv(k,l));
@@ -246,11 +289,21 @@ void Stiffness::CreateElasticK()
 
 		eK_[i] = eKuv;
 	}
+
+	if (terminal_output_)
+	{
+		create_ek_.Stop();
+	}
 }
 
 
 void Stiffness::CreateGlobalK(VX *ptr_x)
 {
+	if (terminal_output_)
+	{
+		create_k_.Start();
+	}
+
 	WireFrame *ptr_frame = ptr_dualgraph_->ptr_frame_;
 	int Nd = ptr_dualgraph_->SizeOfVertList();
 	int Fd = ptr_dualgraph_->SizeOfFaceList();
@@ -277,7 +330,7 @@ void Stiffness::CreateGlobalK(VX *ptr_x)
 
 		if (dual_u < Ns_ && dual_v < Ns_)
 		{
-			// dual_u and dual_v are both unrestrained node
+            // dual_u and dual_v are both unrestrained node
 			for (int k = 0; k < 6; k++)
 			{
 				for (int l = 0; l < 6; l++)
@@ -313,7 +366,7 @@ void Stiffness::CreateGlobalK(VX *ptr_x)
 		else
 		if (dual_u < Ns_)
 		{
-			// dual_u is free while dual_v is restrained
+            // dual_u is free while dual_v is restrained
 			for (int k = 0; k < 6; k++)
 			{
 				for (int l = 0; l < 6; l++)
@@ -343,13 +396,18 @@ void Stiffness::CreateGlobalK(VX *ptr_x)
 		}
 	}
 	K_.setFromTriplets(K_list.begin(), K_list.end());
+
+	if (terminal_output_)
+	{
+		create_k_.Stop();
+	}
 }
 
 
 bool Stiffness::CalculateD(
-		VX &D, VX *ptr_x,
-		bool cond_num, int file_id, string file_name
-)
+	VX &D, VX *ptr_x, 
+	bool cond_num, int file_id, string file_name
+	)
 {
 	D.resize(6 * Ns_);
 	D.setZero();
@@ -375,7 +433,7 @@ bool Stiffness::CalculateD(
 	{
 		fprintf(stdout, "Stiffness : Linear Elastic Analysis ... Element Gravity Loads\n");
 	}
-
+	
 	if (!stiff_solver_.SolveSystem(K_, D, F_, terminal_output_, info))
 	{
 		cout << "Stiffness Solver fail!\n" << endl;
@@ -399,10 +457,10 @@ bool Stiffness::CalculateD(
 
 
 bool Stiffness::CalculateD(
-		VX &D, VX &D0, VX *ptr_x,
-		bool cond_num,
-		int file_id, string file_name
-)
+	VX &D, VX &D0, VX *ptr_x,
+	bool cond_num,
+	int file_id, string file_name
+	)
 {
 	D.resize(6 * Ns_);
 	D.setZero();
@@ -450,7 +508,12 @@ bool Stiffness::CalculateD(
 
 
 bool Stiffness::CheckIllCondition(IllCondDetector &stiff_inspector)
-{
+{	
+	if (terminal_output_)
+	{
+		check_ill_.Start();
+	}
+
 	bool bSuccess = true;
 	double cond_num;
 	cond_num = stiff_inspector.ComputeCondNum();
@@ -471,12 +534,22 @@ bool Stiffness::CheckIllCondition(IllCondDetector &stiff_inspector)
 		bSuccess = false;
 	}
 
+	if (terminal_output_)
+	{
+		check_ill_.Stop();
+	}
+
 	return bSuccess;
 }
 
 
 bool Stiffness::CheckError(IllCondDetector &stiff_inspector, VX &D)
 {
+	if (terminal_output_)
+	{
+		check_error_.Start();
+	}
+
 	bool bSuccess = true;
 	double error = stiff_inspector.EquilibriumError(K_, D, F_);
 	if (terminal_output_)
@@ -499,12 +572,17 @@ bool Stiffness::CheckError(IllCondDetector &stiff_inspector, VX &D)
 		bSuccess = false;
 	}
 
+	if (terminal_output_)
+	{
+		check_error_.Stop();
+	}
+
 	return bSuccess;
 }
 
 
 void Stiffness::WriteData(VectorXd &D, int id, string fname)
-{
+{	
 	if (fname == "")
 	{
 		return;
@@ -533,7 +611,7 @@ void Stiffness::WriteData(VectorXd &D, int id, string fname)
 
 	stiff_io_.WriteInputData(fpath.c_str(), ptr_dualgraph_, ptr_parm_, terminal_output_);
 	stiff_io_.GnuPltStaticMesh(fpath.c_str(), meshpath.c_str(), plotpath.c_str(),
-							   D_joined, exagg_static, scale, ptr_dualgraph_, ptr_dualgraph_->ptr_frame_);
+		D_joined, exagg_static, scale, ptr_dualgraph_, ptr_dualgraph_->ptr_frame_);
 }
 
 
@@ -620,4 +698,25 @@ VectorXd Stiffness::Fe(int ei)
 		}
 	}
 	return tmpF;
+}
+
+
+void Stiffness::PrintOutTimer()
+{
+	if (terminal_output_)
+	{
+		printf("***Stiffness timer result:\n");
+		stiff_solver_.compute_k_.Print("ComputeK:");
+		stiff_solver_.solve_d_.Print("SolveD:");
+		create_fe_.Print("CreateFe:");
+		create_f_.Print("CreateF:");
+		create_ek_.Print("CreateElasticK:");
+		create_k_.Print("CreateGlobalK:");
+		check_ill_.Print("CheckIllCond:");
+		check_error_.Print("CheckError:");
+	}
+	else
+	{
+		printf("***Stiffness detailed timing turned off.\n");
+	}
 }
