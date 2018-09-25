@@ -5,8 +5,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 find_package(Eigen REQUIRED)
 
-#set(JSON_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/ext/json/include)
+set(RAPIDJSON_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/ext/rapidjson/include)
 
+#set(BUILD_PYBINDINGS FALSE)
 set(BUILD_PYBINDINGS TRUE)
 
 add_subdirectory(ext)

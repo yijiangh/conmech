@@ -2,14 +2,12 @@
 // Created by yijiangh on 9/24/18.
 //
 
-#ifndef CONMECH_EIGEN_DEMO_H
-#define CONMECH_EIGEN_DEMO_H
-
 #include <string>
 #include <iostream>
 
 #include <eigen3/Eigen/Dense>
 #include "eigen_demo/eigen_demo.hpp"
+#include "eigen_demo/eigen_demo_IO.hpp"
 
 void EigenSolveDemo::testEigen()
 {
@@ -26,4 +24,7 @@ void EigenSolveDemo::testEigen()
   cout << "The solution is:\n" << x << endl;
 }
 
-#endif //CONMECH_EIGEN_DEMO_H
+void EigenSolveDemo::testJsonParse(const std::string& file_path)
+{
+  parseJson(file_path);
+}

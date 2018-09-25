@@ -1,4 +1,4 @@
-//#include "eigen_demo/eigen_demo_IO.cpp"
+#pragma once
 
 #include <string>
 
@@ -8,7 +8,5 @@ class EigenSolveDemo
   EigenSolveDemo(){}
 
   void testEigen();
-
- private:
-  std::string file_path_;
+  void testJsonParse(const std::string& file_path);
 };
