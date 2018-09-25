@@ -6,16 +6,8 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <Eigen/SparseCore>
-#include <Eigen/SparseCholesky>
-#include <Eigen/SparseLU>
-#include <Eigen/SparseQR>
-#include <Eigen/Core>
-#include <Eigen/OrderingMethods>
-#include <Eigen/IterativeLinearSolvers>
 
-// TODO: let's try to get rid of these two...
 #include "choreo_task_sequence_planner/utils/WireFrame.h"
-#include "choreo_task_sequence_planner/utils/DualGraph.h"
 
 // TODO: need a separate input for material properties
 #include "choreo_task_sequence_planner/FiberPrintPARM.h"
@@ -29,31 +21,33 @@
 using namespace std;
 using namespace Eigen;
 
+namespace conmech
+{
+
+namespace stiffness_checker
+{
+
 class Stiffness
 {
  private:
   typedef Eigen::SparseMatrix<double> SpMat;
-  typedef Eigen::MatrixXd				MX;
-  typedef Eigen::VectorXd				VX;
-  typedef Eigen::VectorXi				VXi;
-  typedef	Eigen::MatrixXi				MXi;
-  typedef trimesh::point				point;
+  typedef Eigen::MatrixXd MX;
+  typedef Eigen::VectorXd VX;
+  typedef Eigen::VectorXi VXi;
+  typedef Eigen::MatrixXi MXi;
+  typedef trimesh::point point;
 
  public:
-  Stiffness();
-  Stiffness(DualGraph *ptr_dualgraph);
-  Stiffness(
-		  DualGraph *ptr_dualgraph, FiberPrintPARM *ptr_parm, char *ptr_path = NULL,
-		  bool terminal_output = false, bool file_output = false
-  );
+  Stiffness(const std::string& json_file_path,
+			const bool& terminal_output = false, const bool& file_output = false);
   ~Stiffness();
 
  public:
-  void		Init();
-  void		CreateFe();
-  void		CreateF(VX *ptr_x = NULL);
-  void		CreateElasticK();
-  void		CreateGlobalK(VX *ptr_x = NULL);
+  void Init();
+  void CreateFe();
+  void CreateF(VX *ptr_x = NULL);
+  void CreateElasticK();
+  void CreateGlobalK(VX *ptr_x = NULL);
 
   /* calculate D using LDLT */
   bool CalculateD(
@@ -66,7 +60,7 @@ class Stiffness
   /* calculate D using ConjugateGradient by Eigen */
   bool CalculateD(
 		  VX &D,
-		  VX &D0,						// D0 is the last result
+		  VX &D0,                        // D0 is the last result
 		  VX *ptr_x = NULL,
 		  bool cond_num = false,
 		  int file_id = 0, string file_name = ""
@@ -84,49 +78,54 @@ class Stiffness
   );
 
   /* Data I/O */
-  SpMat		*WeightedK(){ assert(&K_); return &K_; }
-  VX			*WeightedF(){ assert(&F_); return &F_; }
+  SpMat *WeightedK()
+  {
+	  assert(&K_);
+	  return &K_;
+  }
 
-  MX			eKe(int ei);			// ei: orig e id
-  MX			eKv(int ei);			// ei: orig e id
-  VX			Fe(int ei);				// ei: orig e id
+  VX *WeightedF()
+  {
+	  assert(&F_);
+	  return &F_;
+  }
 
-  void		PrintOutTimer();
+  MX eKe(int ei);            // ei: orig e id
+  MX eKv(int ei);            // ei: orig e id
+  VX Fe(int ei);                // ei: orig e id
 
  public:
-  DualGraph		*ptr_dualgraph_;
-  FiberPrintPARM	*ptr_parm_;
-  char			*ptr_path_;
+  FiberPrintPARM *ptr_parm_;
+  char *ptr_path_;
 
-  StiffnessIO		stiff_io_;
-  StiffnessSolver	stiff_solver_;
+  StiffnessIO stiff_io_;
+  StiffnessSolver stiff_solver_;
 
-  CoordTrans		transf_;
+  CoordTrans transf_;
 
-  SpMat			K_;						// x-Weighted global stiffness matrix, 6n*6n
-  vector<MX>		eK_;					// elastic K, indexed by dual id
-  VX				F_;
-  vector<VX>		Fe_;
+  // x-Weighted global stiffness matrix, 6n*6n
+  SpMat K_;
 
-  int				Ns_;
+  // elastic K, indexed by dual id
+  vector<MX> eK_;
+  VX F_;
+  vector<VX> Fe_;
 
-  double			r_;						// radius of frame
-  double			nr_;					// radius of node
-  double			density_;
-  double			g_;
-  double			G_;						// shear modulus
-  double			E_;						// young's modulus;
-  double			v_;						// possion ratio
+  int Ns_;
 
-  bool			shear_;					// 1 : shear deformation taken into consideration; 0 : not
+  double r_; // radius of frame
+  double nr_;// radius of node
+  double density_;
+  double g_;
+  double G_; // shear modulus
+  double E_; // young's modulus;
+  double v_; // possion ratio
 
-  Timer			create_fe_;
-  Timer			create_f_;
-  Timer			create_ek_;
-  Timer			create_k_;
-  Timer			check_ill_;
-  Timer			check_error_;
+  bool shear_; // 1 : shear deformation taken into consideration; 0 : not
 
-  bool			terminal_output_;
-  bool			file_output_;
+  bool terminal_output_;
+  bool file_output_;
 };
+
+} // namespace stiffness_checker
+} // namespace conmech

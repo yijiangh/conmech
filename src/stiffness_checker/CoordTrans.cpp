@@ -1,12 +1,12 @@
 #include "choreo_task_sequence_planner/utils/CoordTrans.h"
 
 void CoordTrans::CreateTransMatrix(
-	std::vector<V3> xyz,
-	double L,			// length of the element(edge)
-	int n1, int n2,		// index fo endpoint of the element
-	double &t0, double &t1, double &t2, double &t3, double &t4,
-	double &t5, double &t6, double &t7, double &t8,
-	float p)
+		std::vector<V3> xyz,
+		double L,			// length of the element(edge)
+		int n1, int n2,		// index fo endpoint of the element
+		double &t0, double &t1, double &t2, double &t3, double &t4,
+		double &t5, double &t6, double &t7, double &t8,
+		float p)
 {
 	//  CoordTrans - calculate the 9 elements of the block - diagonal 12 - by - 12
 	//	coordinate transformation matrix, t1, t2, ..., t9.
@@ -18,7 +18,7 @@ void CoordTrans::CreateTransMatrix(
 	//	Element matrix coordinate transformations are carried out by function ATMA
 
 	double	Cx, Cy, Cz, den,		/* direction cosines	*/
-		Cp, Sp;			/* cosine and sine of roll angle */
+			Cp, Sp;			/* cosine and sine of roll angle */
 
 	Cx = (xyz[n2][0] - xyz[n1][0]) / L;
 	Cy = (xyz[n2][1] - xyz[n1][1]) / L;
@@ -58,13 +58,13 @@ void CoordTrans::CreateTransMatrix(
 
 
 void CoordTrans::CreateTransMatrix(
-	point u, point v,
-	double &t0, double &t1, double &t2, double &t3, double &t4,
-	double &t5, double &t6, double &t7, double &t8,
-	float p)
+		point u, point v,
+		double &t0, double &t1, double &t2, double &t3, double &t4,
+		double &t5, double &t6, double &t7, double &t8,
+		float p)
 {
 	double L = sqrt((u.x() - v.x())*(u.x() - v.x()) + (u.y() - v.y())*(u.y() - v.y())
-						+ (u.z() - v.z())*(u.z() - v.z()));
+			+ (u.z() - v.z())*(u.z() - v.z()));
 
 	double	Cx, Cy, Cz, den,		/* direction cosines	*/
 			Cp, Sp;					/* cosine and sine of roll angle */
@@ -106,9 +106,9 @@ void CoordTrans::CreateTransMatrix(
 
 
 void CoordTrans::TransLocToGlob(
-	double t0, double t1, double t2, double t3, double t4,
-	double t5, double t6, double t7, double t8,
-	MX	   &m, float r1, float r2)
+		double t0, double t1, double t2, double t3, double t4,
+		double t5, double t6, double t7, double t8,
+		MX	   &m, float r1, float r2)
 {
 	int     i, j, k;
 

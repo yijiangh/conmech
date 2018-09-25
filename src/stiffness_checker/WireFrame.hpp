@@ -42,47 +42,49 @@
 #include <cmath>
 #include <string.h>
 
-#include "choreo_task_sequence_planner/utils/Vec.h"
+#include "stiffness_checker/Vec.hpp"
 
-using namespace std;
-using trimesh::vec;
-using trimesh::point;
-
-typedef trimesh::point point;
-typedef trimesh::vec3  Vec3f;
-typedef trimesh::vec4  Vec4f;
+namespace conmech
+{
+namespace stiffness_checker
+{
 
 class WF_vert;
 class WF_edge;
 
 class WF_vert
 {
+ private:
+  using namespace std;
+  using trimesh::vec;
+  using trimesh::point;
+
+  typedef trimesh::point point;
+  typedef trimesh::vec3 Vec3f;
+  typedef trimesh::vec4 Vec4f;
  public:
   WF_vert()
       : pedge_(NULL), id_(0), degree_(0),
-        b_fixed_(false), b_base_(false), b_subg_(false)
-  {}
+        b_fixed_(false), b_base_(false), b_subg_(false) {}
   WF_vert(Vec3f p)
       : pedge_(NULL), position_(p), render_pos_(p),
         id_(0), degree_(0),
-        b_fixed_(false), b_base_(false), b_subg_(false)
-  {}
+        b_fixed_(false), b_base_(false), b_subg_(false) {}
   WF_vert(double x, double y, double z)
       : pedge_(NULL), position_(point(x, y, z)), render_pos_(point(x, y, z)),
         id_(0), degree_(0),
-        b_fixed_(false), b_base_(false), b_subg_(false)
-  {}
-  ~WF_vert(){}
+        b_fixed_(false), b_base_(false), b_subg_(false) {}
+  ~WF_vert() {}
 
  public:
-  point	Position() const { return position_; }
-  point	RenderPos() const { return render_pos_; }
+  point Position() const { return position_; }
+  point RenderPos() const { return render_pos_; }
   int ID() const { return id_; }
   int Degree() const { return degree_; }
 
   bool isFixed() const { return b_fixed_; }
   bool isBase() const { return b_base_; }
-  bool isSubgraph()	const { return b_subg_; }
+  bool isSubgraph() const { return b_subg_; }
 
   void SetPosition(point p) { position_ = p; }
   void SetPosition(double x, double y, double z) { position_ = point(x, y, z); }
@@ -91,16 +93,16 @@ class WF_vert
   void SetID(int id) { id_ = id; }
   void IncreaseDegree() { degree_++; }
 
-  void SetFixed(bool b_fixed)	 { b_fixed_ = b_fixed; }
-  void SetBase(bool b_base)	 { b_base_ = b_base; }
+  void SetFixed(bool b_fixed) { b_fixed_ = b_fixed; }
+  void SetBase(bool b_base) { b_base_ = b_base; }
   void SetSubgraph(bool b_subg) { b_subg_ = b_subg; }
 
  public:
   WF_edge *pedge_;
 
  private:
-  point	position_;
-  point	render_pos_;
+  point position_;
+  point render_pos_;
 
   int id_;
   int degree_;
@@ -114,23 +116,22 @@ class WF_edge
 {
  public:
   WF_edge()
-      :pvert_(NULL), pnext_(NULL), ppair_(NULL),
-       id_(0), layer_(-1), b_pillar_(false), b_ceiling_(false), b_subg_(false)
-  {}
-  ~WF_edge(){}
+      : pvert_(NULL), pnext_(NULL), ppair_(NULL),
+        id_(0), layer_(-1), b_pillar_(false), b_ceiling_(false), b_subg_(false) {}
+  ~WF_edge() {}
 
  public:
   int ID() const { return id_; }
   int Layer() const { return layer_; }
   bool isPillar() const { return b_pillar_; }
   bool isCeiling() const { return b_ceiling_; }
-  bool isSubgraph()	const { return b_subg_; }
+  bool isSubgraph() const { return b_subg_; }
 
   void SetID(int id) { id_ = id; }
   void SetLayer(int layer) { layer_ = layer; }
-  void SetPillar(bool b_pillar)	{ b_pillar_ = b_pillar; }
+  void SetPillar(bool b_pillar) { b_pillar_ = b_pillar; }
   void SetCeiling(bool b_ceiling) { b_ceiling_ = b_ceiling; }
-  void SetSubgraph(bool b_subg)	{ b_subg_ = b_subg; }
+  void SetSubgraph(bool b_subg) { b_subg_ = b_subg; }
 
   point CenterPos() const
   {
@@ -146,10 +147,10 @@ class WF_edge
     double dx = u.x() - v.x();
     double dy = u.y() - v.y();
     double dz = u.z() - v.z();
-    return sqrt(dx*dx + dy*dy + dz*dz);
+    return sqrt(dx * dx + dy * dy + dz * dz);
   }
 
-  double CenterDistanceTo(WF_edge* ej) const
+  double CenterDistanceTo(WF_edge *ej) const
   {
     point this_c = this->CenterPos();
     point ej_c = ej->CenterPos();
@@ -157,7 +158,7 @@ class WF_edge
     double dx = this_c.x() - ej_c.x();
     double dy = this_c.y() - ej_c.y();
     double dz = this_c.z() - ej_c.z();
-    return sqrt(dx*dx + dy*dy + dz*dz);
+    return sqrt(dx * dx + dy * dy + dz * dz);
   }
 
  public:
@@ -173,17 +174,15 @@ class WF_edge
   bool b_subg_;
 };
 
-
 class WF_face
 {
  public:
-  WF_face()	{ bound_points_ = new vector<WF_vert*>; }
+  WF_face() { bound_points_ = new vector<WF_vert *>; }
   ~WF_face() { delete bound_points_; }
 
  public:
-  vector<WF_vert*>* bound_points_;
+  vector<WF_vert *> *bound_points_;
 };
-
 
 class WireFrame
 {
@@ -208,9 +207,9 @@ class WireFrame
   void ExportPoints(int min_layer, int max_layer, const char *path);
   void ExportLines(int min_layer, int max_layer, const char *path);
 
-  WF_vert* InsertVertex(const Vec3f p);
-  WF_edge* InsertEdge(WF_vert *u, WF_vert *v);
-  WF_edge* InsertOneWayEdge(WF_vert *u, WF_vert *v);
+  WF_vert *InsertVertex(const Vec3f p);
+  WF_edge *InsertEdge(WF_vert *u, WF_vert *v);
+  WF_edge *InsertOneWayEdge(WF_vert *u, WF_vert *v);
 
   void Unify();
   point Unify(Vec3f p);
@@ -218,9 +217,9 @@ class WireFrame
   void SimplifyFrame();
   void ProjectBound(double len);
   void ModifyProjection(double len);
-  void MakeBase(vector<WF_vert*> &base_v);
-  void MakeCeiling(vector<WF_edge*> &bound_e);
-  void MakeSubGraph(vector<WF_edge*> &subg_e);
+  void MakeBase(vector<WF_vert *> &base_v);
+  void MakeCeiling(vector<WF_edge *> &bound_e);
+  void MakeSubGraph(vector<WF_edge *> &subg_e);
 
   void SetUnitScale(double unit_scale) { unit_scale_ = unit_scale; }
 
@@ -232,26 +231,54 @@ class WireFrame
   inline int SizeOfCeiling() const { return ceiling_size_; }
   inline int SizeOfLayer() const { return layer_size_; }
 
-  inline vector<WF_vert*> *GetVertList() { return pvert_list_; }
-  inline vector<WF_edge*> *GetEdgeList() { return pedge_list_; }
+  inline vector<WF_vert *> *GetVertList() { return pvert_list_; }
+  inline vector<WF_edge *> *GetEdgeList() { return pedge_list_; }
   inline WF_vert *GetVert(int u) { return (u >= SizeOfVertList() || u < 0) ? NULL : (*pvert_list_)[u]; }
   inline WF_edge *GetEdge(int i) { return (i >= SizeOfEdgeList() || i < 0) ? NULL : (*pedge_list_)[i]; }
   inline WF_edge *GetNeighborEdge(int u) { return (u >= SizeOfVertList() || u < 0) ? NULL : (*pvert_list_)[u]->pedge_; }
 
-  inline point GetPosition(int u) const { assert(u < SizeOfVertList() && u >= 0); return((*pvert_list_)[u]->Position()); }
-  inline int GetDegree(int u) const { assert(u < SizeOfVertList() && u >= 0); return((*pvert_list_)[u]->Degree()); }
+  inline point GetPosition(int u) const
+  {
+    assert(u < SizeOfVertList() && u >= 0);
+    return ((*pvert_list_)[u]->Position());
+  }
+  inline int GetDegree(int u) const
+  {
+    assert(u < SizeOfVertList() && u >= 0);
+    return ((*pvert_list_)[u]->Degree());
+  }
 
-  inline int GetEndu(int i) const { assert(i < SizeOfEdgeList() && i >= 0); return((*pedge_list_)[i]->ppair_->pvert_->ID()); }
-  inline int GetEndv(int i) const { assert(i < SizeOfEdgeList() && i >= 0); return((*pedge_list_)[i]->pvert_->ID()); }
+  inline int GetEndu(int i) const
+  {
+    assert(i < SizeOfEdgeList() && i >= 0);
+    return ((*pedge_list_)[i]->ppair_->pvert_->ID());
+  }
+  inline int GetEndv(int i) const
+  {
+    assert(i < SizeOfEdgeList() && i >= 0);
+    return ((*pedge_list_)[i]->pvert_->ID());
+  }
 
-  inline point GetCenterPos(int i) const { assert(i < SizeOfEdgeList() && i >= 0); return((*pedge_list_)[i]->CenterPos()); }
+  inline point GetCenterPos(int i) const
+  {
+    assert(i < SizeOfEdgeList() && i >= 0);
+    return ((*pedge_list_)[i]->CenterPos());
+  }
   inline Vec3f GetCenterPos() const { return center_pos_; }
   inline Vec3f GetBaseCenterPos() const { return base_center_pos_; }
 
   inline double GetUnitScale() const { return unit_scale_; }
 
-  inline bool isFixed(int u) const { assert(u < SizeOfVertList() && u >= 0); return((*pvert_list_)[u]->isFixed()); }
-  inline bool isPillar(int i) const	{ assert(i < SizeOfEdgeList() && i >= 0); return((*pedge_list_)[i]->isPillar()); }
+  inline bool isFixed(int u) const
+  {
+    assert(u < SizeOfVertList() && u >= 0);
+    return ((*pvert_list_)[u]->isFixed());
+  }
+  inline bool isPillar(int i) const
+  {
+    assert(i < SizeOfEdgeList() && i >= 0);
+    return ((*pedge_list_)[i]->isPillar());
+  }
 
   inline double maxX() const { return maxx_; }
   inline double minX() const { return minx_; }
@@ -262,7 +289,7 @@ class WireFrame
 
   inline double Norm(point u) const
   {
-    return sqrt(u.x()*u.x() + u.y()*u.y() + u.z()*u.z());
+    return sqrt(u.x() * u.x() + u.y() * u.y() + u.z() * u.z());
   }
 
   inline double Dist(point u, point v) const
@@ -270,13 +297,13 @@ class WireFrame
     double dx = u.x() - v.x();
     double dy = u.y() - v.y();
     double dz = u.z() - v.z();
-    return sqrt(dx*dx + dy*dy + dz*dz);
+    return sqrt(dx * dx + dy * dy + dz * dz);
   }
 
   inline point CrossProduct(point u, point v) const
   {
     return point(u.y() * v.z() - u.z() * v.y(), u.z() * v.x() - u.x() * v.z(),
-                 u.x() * v.y() - u.y() * v.x());
+        u.x() * v.y() - u.y() * v.x());
   }
 
   inline double ArcHeight(point u, point v1, point v2) const
@@ -288,8 +315,8 @@ class WireFrame
   }
 
  private:
-  std::vector<WF_vert*>* pvert_list_;
-  std::vector<WF_edge*>* pedge_list_;
+  std::vector<WF_vert *> *pvert_list_;
+  std::vector<WF_edge *> *pedge_list_;
 
   int fixed_vert_;
   int base_vert_;
@@ -314,3 +341,6 @@ class WireFrame
   // from millimeter to ..
   double unit_scale_;
 };
+
+} // namespace stiffness_checker
+} // namespace conmech

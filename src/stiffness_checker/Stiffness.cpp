@@ -1,28 +1,8 @@
-#include "choreo_task_sequence_planner/utils/Stiffness.h"
+#include "stiffness_checker/Stiffness.h"
+#include "stiffness_checker/StiffnessIO.hpp"
 
-Stiffness::Stiffness()
-{
-	terminal_output_ = false;
-	file_output_ = false;
-}
-
-
-Stiffness::Stiffness(DualGraph *ptr_dualgraph)
-		:r_(0.6), nr_(0), density_(1210 * 1e-12), g_(-9806.33), G_(1032), E_(1100), v_(0.39), shear_(0)
-{
-	ptr_dualgraph_ = ptr_dualgraph;
-
-	Init();
-
-	terminal_output_ = false;
-	file_output_ = false;
-}
-
-
-Stiffness::Stiffness(
-		DualGraph *ptr_dualgraph, FiberPrintPARM *ptr_parm, char *ptr_path,
-		bool terminal_output, bool file_output
-)
+Stiffness::Stiffness(const std::string& json_file_path,
+					 const bool& terminal_output, const bool& file_output)
 {
 	/* in use */
 	ptr_dualgraph_ = ptr_dualgraph;
@@ -39,17 +19,18 @@ Stiffness::Stiffness(
 
 	shear_ = 0;
 
+	// TODO: call stiffnessIO to parse the input json file from path
+	// and construct a wireframe
+
 	Init();
 
 	terminal_output_ = terminal_output;
 	file_output_ = file_output;
 }
 
-
 Stiffness::~Stiffness()
 {
 }
-
 
 void Stiffness::Init()
 {
@@ -62,11 +43,6 @@ void Stiffness::Init()
 
 void Stiffness::CreateFe()
 {
-	if (terminal_output_)
-	{
-		create_fe_.Start();
-	}
-
 	WireFrame *ptr_frame = ptr_dualgraph_->ptr_frame_;
 	int Nd = ptr_dualgraph_->SizeOfVertList();
 	int Fd = ptr_dualgraph_->SizeOfFaceList();
@@ -110,20 +86,11 @@ void Stiffness::CreateFe()
 		Fe_[i] = Fei;
 	}
 
-	if (terminal_output_)
-	{
-		create_fe_.Stop();
-	}
 }
 
 
 void Stiffness::CreateF(VX *ptr_x)
 {
-	if (terminal_output_)
-	{
-		create_f_.Start();
-	}
-
 	/* Run only after CreadFe is done! */
 	WireFrame *ptr_frame = ptr_dualgraph_->ptr_frame_;
 	int Nd = ptr_dualgraph_->SizeOfVertList();
@@ -160,21 +127,11 @@ void Stiffness::CreateF(VX *ptr_x)
 			}
 		}
 	}
-
-	if (terminal_output_)
-	{
-		create_f_.Stop();
-	}
 }
 
 
 void Stiffness::CreateElasticK()
 {
-	if (terminal_output_)
-	{
-		create_ek_.Start();
-	}
-
 	WireFrame		  *ptr_frame   = ptr_dualgraph_->ptr_frame_;
 	vector<WF_edge *> wf_edge_list = *ptr_frame->GetEdgeList();
 	vector<WF_vert *> wf_vert_list = *ptr_frame->GetVertList();
@@ -289,21 +246,11 @@ void Stiffness::CreateElasticK()
 
 		eK_[i] = eKuv;
 	}
-
-	if (terminal_output_)
-	{
-		create_ek_.Stop();
-	}
 }
 
 
 void Stiffness::CreateGlobalK(VX *ptr_x)
 {
-	if (terminal_output_)
-	{
-		create_k_.Start();
-	}
-
 	WireFrame *ptr_frame = ptr_dualgraph_->ptr_frame_;
 	int Nd = ptr_dualgraph_->SizeOfVertList();
 	int Fd = ptr_dualgraph_->SizeOfFaceList();
@@ -396,11 +343,6 @@ void Stiffness::CreateGlobalK(VX *ptr_x)
 		}
 	}
 	K_.setFromTriplets(K_list.begin(), K_list.end());
-
-	if (terminal_output_)
-	{
-		create_k_.Stop();
-	}
 }
 
 
@@ -509,11 +451,6 @@ bool Stiffness::CalculateD(
 
 bool Stiffness::CheckIllCondition(IllCondDetector &stiff_inspector)
 {
-	if (terminal_output_)
-	{
-		check_ill_.Start();
-	}
-
 	bool bSuccess = true;
 	double cond_num;
 	cond_num = stiff_inspector.ComputeCondNum();
@@ -534,22 +471,12 @@ bool Stiffness::CheckIllCondition(IllCondDetector &stiff_inspector)
 		bSuccess = false;
 	}
 
-	if (terminal_output_)
-	{
-		check_ill_.Stop();
-	}
-
 	return bSuccess;
 }
 
 
 bool Stiffness::CheckError(IllCondDetector &stiff_inspector, VX &D)
 {
-	if (terminal_output_)
-	{
-		check_error_.Start();
-	}
-
 	bool bSuccess = true;
 	double error = stiff_inspector.EquilibriumError(K_, D, F_);
 	if (terminal_output_)
@@ -570,11 +497,6 @@ bool Stiffness::CheckError(IllCondDetector &stiff_inspector, VX &D)
 		printf(" !! Not Converged !!\n");
 		printf("Press any key to exit...\n");
 		bSuccess = false;
-	}
-
-	if (terminal_output_)
-	{
-		check_error_.Stop();
 	}
 
 	return bSuccess;
@@ -698,25 +620,4 @@ VectorXd Stiffness::Fe(int ei)
 		}
 	}
 	return tmpF;
-}
-
-
-void Stiffness::PrintOutTimer()
-{
-	if (terminal_output_)
-	{
-		printf("***Stiffness timer result:\n");
-		stiff_solver_.compute_k_.Print("ComputeK:");
-		stiff_solver_.solve_d_.Print("SolveD:");
-		create_fe_.Print("CreateFe:");
-		create_f_.Print("CreateF:");
-		create_ek_.Print("CreateElasticK:");
-		create_k_.Print("CreateGlobalK:");
-		check_ill_.Print("CheckIllCond:");
-		check_error_.Print("CheckError:");
-	}
-	else
-	{
-		printf("***Stiffness detailed timing turned off.\n");
-	}
 }
