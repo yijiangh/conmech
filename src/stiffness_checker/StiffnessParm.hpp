@@ -47,30 +47,21 @@ namespace stiffness_checker
 class StiffnessParm
 {
  public:
-  StiffnessParm(
-		  double radius = 0.75,
-		  double density = 1210 * 1e-12,
-		  double g = -9806.3,
-		  double youngs_modulus = 3457,
-		  double shear_modulus = 1294,
-		  double poisson_ratio = 0.335)
-		  : radius_(radius), density_(density),
-			g_(g),
-			youngs_modulus_(youngs_modulus),
-			shear_modulus_(shear_modulus),
-			poisson_ratio_(poisson_ratio) {}
+  StiffnessParm():g_(9.8){}
 
   ~StiffnessParm(){};
 
  public:
+  // TODO: this radius should be associated with geometry
   // material & environment
   double radius_;
   double density_;
-  double g_;
   double youngs_modulus_;
   double shear_modulus_;
   double poisson_ratio_;
 
+  // gravitational acc.
+  double g_;
 };
 
 } // ns stiffness_checker

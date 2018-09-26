@@ -7,8 +7,10 @@ namespace conmech
 {
 namespace stiffness_checker
 {
+bool parseMaterialPropertiesJson(const std::string& file_path, StiffnessParm& frame_parm);
 
-bool parseFrameJson(const std::string& file_path, DualGraph& frame_dual_graph, StiffnessParm& frame_parm);
+bool parseFrameJson(const std::string& file_path,
+                    WireFrame* ptr_wf, DualGraph* frame_dual_graph, StiffnessParm& frame_parm);
 
 class StiffnessIO
 {

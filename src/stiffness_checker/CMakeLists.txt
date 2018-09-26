@@ -1,17 +1,11 @@
-include_directories(
-	${Eigen_INCLUDE_DIRS}
-	${JSON_INCLUDE_DIRS}
-)
+include_directories(${EIGEN_INCLUDE_DIRS} ${RAPIDJSON_INCLUDE_DIRS})
 
-if (NOT APPLE)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
-endif()
+add_executable(sc_test test/stiffness_checker_test.cpp)
 
-# TODO: add tests
-#add_subdirectory(test)
+add_library(stiffness_checker
+	StiffnessIO.cpp
+	DualGraph.cpp
+	WireFrame.cpp
+	)
 
-#add_library(stiffness_checker
-#
-#	)
-
-#target_link_libraries(stiffness_checker )
+target_link_libraries(sc_test stiffness_checker)

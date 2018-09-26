@@ -1,5 +1,5 @@
 #include <iostream>
-#include "stiffness_checker/WireFrame.h"
+#include "stiffness_checker/WireFrame.hpp"
 
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
@@ -8,31 +8,30 @@ namespace
 {
 double convertUnitScale(const std::string& unit)
 {
-  switch(unit)
+  if("millimeter" == unit || "mm" == unit)
   {
-    case "millimeter":
-    {
-      return 0.001;
-    }
-    case "centimeter":
-    {
-      return 0.01;
-    }
-    case "inch":
-    {
-      return 0.0254;
-    }
-    case "foot":
-    {
-      return 0.3048;
-    }
-    default:
-    {
-      std::cout << "WARNING: unrecognized unit in the input json file. Using millimeter by default." << std::endl;
-      return 0.001;
-    }
+    return 0.001;
+  }
+  if("centimeter" == unit || "cm" == unit)
+  {
+    return 0.01;
+  }
+  if("meter" == unit || "m" == unit)
+  {
+    return 1;
+  }
+  if("inch" == unit || "in" == unit)
+  {
+    return 0.0254;
+  }
+  if("foot" == unit || "ft" == unit)
+  {
+    return 0.3048;
   }
 
+  // default millimeter
+  std::cout << "WARNING: unrecognized unit in the input json file. Using millimeter by default." << std::endl;
+  return 0.001;
 }
 
 } // util anon ns
@@ -45,8 +44,8 @@ namespace stiffness_checker
 WireFrame::WireFrame()
     : delta_tol_(1e-1), unify_size_(2.0), layer_size_(0), unit_scale_(1.0)
 {
-  pvert_list_ = new vector<WF_vert *>;
-  pedge_list_ = new vector<WF_edge *>;
+  pvert_list_ = new std::vector<WF_vert*>;
+  pedge_list_ = new std::vector<WF_edge*>;
 }
 
 WireFrame::~WireFrame()
@@ -192,12 +191,12 @@ void WireFrame::LoadFromPWF(const char *path)
         {
           if (!(0 <= prev && prev < pvert_list_->size()))
           {
-            ROS_ERROR_STREAM("read lines: start node id overflow: " << prev << "/" << pvert_list_->size());
+            std::cout << "read lines: start node id overflow: " << prev << "/" << pvert_list_->size() << std::endl;
             assert(0 <= prev && prev < pvert_list_->size());
           }
           if (!(0 <= curv && curv < pvert_list_->size()))
           {
-            ROS_ERROR_STREAM("read lines: end node id overflow: " << curv << "/" << pvert_list_->size());
+            std::cout << "read lines: end node id overflow: " << curv << "/" << pvert_list_->size() << std::endl;
             assert(0 <= curv && curv < pvert_list_->size());
           }
 
@@ -280,7 +279,7 @@ void WireFrame::LoadFromPWF(const char *path)
   fclose(fp);
 }
 
-void LoadFromJson(const std::string &file_path)
+bool WireFrame::LoadFromJson(const std::string &file_path)
 {
   using namespace std;
   using namespace rapidjson;
@@ -308,7 +307,8 @@ void LoadFromJson(const std::string &file_path)
   }
   else
   {
-    unit_scale_ = convertUnitScale(document["unit"].GetDouble());
+    // convert to meter (SI)
+    unit_scale_ = convertUnitScale(document["unit"].GetString());
   }
 
   // read vertices
@@ -319,11 +319,13 @@ void LoadFromJson(const std::string &file_path)
   {
     const Value& p = document["node_list"][i]["point"];
     WF_vert* vert = InsertVertex(
-        point(p["X"].GetDouble(), p["Y"].GetDouble(), p["Z"].GetDouble()));
+        point(p["X"].GetDouble()*unit_scale_,
+              p["Y"].GetDouble()*unit_scale_,
+              p["Z"].GetDouble()*unit_scale_));
 
-    if(document["node_list"][i]["is_grounded"])
+    if(document["node_list"][i]["is_grounded"].GetInt())
     {
-      vert->set
+      vert->SetFixed(true);
     }
   }
 
@@ -333,9 +335,9 @@ void LoadFromJson(const std::string &file_path)
 
   for(int i=0; i<document["element_list"].Size(); i++)
   {
-    int u = document["element_list"][i]["end_node_ids"][0];
-    int v = document["element_list"][i]["end_node_ids"][1];
-    int layer = document["element_list"][i]["layer_id"];
+    int u = document["element_list"][i]["end_node_ids"][0].GetInt();
+    int v = document["element_list"][i]["end_node_ids"][1].GetInt();
+    int layer = document["element_list"][i]["layer_id"].GetInt();
 
     if (!(0 <= u && u < pvert_list_->size()))
     {
@@ -360,36 +362,8 @@ void LoadFromJson(const std::string &file_path)
 
       e->SetLayer(layer);
       e->ppair_->SetLayer(layer);
-    }
 
-  }
-
-  // read pillar
-  for(int i=0; i<document["element_list"].Size(); i++)
-  {
-    if (pLine[0] == 'p' && pLine[1] == ' ')
-    {
-      tok = strtok(pLine, " ");
-
-      char tmp[128];
-      tok = strtok(NULL, " ");
-      strcpy(tmp, tok);
-      tmp[strcspn(tmp, " ")] = 0;
-      int u = (int) atof(tmp) - 1;
-
-      tok = strtok(NULL, " ");
-      strcpy(tmp, tok);
-      tmp[strcspn(tmp, " ")] = 0;
-      int v = (int) atof(tmp) - 1;
-
-      WF_vert *b = (*pvert_list_)[u];
-      b->SetBase(true);
-
-      WF_vert *f = (*pvert_list_)[v];
-      f->SetFixed(true);
-
-      WF_edge *e = InsertEdge(b, f);
-      if (e != NULL)
+      if((*pvert_list_)[u]->isFixed() || (*pvert_list_)[v]->isFixed())
       {
         e->SetPillar(true);
         e->ppair_->SetPillar(true);
@@ -398,6 +372,8 @@ void LoadFromJson(const std::string &file_path)
   }
 
   Unify();
+
+  return true;
 }
 
 void WireFrame::WriteToPWF(
@@ -406,6 +382,8 @@ void WireFrame::WriteToPWF(
     bool bCut, int min_layer, int max_layer,
     const char *path)
 {
+  using namespace std;
+
   if ((*pedge_list_)[0]->Layer() == -1 || !bCut)
   {
     min_layer = -(1 << 20);
@@ -532,7 +510,7 @@ WF_vert *WireFrame::InsertVertex(Vec3f p)
   {
     if (Dist(p, (*pvert_list_)[i]->Position()) < 1e-3)
     {
-      ROS_WARN_STREAM("duplicate point read! (" << p.x() << ", " << p.y() << ", " << p.z() << ")");
+      std::cout << "duplicate point read! (" << p.x() << ", " << p.y() << ", " << p.z() << ")" << std::endl;
       return (*pvert_list_)[i];
     }
   }
@@ -660,6 +638,7 @@ void WireFrame::Unify()
 
   if (pillar_size_ > 0)
   {
+    // TODO: this assumption might be relaxed for future work
     // pillar is always in the first layer if exists
     if (0 == layer_size_)
     {

@@ -1,6 +1,6 @@
 /*
 * ==========================================================================
-*		This file is part of the implementation of
+*		This file was part of the implementation of
 *
 *		<FrameFab: Robotic Fabrication of Frame Shapes>
 *		Yijiang Huang, Juyong Zhang, Xin Hu, Guoxian Song, Zhongyuan Liu, Lei Yu, Ligang Liu
@@ -14,6 +14,8 @@
 *		Version:  2.0
 *		Created: Oct/10/2015
 *		Updated: Aug/24/2016
+*
+ *      Modified by Yijiang Huang (yijiangh@mit.edu) at MIT
 *
 *		Author:  Xin Hu, Yijiang Huang, Guoxian Song
 *		Company:  GCL@USTC
@@ -39,8 +41,8 @@
 #pragma once
 
 #include <assert.h>
-#include <cmath>
-#include <string.h>
+#include <string>
+#include <vector>
 
 #include "stiffness_checker/Vec.hpp"
 
@@ -55,13 +57,10 @@ class WF_edge;
 class WF_vert
 {
  private:
-  using namespace std;
-  using trimesh::vec;
-  using trimesh::point;
-
   typedef trimesh::point point;
   typedef trimesh::vec3 Vec3f;
   typedef trimesh::vec4 Vec4f;
+
  public:
   WF_vert()
       : pedge_(NULL), id_(0), degree_(0),
@@ -86,18 +85,18 @@ class WF_vert
   bool isBase() const { return b_base_; }
   bool isSubgraph() const { return b_subg_; }
 
+  // TODO: b_base_ flag is deprecated
+  // TODO: only b_fixed is used for marking pillar node
+  void SetFixed(bool b_fixed) { b_fixed_ = b_fixed; }
+  void SetBase(bool b_base) { b_base_ = b_base; }
+  void SetSubgraph(bool b_subg) { b_subg_ = b_subg; }
+
   void SetPosition(point p) { position_ = p; }
   void SetPosition(double x, double y, double z) { position_ = point(x, y, z); }
   void SetRenderPos(point p) { render_pos_ = p; }
   void SetRenderPos(double x, double y, double z) { render_pos_ = point(x, y, z); }
   void SetID(int id) { id_ = id; }
   void IncreaseDegree() { degree_++; }
-
-  // TODO: b_base_ flag is deprecated
-  // only b_fixed is used for marking pillar node
-  void SetFixed(bool b_fixed) { b_fixed_ = b_fixed; }
-  void SetBase(bool b_base) { b_base_ = b_base; }
-  void SetSubgraph(bool b_subg) { b_subg_ = b_subg; }
 
  public:
   WF_edge *pedge_;
@@ -116,6 +115,11 @@ class WF_vert
 
 class WF_edge
 {
+ private:
+  typedef trimesh::point point;
+  typedef trimesh::vec3 Vec3f;
+  typedef trimesh::vec4 Vec4f;
+
  public:
   WF_edge()
       : pvert_(NULL), pnext_(NULL), ppair_(NULL),
@@ -179,22 +183,27 @@ class WF_edge
 class WF_face
 {
  public:
-  WF_face() { bound_points_ = new vector<WF_vert *>; }
+  WF_face() { bound_points_ = new std::vector<WF_vert *>; }
   ~WF_face() { delete bound_points_; }
 
  public:
-  vector<WF_vert *> *bound_points_;
+  std::vector<WF_vert*>* bound_points_;
 };
 
 class WireFrame
 {
+ private:
+  typedef trimesh::point point;
+  typedef trimesh::vec3 Vec3f;
+  typedef trimesh::vec4 Vec4f;
+
  public:
   WireFrame();
   ~WireFrame();
 
  public:
   void LoadFromPWF(const char *path);
-  void LoadFromJson(const std::string& file_path);
+  bool LoadFromJson(const std::string& file_path);
   void WriteToPWF(
       bool bVert, bool bLine,
       bool bPillar, bool bCeiling,
@@ -218,8 +227,8 @@ class WireFrame
   inline int SizeOfCeiling() const { return ceiling_size_; }
   inline int SizeOfLayer() const { return layer_size_; }
 
-  inline vector<WF_vert *> *GetVertList() { return pvert_list_; }
-  inline vector<WF_edge *> *GetEdgeList() { return pedge_list_; }
+  inline std::vector<WF_vert*> *GetVertList() { return pvert_list_; }
+  inline std::vector<WF_edge*> *GetEdgeList() { return pedge_list_; }
   inline WF_vert *GetVert(int u) { return (u >= SizeOfVertList() || u < 0) ? NULL : (*pvert_list_)[u]; }
   inline WF_edge *GetEdge(int i) { return (i >= SizeOfEdgeList() || i < 0) ? NULL : (*pedge_list_)[i]; }
   inline WF_edge *GetNeighborEdge(int u) { return (u >= SizeOfVertList() || u < 0) ? NULL : (*pvert_list_)[u]->pedge_; }
@@ -290,7 +299,7 @@ class WireFrame
   inline point CrossProduct(point u, point v) const
   {
     return point(u.y() * v.z() - u.z() * v.y(), u.z() * v.x() - u.x() * v.z(),
-        u.x() * v.y() - u.y() * v.x());
+                 u.x() * v.y() - u.y() * v.x());
   }
 
   inline double ArcHeight(point u, point v1, point v2) const
@@ -302,8 +311,8 @@ class WireFrame
   }
 
  private:
-  std::vector<WF_vert *> *pvert_list_;
-  std::vector<WF_edge *> *pedge_list_;
+  std::vector<WF_vert*>* pvert_list_;
+  std::vector<WF_edge*>* pedge_list_;
 
   int fixed_vert_;
   int base_vert_;

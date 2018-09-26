@@ -1,12 +1,19 @@
-#include "choreo_task_sequence_planner/utils/DualGraph.h"
+#include <algorithm>
+#include <vector>
+#include <Eigen/Dense>
 
+#include "stiffness_checker/DualGraph.hpp"
+
+namespace conmech
+{
+namespace stiffness_checker
+{
 DualGraph::DualGraph()
 {
   vert_list_ = NULL;
   edge_list_ = NULL;
   face_list_ = NULL;
 }
-
 
 DualGraph::DualGraph(WireFrame *ptr_frame)
 {
@@ -18,12 +25,10 @@ DualGraph::DualGraph(WireFrame *ptr_frame)
   Init();
 }
 
-
 DualGraph::~DualGraph()
 {
   Clear();
 }
-
 
 void DualGraph::Init()
 {
@@ -32,16 +37,16 @@ void DualGraph::Init()
   int N = ptr_frame_->SizeOfVertList();
   int M = ptr_frame_->SizeOfEdgeList();
 
-  vert_list_ = new vector<DualVertex*>;
+  vert_list_ = new std::vector<DualVertex *>;
   vert_list_->resize(M);
   for (int i = 0; i < M; i++)
   {
     (*vert_list_)[i] = new DualVertex();
   }
 
-  edge_list_ = new vector<DualEdge*>;
+  edge_list_ = new std::vector<DualEdge *>;
 
-  face_list_ = new vector<DualFace*>;
+  face_list_ = new std::vector<DualFace *>;
   face_list_->resize(N);
   for (int i = 0; i < N; i++)
   {
@@ -59,6 +64,15 @@ void DualGraph::Init()
   fill(exist_edge_.begin(), exist_edge_.end(), false);
 }
 
+void DualGraph::Init(WireFrame *ptr_frame)
+{
+  ptr_frame_ = ptr_frame;
+  vert_list_ = NULL;
+  edge_list_ = NULL;
+  face_list_ = NULL;
+
+  Init();
+}
 
 void DualGraph::Clear()
 {
@@ -99,7 +113,6 @@ void DualGraph::Clear()
   }
 }
 
-
 void DualGraph::Dualization()
 {
   maxz_ = ptr_frame_->maxZ();
@@ -129,8 +142,7 @@ void DualGraph::Dualization()
   Establish();
 }
 
-
-void DualGraph::UpdateDualization(VectorXd *ptr_x)
+void DualGraph::UpdateDualization(Eigen::VectorXd *ptr_x)
 {
   maxz_ = -1e20;
 
@@ -177,7 +189,6 @@ void DualGraph::UpdateDualization(VectorXd *ptr_x)
 
   Establish();
 }
-
 
 void DualGraph::Establish()
 {
@@ -254,7 +265,6 @@ void DualGraph::Establish()
   //Debug();
 }
 
-
 int DualGraph::UpdateDualization(WF_edge *e)
 {
   int i = e->ID();
@@ -283,16 +293,15 @@ int DualGraph::UpdateDualization(WF_edge *e)
 
   // TODO: comment to enable seq print layer, edge in order might float
 //  assert(dual_u == -1 || dual_v == -1);
-  return (max(dual_u, dual_v));
+  return(std::max(dual_u, dual_v));
 }
-
 
 int DualGraph::RemoveUpdation(WF_edge *e)
 {
   int i = e->ID();
   int j = e->ppair_->ID();
-  int	u = e->pvert_->ID();
-  int	v = e->ppair_->pvert_->ID();
+  int u = e->pvert_->ID();
+  int v = e->ppair_->pvert_->ID();
   int ret_dual = -1;
 
   if (exist_edge_[i])
@@ -315,7 +324,6 @@ int DualGraph::RemoveUpdation(WF_edge *e)
   return ret_dual;
 }
 
-
 void DualGraph::InsertVertex(WF_edge *e)
 {
   int i = e->ID();
@@ -326,7 +334,6 @@ void DualGraph::InsertVertex(WF_edge *e)
   (*vert_list_)[Nd_]->SetHeight((e->CenterPos()).z());
   Nd_++;
 }
-
 
 void DualGraph::InsertEdge(WF_edge *e1, WF_edge *e2, double w, WF_vert *vert)
 {
@@ -339,7 +346,6 @@ void DualGraph::InsertEdge(WF_edge *e1, WF_edge *e2, double w, WF_vert *vert)
   }
 }
 
-
 int DualGraph::InsertFace(WF_vert *p)
 {
   int u = p->ID();
@@ -351,14 +357,14 @@ int DualGraph::InsertFace(WF_vert *p)
   }
   else
   {
-    if (Fd_free_ == Fd_)									// no fixed points
+    if (Fd_free_ == Fd_)                                    // no fixed points
     {
       (*face_list_)[u]->SetDualId(Fd_);
       (*face_list_)[Fd_]->SetOrigId(u);
     }
     else
     {
-      int dual_v = Fd_free_;								// first fixed point
+      int dual_v = Fd_free_;                                // first fixed point
       int orig_v = (*face_list_)[dual_v]->orig_id();
 
       (*face_list_)[u]->SetDualId(dual_v);
@@ -375,7 +381,6 @@ int DualGraph::InsertFace(WF_vert *p)
   Fd_++;
   return ret_dual;
 }
-
 
 void DualGraph::DeleteVertex(WF_edge *e)
 {
@@ -396,7 +401,6 @@ void DualGraph::DeleteVertex(WF_edge *e)
 
   Nd_--;
 }
-
 
 int DualGraph::DeleteFace(WF_vert *p)
 {
@@ -421,37 +425,9 @@ int DualGraph::DeleteFace(WF_vert *p)
   return dual_u;
 }
 
-
 void DualGraph::Debug()
 {
-  int M = ptr_frame_->SizeOfEdgeList();
-  for (int i = 0; i < M; i++)
-  {
-    WF_edge *e = ptr_frame_->GetEdge(i);
-    int end_id = e->pvert_->ID();
-    int start_id = e->ppair_->pvert_->ID();
-    printf("**********%d:\n", i);
-    printf("start vertex: %d\n", start_id);
-    printf("end vertex: %d\n", end_id);
-    int dual_id = (*vert_list_)[i]->dual_id();
-    printf("dual vertex: %d\n", dual_id);
-    printf("original vertex: %d\n", (*vert_list_)[dual_id]->orig_id());
-    getchar();
-  }
-
-  int N = ptr_frame_->SizeOfVertList();
-  for (int i = 0; i < N; i++)
-  {
-    WF_vert *p = ptr_frame_->GetVert(i);
-    printf("**********%d:\n", i);
-    int dual_id = (*face_list_)[i]->dual_id();
-    printf("dual vertex: %d\n", dual_id);
-    printf("original vertex: %d\n", (*face_list_)[dual_id]->orig_id());
-    getchar();
-  }
-
-  for (int i = 0; i < Md_; i++)
-  {
-    printf("%d %d\n", (*edge_list_)[i]->u(), (*edge_list_)[i]->v());
-  }
 }
+
+}// ns stiffness_checker
+}// ns conmech

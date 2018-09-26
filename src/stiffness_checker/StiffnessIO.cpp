@@ -1,31 +1,81 @@
-
 #include "stiffness_checker/StiffnessParm.hpp"
 #include "stiffness_checker/WireFrame.hpp"
 #include "stiffness_checker/DualGraph.hpp"
 
-#include "stiffness_checker/StiffnessIO.h"
+#include "stiffness_checker/StiffnessIO.hpp"
 
 #include <iostream>
 #include <vector>
 #include <string>
+
+#include <rapidjson/document.h>
+#include <rapidjson/filereadstream.h>
 
 namespace conmech
 {
 namespace stiffness_checker
 {
 
-bool parseFrameJson(const std::string &file_path, DualGraph &frame_dual_graph, StiffnessParm &frame_parm)
+bool parseMaterialPropertiesJson(const std::string& file_path, StiffnessParm& frame_parm)
+{
+  using namespace std;
+  using namespace rapidjson;
+
+  FILE *fp = fopen(file_path.c_str(), "r");
+
+  assert(fp);
+
+  char readBuffer[65536];
+  FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+
+  Document document;
+
+  if (document.ParseStream(is).HasParseError())
+  {
+    std::cout << "ERROR parsing the input json file!\n";
+    return false;
+  }
+
+  fclose(fp);
+
+  assert(document.HasMember("material_properties"));
+
+  frame_parm.youngs_modulus_ = document["material_properties"]["youngs_modulus"].GetDouble();
+  frame_parm.shear_modulus_ = document["material_properties"]["shear_modulus"].GetDouble();
+  frame_parm.poisson_ratio_ = document["material_properties"]["poisson_ratio"].GetDouble();
+  frame_parm.density_ = document["material_properties"]["density"].GetDouble();
+  frame_parm.radius_ = document["material_properties"]["radius"].GetDouble();
+}
+
+bool parseFrameJson(const std::string &file_path,
+                    WireFrame* ptr_wf, DualGraph* ptr_dg, StiffnessParm& frame_parm)
 {
   // parse frame from Json
-  WireFrame* ptr_frame = new WireFrame();
+  assert(ptr_wf);
+  assert(ptr_dg);
 
-  frame_dual_graph = DualGraph(ptr_frame);
-
-  if (NULL != ptr_frame)
+  if(!ptr_wf->LoadFromJson(file_path))
   {
-    delete ptr_frame;
-    ptr_frame = NULL;
+    std::cout << "ERROR: load wireframe from json fails." << std::endl;
+    return false;
   }
+
+  std::cout << "frame read from: " << file_path << std::endl;
+  std::cout << "vert size - " << ptr_wf->SizeOfVertList()
+            << ", edge size - " << ptr_wf->SizeOfEdgeList()/2
+            << ", grounded vert size - " << ptr_wf->SizeOfFixedVert()
+//            << ", grounded edge size - " << ptr_wf->SizeOfPillar()/2
+            << std::endl;
+
+  ptr_dg->Init(ptr_wf);
+  ptr_dg->Dualization();
+
+  assert(ptr_dg->SizeOfVertList() == ptr_wf->SizeOfEdgeList()/2);
+  assert(ptr_dg->SizeOfFaceList() == ptr_wf->SizeOfVertList());
+
+  parseMaterialPropertiesJson(file_path, frame_parm);
+  
+  return true;
 }
 
 } // ns stiffness_checker
