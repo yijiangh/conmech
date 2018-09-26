@@ -1,27 +1,13 @@
-#include "choreo_task_sequence_planner/utils/Stiffness.h"
+#include <stiffness_checker/Stiffness.hpp>
 
 Stiffness::Stiffness()
 {
 	terminal_output_ = false;
-	file_output_ = false;
 }
-
-
-Stiffness::Stiffness(DualGraph *ptr_dualgraph)
-	:r_(0.6), nr_(0), density_(1210 * 1e-12), g_(-9806.33), G_(1032), E_(1100), v_(0.39), shear_(0)
-{
-	ptr_dualgraph_ = ptr_dualgraph;
-
-	Init();
-
-	terminal_output_ = false;
-	file_output_ = false;
-}
-
 
 Stiffness::Stiffness(
-	DualGraph *ptr_dualgraph, FiberPrintPARM *ptr_parm, char *ptr_path,
-	bool terminal_output, bool file_output
+	DualGraph *ptr_dualgraph, FiberPrintPARM *ptr_parm,
+	bool terminal_output
 	)
 {
 	/* in use */
@@ -42,7 +28,6 @@ Stiffness::Stiffness(
 	Init(); 
 
 	terminal_output_ = terminal_output;
-	file_output_ = file_output;
 }
 
 
@@ -446,12 +431,6 @@ bool Stiffness::CalculateD(
 		return false;
 	}
 
-	/* --- Output Process --- */
-	if (file_output_)
-	{
-		WriteData(D, file_id, file_name);
-	}
-
 	return true;
 }
 
@@ -495,12 +474,6 @@ bool Stiffness::CalculateD(
 	if (!CheckError(stiff_inspector, D))
 	{
 		return false;
-	}
-
-	/* --- Output Process --- */
-	if (file_output_)
-	{
-		WriteData(D, file_id, file_name);
 	}
 
 	return true;
@@ -579,41 +552,6 @@ bool Stiffness::CheckError(IllCondDetector &stiff_inspector, VX &D)
 
 	return bSuccess;
 }
-
-
-void Stiffness::WriteData(VectorXd &D, int id, string fname)
-{	
-	if (fname == "")
-	{
-		return;
-	}
-
-	VX D_joined(ptr_dualgraph_->SizeOfFaceList() * 6);
-	D_joined.setZero();
-
-	for (int i = 0; i < Ns_ * 6; i++)
-	{
-		D_joined[i] = D[i];
-	}
-
-
-	/* --- Gnuplot File Generation --- */
-	char iname[10];
-	sprintf(iname, "%d", id);
-
-	string path = ptr_path_;
-	string fpath = path + '/' + fname + iname + ".3dd";
-	string meshpath = path + '/' + fname + iname + "-msh";
-	string plotpath = path + '/' + fname + iname + ".plt";
-
-	double  exagg_static = 5;
-	float	scale = 1;
-
-	stiff_io_.WriteInputData(fpath.c_str(), ptr_dualgraph_, ptr_parm_, terminal_output_);
-	stiff_io_.GnuPltStaticMesh(fpath.c_str(), meshpath.c_str(), plotpath.c_str(),
-		D_joined, exagg_static, scale, ptr_dualgraph_, ptr_dualgraph_->ptr_frame_);
-}
-
 
 MatrixXd Stiffness::eKe(int ei)
 {

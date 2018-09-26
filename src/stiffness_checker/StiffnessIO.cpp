@@ -74,7 +74,7 @@ bool parseFrameJson(const std::string &file_path,
   assert(ptr_dg->SizeOfFaceList() == ptr_wf->SizeOfVertList());
 
   parseMaterialPropertiesJson(file_path, frame_parm);
-  
+
   return true;
 }
 

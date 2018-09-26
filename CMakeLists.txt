@@ -7,8 +7,8 @@ find_package(Eigen REQUIRED)
 
 set(RAPIDJSON_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/ext/rapidjson/include)
 
-set(BUILD_PYBINDINGS FALSE)
-#set(BUILD_PYBINDINGS TRUE)
+#set(BUILD_PYBINDINGS FALSE)
+set(BUILD_PYBINDINGS TRUE)
 
 add_subdirectory(ext)
 add_subdirectory(src)
