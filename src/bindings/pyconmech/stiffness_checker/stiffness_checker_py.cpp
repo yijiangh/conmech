@@ -13,8 +13,11 @@ PYBIND11_MODULE(conmech_py, m)
 {
 
 py::class_<StiffnessChecker>(m,"stiffness_checker")
-.def(py::init<std::string>())
-.def("check_deformation", &conmech::stiffness_checker::StiffnessChecker::checkDeformation);
+.def(py::init<std::string, bool>(), "verbose"_a=false)
+.def("check_deformation",
+py::overload_cast<const std::vector<int> &>(&conmech::stiffness_checker::StiffnessChecker::checkDeformation))
+.def("check_deformation",
+py::overload_cast<const std::vector<int> &, std::vector<double> &>(&conmech::stiffness_checker::StiffnessChecker::checkDeformation));
 
 }
 

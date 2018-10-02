@@ -42,31 +42,16 @@
 *		along with FrameFab.  If not, see <http://www.gnu.org/licenses/>.
 * ==========================================================================
 */
+#pragma once
 
-#ifndef FIBERPRINT_STIFFNESS_H
-#define FIBERPRINT_STIFFNESS_H
-
-#include <iostream>
-#include <assert.h>
-
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
-#include <Eigen/SparseCore>
-#include <Eigen/SparseCholesky>
-#include <Eigen/SparseLU>
-#include <Eigen/SparseQR>
-#include <Eigen/Core>
-#include <Eigen/OrderingMethods>
-#include <Eigen/IterativeLinearSolvers>
-
-#include "choreo_task_sequence_planner/utils/WireFrame.h"
-#include "choreo_task_sequence_planner/utils/DualGraph.h"
-#include "choreo_task_sequence_planner/FiberPrintPARM.h"
-#include "choreo_task_sequence_planner/utils/CoordTrans.h"
-#include "choreo_task_sequence_planner/utils/GCommon.h"
-#include "choreo_task_sequence_planner/utils/StiffnessIO.h"
-#include "choreo_task_sequence_planner/utils/StiffnessSolver.h"
-#include "choreo_task_sequence_planner/utils/IllCondDetector.h"
+#include "stiffness_checker/WireFrame.hpp"
+#include "stiffness_checker/DualGraph.hpp"
+#include "stiffness_checker/FiberPrintPARM.hpp"
+#include "stiffness_checker/CoordTrans.hpp"
+#include "stiffness_checker/GCommon.hpp"
+#include "stiffness_checker/StiffnessIO.hpp"
+#include "stiffness_checker/StiffnessSolver.hpp"
+//#include "stiffness_checker/IllCondDetector.hpp"
 
 namespace conmech
 {
@@ -75,13 +60,13 @@ namespace stiffness_checker
 
 class Stiffness
 {
- private:
-  typedef Eigen::SparseMatrix<double> SpMat;
-  typedef Eigen::MatrixXd MX;
-  typedef Eigen::VectorXd VX;
-  typedef Eigen::VectorXi VXi;
-  typedef Eigen::MatrixXi MXi;
-  typedef trimesh::point point;
+// private:
+//  typedef Eigen::SparseMatrix<double> SpMat;
+//  typedef Eigen::MatrixXd MX;
+//  typedef Eigen::VectorXd VX;
+//  typedef Eigen::VectorXi VXi;
+//  typedef Eigen::MatrixXi MXi;
+//  typedef trimesh::point point;
 
  public:
   Stiffness();
@@ -151,13 +136,25 @@ class Stiffness
 
   int Ns_;
 
-  double r_;                        // radius of frame
-  double nr_;                    // radius of node
+  // TODO: should be a list linked to elements
+  double radius_; // radius of frame
+
+  // TODO: do we need this?
+  double nr_; // radius of node
+
   double density_;
+
+  // gravitational acceleration
   double g_;
-  double G_;                        // shear modulus
-  double E_;                        // young's modulus;
-  double v_;                        // possion ratio
+
+  // shear modulus
+  double G_;
+
+  // young's modulus
+  double E_;
+
+  // poisson ratio
+  double v_;
 
   bool shear_;                    // 1 : shear deformation taken into consideration; 0 : not
 
@@ -173,4 +170,3 @@ class Stiffness
 
 } // namespace stiffness_checker
 } // namespace conmech
-#endif

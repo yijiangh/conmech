@@ -1,8 +1,10 @@
 
 pybind11_add_module(conmech_py
-	stiffness_checker/stiffness_checker_py.cpp)
+	stiffness_checker/stiffness_checker_py.cpp
+	#eigen_demo/eigen_demo_py.cpp
+	)
 
-#target_link_libraries(eigen_demo_py PRIVATE eigen_demo)
+#target_link_libraries(conmech_py PRIVATE eigen_demo)
 
 # this is needed for linking a static lib into a dynamic lib
 # see:
