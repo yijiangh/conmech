@@ -1,132 +1,128 @@
+/*
+* ==========================================================================
+*		This file is part of the implementation of
+*
+*		<FrameFab: Robotic Fabrication of Frame Shapes>
+*		Yijiang Huang, Juyong Zhang, Xin Hu, Guoxian Song, Zhongyuan Liu, Lei Yu, Ligang Liu
+*		In ACM Transactions on Graphics (Proc. SIGGRAPH Asia 2016)
+----------------------------------------------------------------------------
+*		class:	Stiffness
+*
+*		Description:
+*
+*		Version:  2.0
+*		Created:  Mar/23/2016
+*		Updated:  Sep/2018
+*
+*		Author:  Xin Hu, Yijiang Huang, Guoxian Song
+*		Company:  GCL@USTC
+*		Citation:	Some part of this module is modified from frame3dd.c
+*					stiffness matrix construction submodule.
+*			Title:			Frame3dd source code
+*							Static and dynamic structural analysis of 2D and 3D frames and trusses with
+*							elastic and geometric stiffness.
+*			Author:			Henri P. Gavin
+*			Code Version:	20140514+
+*			Availability:	http://frame3dd.sourceforge.net/
+----------------------------------------------------------------------------
+*		Copyright (C) 2016  Yijiang Huang, Xin Hu, Guoxian Song, Juyong Zhang
+*		and Ligang Liu.
+*
+*		FrameFab is free software: you can redistribute it and/or modify
+*		it under the terms of the GNU General Public License as published by
+*		the Free Software Foundation, either version 3 of the License, or
+*		(at your option) any later version.
+*
+*		FrameFab is distributed in the hope that it will be useful,
+*		but WITHOUT ANY WARRANTY; without even the implied warranty of
+*		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*		GNU General Public License for more details.
+*
+*		You should have received a copy of the GNU General Public License
+*		along with FrameFab.  If not, see <http://www.gnu.org/licenses/>.
+* ==========================================================================
+*/
 #pragma once
 
-#include <iostream>
-#include <assert.h>
+#include "stiffness_checker/WireFrame.hpp"
+#include "stiffness_checker/DualGraph.hpp"
+#include "stiffness_checker/StiffnessParm.hpp"
+#include "stiffness_checker/CoordTrans.hpp"
+#include "stiffness_checker/GCommon.hpp"
+#include "stiffness_checker/StiffnessSolver.hpp"
+#include "stiffness_checker/Vec.hpp"
+//#include "stiffness_checker/IllCondDetector.hpp"
 
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
-#include <Eigen/SparseCore>
-#include <Eigen/SparseCholesky>
-#include <Eigen/SparseLU>
-#include <Eigen/SparseQR>
-#include <Eigen/Core>
-#include <Eigen/OrderingMethods>
-#include <Eigen/IterativeLinearSolvers>
-
-// TODO: let's try to get rid of these two...
-#include "choreo_task_sequence_planner/utils/WireFrame.h"
-#include "choreo_task_sequence_planner/utils/DualGraph.h"
-
-// TODO: need a separate input for material properties
-#include "choreo_task_sequence_planner/FiberPrintPARM.h"
-
-#include "choreo_task_sequence_planner/utils/CoordTrans.h"
-#include "choreo_task_sequence_planner/utils/GCommon.h"
-#include "choreo_task_sequence_planner/utils/StiffnessIO.h"
-#include "choreo_task_sequence_planner/utils/StiffnessSolver.h"
-#include "choreo_task_sequence_planner/utils/IllCondDetector.h"
-
-using namespace std;
-using namespace Eigen;
+namespace conmech
+{
+namespace stiffness_checker
+{
 
 class Stiffness
 {
- private:
-  typedef Eigen::SparseMatrix<double> SpMat;
-  typedef Eigen::MatrixXd				MX;
-  typedef Eigen::VectorXd				VX;
-  typedef Eigen::VectorXi				VXi;
-  typedef	Eigen::MatrixXi				MXi;
-  typedef trimesh::point				point;
-
  public:
   Stiffness();
-  Stiffness(DualGraph *ptr_dualgraph);
-  Stiffness(
-		  DualGraph *ptr_dualgraph, FiberPrintPARM *ptr_parm, char *ptr_path = NULL,
-		  bool terminal_output = false, bool file_output = false
-  );
+  Stiffness(DualGraph *ptr_dualgraph, const StiffnessParm& parm,
+            bool terminal_output = false);
   ~Stiffness();
 
  public:
-  void		Init();
-  void		CreateFe();
-  void		CreateF(VX *ptr_x = NULL);
-  void		CreateElasticK();
-  void		CreateGlobalK(VX *ptr_x = NULL);
+  void Init();
 
   /* calculate D using LDLT */
+  //
   bool CalculateD(
-		  VX &D,
-		  VX *ptr_x = NULL,
-		  bool cond_num = false,
-		  int file_id = 0, string file_name = ""
-  );
-
-  /* calculate D using ConjugateGradient by Eigen */
-  bool CalculateD(
-		  VX &D,
-		  VX &D0,						// D0 is the last result
-		  VX *ptr_x = NULL,
-		  bool cond_num = false,
-		  int file_id = 0, string file_name = ""
-  );
+      Eigen::VectorXd &D,
+      Eigen::VectorXd *ptr_x = NULL,
+      bool cond_num = false);
 
   /* Check condition number */
-  bool CheckIllCondition(IllCondDetector &stiff_inspector);
-  bool CheckError(IllCondDetector &stiff_inspector, VX &D);
+//  bool CheckIllCondition(IllCondDetector &stiff_inspector);
+//  bool CheckError(IllCondDetector &stiff_inspector, Eigen::VectorXd &D);
 
-  /* Write to file */
-  void WriteData(
-		  VectorXd &D,
-		  int id = 0,
-		  string fname = "stiff_data"
-  );
+  // print out timing result on console
+  void PrintOutTimer();
 
-  /* Data I/O */
-  SpMat		*WeightedK(){ assert(&K_); return &K_; }
-  VX			*WeightedF(){ assert(&F_); return &F_; }
+ private:
+  void CreateFe();
+  void CreateF(Eigen::VectorXd *ptr_x = NULL);
+  void CreateElasticK();
+  void CreateGlobalK(Eigen::VectorXd *ptr_x = NULL);
 
-  MX			eKe(int ei);			// ei: orig e id
-  MX			eKv(int ei);			// ei: orig e id
-  VX			Fe(int ei);				// ei: orig e id
+ protected:
+  DualGraph* ptr_dualgraph_;
+  StiffnessParm parm_;
 
-  void		PrintOutTimer();
+  StiffnessSolver stiff_solver_;
 
- public:
-  DualGraph		*ptr_dualgraph_;
-  FiberPrintPARM	*ptr_parm_;
-  char			*ptr_path_;
+  CoordTrans transf_;
 
-  StiffnessIO		stiff_io_;
-  StiffnessSolver	stiff_solver_;
+  // x-Weighted global stiffness matrix, 6n*6n
+  Eigen::SparseMatrix<double> K_;
 
-  CoordTrans		transf_;
+  // elastic K, indexed by dual id
+  std::vector<Eigen::MatrixXd> eK_;
 
-  SpMat			K_;						// x-Weighted global stiffness matrix, 6n*6n
-  vector<MX>		eK_;					// elastic K, indexed by dual id
-  VX				F_;
-  vector<VX>		Fe_;
+  Eigen::VectorXd F_;
+  std::vector<Eigen::VectorXd> Fe_;
 
-  int				Ns_;
+  // number of wf nodes that is not fixed
+  int num_free_wf_nodes;
 
-  double			r_;						// radius of frame
-  double			nr_;					// radius of node
-  double			density_;
-  double			g_;
-  double			G_;						// shear modulus
-  double			E_;						// young's modulus;
-  double			v_;						// possion ratio
+  // TODO: do we need this?
+  double nr_; // radius of node
 
-  bool			shear_;					// 1 : shear deformation taken into consideration; 0 : not
+  bool shear_;                    // 1 : shear deformation taken into consideration; 0 : not
 
-  Timer			create_fe_;
-  Timer			create_f_;
-  Timer			create_ek_;
-  Timer			create_k_;
-  Timer			check_ill_;
-  Timer			check_error_;
+  Timer create_fe_;
+  Timer create_f_;
+  Timer create_ek_;
+  Timer create_k_;
+  Timer check_ill_;
+  Timer check_error_;
 
-  bool			terminal_output_;
-  bool			file_output_;
+  bool terminal_output_;
 };
+
+} // namespace stiffness_checker
+} // namespace conmech

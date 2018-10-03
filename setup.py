@@ -69,7 +69,7 @@ setup(
     author_email='yijiangh@mit.edu',
     description='A test project using pybind11, CMake, and a simple eigen demo inside.',
     long_description='',
-    ext_modules=[CMakeExtension('eigen_demo_py')],
+    ext_modules=[CMakeExtension('conmech_py')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
 )
