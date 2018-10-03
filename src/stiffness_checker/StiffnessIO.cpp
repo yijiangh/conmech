@@ -47,19 +47,20 @@ bool parseMaterialPropertiesJson(const std::string& file_path, StiffnessParm& fr
   frame_parm.radius_ = document["material_properties"]["radius"].GetDouble();
 }
 
-bool parseFrameJson(const std::string &file_path,
-                    WireFrame* ptr_wf, DualGraph* ptr_dg, StiffnessParm& frame_parm)
+bool parseFrameJson(const std::string &file_path, DualGraph* ptr_dg, StiffnessParm& frame_parm)
 {
   // parse frame from Json
-  assert(ptr_wf);
-  assert(ptr_dg);
+  assert(ptr_dg != NULL);
 
-  if(!ptr_wf->LoadFromJson(file_path))
+  ptr_dg->ptr_frame_ = new WireFrame();
+
+  if(!ptr_dg->ptr_frame_->LoadFromJson(file_path))
   {
     std::cout << "ERROR: load wireframe from json fails." << std::endl;
     return false;
   }
 
+  const WireFrame* ptr_wf = ptr_dg->ptr_frame_;
   std::cout << "frame read from: " << file_path << std::endl;
   std::cout << "vert size - " << ptr_wf->SizeOfVertList()
             << ", edge size - " << ptr_wf->SizeOfEdgeList()/2
@@ -67,7 +68,7 @@ bool parseFrameJson(const std::string &file_path,
 //            << ", grounded edge size - " << ptr_wf->SizeOfPillar()/2
             << std::endl;
 
-  ptr_dg->Init(ptr_wf);
+  ptr_dg->Init();
   ptr_dg->Dualization();
 
   assert(ptr_dg->SizeOfVertList() == ptr_wf->SizeOfEdgeList()/2);

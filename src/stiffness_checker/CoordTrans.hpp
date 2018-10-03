@@ -1,9 +1,10 @@
 #pragma once
 
 #include <vector>
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
 
-#include "choreo_task_sequence_planner/utils/WireFrame.h"
+#include "stiffness_checker/Vec.hpp"
+#include "stiffness_checker/WireFrame.hpp"
 
 /**
 CoordTrans -  evaluate the 3D coordinate transformation coefficients
@@ -20,34 +21,37 @@ for Z as the vertical axis
 
 Q=TF;   U=TD;   T'T=I;   Q=kU;   TF=kTD;   T'TF=T'kTD;   T'kT = K;   F=KD
 */
-class CoordTrans{
-public:
-	typedef		Eigen::MatrixXd MX;
-	typedef		Eigen::Matrix3d M3;
-	typedef		Eigen::VectorXd VX;
-	typedef		Eigen::Vector3d V3;
-	typedef		Eigen::VectorXi VXi;
-	typedef		Eigen::MatrixXi MXi;
-public:
-	CoordTrans(){};
-	~CoordTrans(){};
 
-	void CreateTransMatrix(
-		std::vector<V3>	xyz,
-		double L,			// length of the element(edge)
-		int n1, int n2,		// index fo endpoint of the element
-		double &t0, double &t1, double &t2, double &t3, double &t4, 
-		double &t5, double &t6, double &t7, double &t8,
-		float p);
+namespace conmech
+{
+namespace stiffness_checker
+{
 
-	void CreateTransMatrix(
-		point u, point v,
-		double &t0, double &t1, double &t2, double &t3, double &t4,
-		double &t5, double &t6, double &t7, double &t8,
-		float p);
+class CoordTrans
+{
+ public:
+  CoordTrans(){};
+  ~CoordTrans(){};
 
-	void TransLocToGlob(
-		double t0, double t1, double t2, double t3, double t4,
-		double t5, double t6, double t7, double t8,
-		MX	   &m, float r1, float r2);
+  void CreateTransMatrix(
+		  std::vector<Eigen::Vector3d>	xyz,
+		  double L,			// length of the element(edge)
+		  int n1, int n2,		// index fo endpoint of the element
+		  double &t0, double &t1, double &t2, double &t3, double &t4,
+		  double &t5, double &t6, double &t7, double &t8,
+		  float p);
+
+  void CreateTransMatrix(
+		  trimesh::point u, trimesh::point v,
+		  double &t0, double &t1, double &t2, double &t3, double &t4,
+		  double &t5, double &t6, double &t7, double &t8,
+		  float p);
+
+  void TransLocToGlob(
+		  double t0, double t1, double t2, double t3, double t4,
+		  double t5, double t6, double t7, double t8,
+		  Eigen::MatrixXd &m, float r1, float r2);
 };
+
+} // namespace stiffness_checker
+} // namespace conmech

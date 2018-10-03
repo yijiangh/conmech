@@ -1,4 +1,4 @@
-#include "stiffness_checker/Timer.h"
+#include "stiffness_checker/Timer.hpp"
 
 namespace conmech
 {
@@ -33,10 +33,10 @@ void Timer::Reset()
 	count_ = 0;
 }
 
-void Timer::Print(char *item)
+void Timer::Print(const std::string& item)
 {
 	printf("%s total-time:%3.4lf   count:%4d   avg-time:%3.4lf\n",
-		   item, sum_time_, count_, sum_time_ / count_);
+		   item.c_str(), sum_time_, count_, sum_time_ / count_);
 }
 
 std::string Timer::ToString() const

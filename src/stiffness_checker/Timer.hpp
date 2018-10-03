@@ -49,8 +49,10 @@ namespace stiffness_checker
 
 class Timer
 {
+ private:
   typedef std::chrono::time_point<std::chrono::system_clock> TimePoint;
   typedef std::chrono::duration<double> Duration;
+
  public:
   Timer();
   ~Timer();
@@ -59,7 +61,7 @@ class Timer
   void Start();
   void Stop();
   void Reset();
-  void Print(char *item);
+  void Print(const std::string& item);
   std::string ToString() const;
 
  private:

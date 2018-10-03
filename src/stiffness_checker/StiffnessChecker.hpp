@@ -15,8 +15,8 @@ namespace stiffness_checker
 class StiffnessChecker : public Stiffness
 {
  public:
-
-  explicit StiffnessChecker(const std::string &json_file_path, bool verbose = false) noexcept;
+  StiffnessChecker(const std::string &json_file_path, bool verbose = false);
+  ~StiffnessChecker();
 
   bool checkDeformation(const std::vector<int> &existing_element_ids);
   bool checkDeformation(const std::vector<int> &existing_element_ids, std::vector<double> &nodes_deformation);

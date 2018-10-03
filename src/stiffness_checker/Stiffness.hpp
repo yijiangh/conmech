@@ -46,11 +46,11 @@
 
 #include "stiffness_checker/WireFrame.hpp"
 #include "stiffness_checker/DualGraph.hpp"
-#include "stiffness_checker/FiberPrintPARM.hpp"
+#include "stiffness_checker/StiffnessParm.hpp"
 #include "stiffness_checker/CoordTrans.hpp"
 #include "stiffness_checker/GCommon.hpp"
-#include "stiffness_checker/StiffnessIO.hpp"
 #include "stiffness_checker/StiffnessSolver.hpp"
+#include "stiffness_checker/Vec.hpp"
 //#include "stiffness_checker/IllCondDetector.hpp"
 
 namespace conmech
@@ -60,101 +60,79 @@ namespace stiffness_checker
 
 class Stiffness
 {
-// private:
-//  typedef Eigen::SparseMatrix<double> SpMat;
-//  typedef Eigen::MatrixXd MX;
-//  typedef Eigen::VectorXd VX;
-//  typedef Eigen::VectorXi VXi;
-//  typedef Eigen::MatrixXi MXi;
-//  typedef trimesh::point point;
-
  public:
   Stiffness();
-  Stiffness(DualGraph *ptr_dualgraph, FiberPrintPARM *ptr_parm,
+  Stiffness(DualGraph *ptr_dualgraph, const StiffnessParm& parm,
 			bool terminal_output = false);
   ~Stiffness();
 
  public:
   void Init();
   void CreateFe();
-  void CreateF(VX *ptr_x = NULL);
+  void CreateF(Eigen::VectorXd *ptr_x = NULL);
   void CreateElasticK();
-  void CreateGlobalK(VX *ptr_x = NULL);
+  void CreateGlobalK(Eigen::VectorXd *ptr_x = NULL);
 
   /* calculate D using LDLT */
   bool CalculateD(
-		  VX &D,
-		  VX *ptr_x = NULL,
+		  Eigen::VectorXd &D,
+		  Eigen::VectorXd *ptr_x = NULL,
 		  bool cond_num = false,
 		  int file_id = 0, string file_name = ""
   );
 
   /* calculate D using ConjugateGradient by Eigen */
   bool CalculateD(
-		  VX &D,
-		  VX &D0,                        // D0 is the last result
-		  VX *ptr_x = NULL,
+		  Eigen::VectorXd &D,
+		  Eigen::VectorXd &D0,                        // D0 is the last result
+		  Eigen::VectorXd *ptr_x = NULL,
 		  bool cond_num = false,
 		  int file_id = 0, string file_name = ""
   );
 
   /* Check condition number */
-  bool CheckIllCondition(IllCondDetector &stiff_inspector);
-  bool CheckError(IllCondDetector &stiff_inspector, VX &D);
+//  bool CheckIllCondition(IllCondDetector &stiff_inspector);
+//  bool CheckError(IllCondDetector &stiff_inspector, Eigen::VectorXd &D);
 
   /* Data I/O */
-  SpMat *WeightedK()
+  Eigen::SparseMatrix<double> *WeightedK()
   {
 	  assert(&K_);
 	  return &K_;
   }
-  VX *WeightedF()
+  Eigen::VectorXd *WeightedF()
   {
 	  assert(&F_);
 	  return &F_;
   }
 
-  MX eKe(int ei);            // ei: orig e id
-  MX eKv(int ei);            // ei: orig e id
-  VX Fe(int ei);                // ei: orig e id
+  Eigen::MatrixXd eKe(int ei);            // ei: orig e id
+  Eigen::MatrixXd eKv(int ei);            // ei: orig e id
+  Eigen::VectorXd Fe(int ei);                // ei: orig e id
 
   void PrintOutTimer();
 
- public:
-  DualGraph *ptr_dualgraph_;
-  FiberPrintPARM *ptr_parm_;
+ protected:
+  DualGraph* ptr_dualgraph_;
+  StiffnessParm parm_;
 
-  StiffnessIO stiff_io_;
   StiffnessSolver stiff_solver_;
 
   CoordTrans transf_;
 
-  SpMat K_;                        // x-Weighted global stiffness matrix, 6n*6n
-  vector <MX> eK_;                    // elastic K, indexed by dual id
-  VX F_;
-  vector <VX> Fe_;
+  // x-Weighted global stiffness matrix, 6n*6n
+  Eigen::SparseMatrix<double> K_;
+
+  // elastic K, indexed by dual id
+  std::vector<Eigen::MatrixXd> eK_;
+
+  Eigen::VectorXd F_;
+  std::vector<Eigen::VectorXd> Fe_;
 
   int Ns_;
 
-  // TODO: should be a list linked to elements
-  double radius_; // radius of frame
-
   // TODO: do we need this?
   double nr_; // radius of node
-
-  double density_;
-
-  // gravitational acceleration
-  double g_;
-
-  // shear modulus
-  double G_;
-
-  // young's modulus
-  double E_;
-
-  // poisson ratio
-  double v_;
 
   bool shear_;                    // 1 : shear deformation taken into consideration; 0 : not
 

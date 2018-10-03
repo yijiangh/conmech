@@ -1,15 +1,9 @@
 #pragma once
 
-#include <iostream>
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
-#include <Eigen/SparseCholesky>
-#include <Eigen/LU>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Sparse>
 
-#include "choreo_task_sequence_planner/utils/Timer.h"
-
-#define sind(x) (sin(fmod((x),360) * M_PI / 180))
-#define cosd(x) (cos(fmod((x),360) * M_PI / 180))
+#include "stiffness_checker/Timer.hpp"
 
 using namespace std;
 
@@ -20,7 +14,7 @@ namespace stiffness_checker
 
 class StiffnessSolver
 {
- public:
+ private:
   typedef Eigen::SparseMatrix<double> SpMat;
   typedef Eigen::MatrixXd MX;
   typedef Eigen::Matrix3d M3;
@@ -48,11 +42,11 @@ class StiffnessSolver
   * Note: This function use eigen library SimplicialLDLt module to solve the linear system.
   */
   bool SolveSystem(
-		  SpMat &K,
-		  VX &D,
-		  VX &F,
-		  int verbose,
-		  int &info
+      SpMat &K,
+      VX &D,
+      VX &F,
+      int verbose,
+      int &info
   );
 
   /*
@@ -67,12 +61,12 @@ class StiffnessSolver
   * Note: This function use eigen library :ConjugateGradient module to solve the linear system.
   */
   bool SolveSystem(
-		  SpMat &K,
-		  VX &D,
-		  VX &F,
-		  VX &D0,
-		  int verbose,
-		  int &info
+      SpMat &K,
+      VX &D,
+      VX &F,
+      VX &D0,
+      int verbose,
+      int &info
   );
 
   void Debug();
@@ -82,9 +76,9 @@ class StiffnessSolver
   * This LUDecomp module use Eigen library to solve the linear system
   */
   bool LUDecomp(
-		  MX &A,
-		  VX &x,
-		  VX &b
+      MX &A,
+      VX &x,
+      VX &b
   );
 
  public:

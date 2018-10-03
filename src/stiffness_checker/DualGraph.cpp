@@ -10,6 +10,7 @@ namespace stiffness_checker
 {
 DualGraph::DualGraph()
 {
+  ptr_frame_ = NULL;
   vert_list_ = NULL;
   edge_list_ = NULL;
   face_list_ = NULL;
@@ -17,6 +18,8 @@ DualGraph::DualGraph()
 
 DualGraph::DualGraph(WireFrame *ptr_frame)
 {
+  assert(ptr_frame != NULL);
+
   ptr_frame_ = ptr_frame;
   vert_list_ = NULL;
   edge_list_ = NULL;

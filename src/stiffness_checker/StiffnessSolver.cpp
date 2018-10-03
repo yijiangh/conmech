@@ -1,4 +1,9 @@
-#include "stiffness_checker/StiffnessSolver.h"
+#include "stiffness_checker/StiffnessSolver.hpp"
+
+namespace conmech
+{
+namespace stiffness_checker
+{
 
 StiffnessSolver::StiffnessSolver()
 {
@@ -149,3 +154,6 @@ bool StiffnessSolver::LUDecomp(MX &A, VX &x, VX &b)
 void StiffnessSolver::Debug()
 {
 }
+
+} // namespace stiffness_checker
+} // namespace conmech
