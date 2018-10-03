@@ -10,28 +10,29 @@ double convertUnitScale(const std::string& unit)
 {
   if("millimeter" == unit || "mm" == unit)
   {
-    return 0.001;
-  }
-  if("centimeter" == unit || "cm" == unit)
-  {
-    return 0.01;
-  }
-  if("meter" == unit || "m" == unit)
-  {
     return 1;
   }
-  if("inch" == unit || "in" == unit)
-  {
-    return 0.0254;
-  }
-  if("foot" == unit || "ft" == unit)
-  {
-    return 0.3048;
-  }
+  //TODO: complete this, we are using mm now.
+//  if("centimeter" == unit || "cm" == unit)
+//  {
+//    return 0.01;
+//  }
+//  if("meter" == unit || "m" == unit)
+//  {
+//    return 1;
+//  }
+//  if("inch" == unit || "in" == unit)
+//  {
+//    return 0.0254;
+//  }
+//  if("foot" == unit || "ft" == unit)
+//  {
+//    return 0.3048;
+//  }
 
   // default millimeter
   std::cout << "WARNING: unrecognized unit in the input json file. Using millimeter by default." << std::endl;
-  return 0.001;
+  return 1;
 }
 
 } // util anon ns

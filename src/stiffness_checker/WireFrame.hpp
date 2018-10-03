@@ -311,7 +311,11 @@ class WireFrame
   }
 
  private:
+  // Note: the wf vert id is consistent with the vert id in the input file
   std::vector<WF_vert*>* pvert_list_;
+
+  // Note: the wf edge id here is (2*i), if the original edge in the input file is i
+  // since we are using the double direction half-edge data structure
   std::vector<WF_edge*>* pedge_list_;
 
   int fixed_vert_;

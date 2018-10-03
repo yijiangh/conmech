@@ -63,54 +63,31 @@ class Stiffness
  public:
   Stiffness();
   Stiffness(DualGraph *ptr_dualgraph, const StiffnessParm& parm,
-			bool terminal_output = false);
+            bool terminal_output = false);
   ~Stiffness();
 
  public:
   void Init();
-  void CreateFe();
-  void CreateF(Eigen::VectorXd *ptr_x = NULL);
-  void CreateElasticK();
-  void CreateGlobalK(Eigen::VectorXd *ptr_x = NULL);
 
   /* calculate D using LDLT */
+  //
   bool CalculateD(
-		  Eigen::VectorXd &D,
-		  Eigen::VectorXd *ptr_x = NULL,
-		  bool cond_num = false,
-		  int file_id = 0, string file_name = ""
-  );
-
-  /* calculate D using ConjugateGradient by Eigen */
-  bool CalculateD(
-		  Eigen::VectorXd &D,
-		  Eigen::VectorXd &D0,                        // D0 is the last result
-		  Eigen::VectorXd *ptr_x = NULL,
-		  bool cond_num = false,
-		  int file_id = 0, string file_name = ""
-  );
+      Eigen::VectorXd &D,
+      Eigen::VectorXd *ptr_x = NULL,
+      bool cond_num = false);
 
   /* Check condition number */
 //  bool CheckIllCondition(IllCondDetector &stiff_inspector);
 //  bool CheckError(IllCondDetector &stiff_inspector, Eigen::VectorXd &D);
 
-  /* Data I/O */
-  Eigen::SparseMatrix<double> *WeightedK()
-  {
-	  assert(&K_);
-	  return &K_;
-  }
-  Eigen::VectorXd *WeightedF()
-  {
-	  assert(&F_);
-	  return &F_;
-  }
-
-  Eigen::MatrixXd eKe(int ei);            // ei: orig e id
-  Eigen::MatrixXd eKv(int ei);            // ei: orig e id
-  Eigen::VectorXd Fe(int ei);                // ei: orig e id
-
+  // print out timing result on console
   void PrintOutTimer();
+
+ private:
+  void CreateFe();
+  void CreateF(Eigen::VectorXd *ptr_x = NULL);
+  void CreateElasticK();
+  void CreateGlobalK(Eigen::VectorXd *ptr_x = NULL);
 
  protected:
   DualGraph* ptr_dualgraph_;
@@ -129,7 +106,8 @@ class Stiffness
   Eigen::VectorXd F_;
   std::vector<Eigen::VectorXd> Fe_;
 
-  int Ns_;
+  // number of wf nodes that is not fixed
+  int num_free_wf_nodes;
 
   // TODO: do we need this?
   double nr_; // radius of node

@@ -63,9 +63,9 @@ class DualVertex
   double Height() const { return height_; }
 
  private:
-  int orig_id_;                                        // indexed by dual edge id
-  int dual_id_;                                        // indexed by original edge id
-  double height_;                                        // z of central points on this original edge
+  int orig_id_;   // indexed by dual edge id
+  int dual_id_;   // indexed by original edge id
+  double height_; // z of central points on this original edge
   // indexed by dual id
 };
 
@@ -128,16 +128,27 @@ class DualGraph
  public:
   void Init();
   void Init(WireFrame *ptr_frame);
+
+  // init dual graph with whole wireframe
+  void Dualization();
+
+  // update dual graph with indicator vector x
+  void UpdateDualization(Eigen::VectorXd *ptr_x);
+
+  // insert a trail edge ei from frame
+  int UpdateDualization(WF_edge *e);
+
+  // remove the trail edge
+  int RemoveUpdation(WF_edge *e);
+
+ protected:
+  // safe delete dual vert, edge, face list pointers. Wireframe pointer is left untouched.
   void Clear();
 
-  void Dualization();                                    // dualization on the whole frame
-
-  void UpdateDualization(Eigen::VectorXd *ptr_x);                // update from graphcut
+  // based on current indicator list (existing or not), build dual graph upon wireframe
   void Establish();
 
-  int UpdateDualization(WF_edge *e);                    // insert a trail edge ei from frame
-  int RemoveUpdation(WF_edge *e);                        // remove the trail edge
-
+ public:
   void InsertVertex(WF_edge *e);
   void InsertEdge(WF_edge *e1, WF_edge *e2, double w, WF_vert *vert);
   int InsertFace(WF_vert *p);                            // insert a dual face at the end of free face
@@ -155,8 +166,11 @@ class DualGraph
 
   int u(int ei) { return (*edge_list_)[ei]->u(); }
   int v(int ei) { return (*edge_list_)[ei]->v(); }
+
+  // TODO: This is the most confusing part
   int e_orig_id(int u) { return (*vert_list_)[u]->orig_id(); }
   int e_dual_id(int u) { return (*vert_list_)[u]->dual_id(); }
+
   int v_orig_id(int i) { return (*face_list_)[i]->orig_id(); }
   int v_dual_id(int i) { return (*face_list_)[i]->dual_id(); }
 
@@ -195,18 +209,41 @@ class DualGraph
   WireFrame *ptr_frame_;
 
  private:
-  std::vector<DualEdge*> *edge_list_;                // dual edge: original edge -> original edge
-  std::vector<DualVertex*> *vert_list_;                // dual vert: original edge
-  std::vector<DualFace*> *face_list_;                // dual face: original vert
+  // dual edge: the nodal (vert) connection between two wf edges
+  // Note: a single wf node can be duplicated in this list
+  std::vector<DualEdge*> *edge_list_;
 
-  std::vector<int> exist_vert_;                // indexed by original id
-  std::vector<bool> exist_edge_;                // indexed by original id
+  // dual vert: a two-way hash table
+  // for 0 < = id < 2*edge size, vert_list[i] point you to dual id
+  // for 2*edge size <= id < 3*edge_size, vert_list[i] point you to wf_edge with smaller id
 
-  std::vector< std::vector<bool> > is_adjacent_;
+  // Note: the index of dual vert is consistent with edge id in the input wf file
+  std::vector<DualVertex*> *vert_list_;
 
+  // dual face: unique representation of wf vert
+  // Note: the index of dual face is NOT consistent with edge id in the input wf file
+  // because we are mostly dealing with substructre here
+  std::vector<DualFace*> *face_list_;
+
+  // TODO: this list's index is a bit confusing
+  // Note: this is indicating the existence of original vert in the structure
+  // indexed by original id
+  std::vector<int> exist_vert_;
+
+  // Note: this is indicating the existence of original edge in the structure
+  // indexed by original id
+  std::vector<bool> exist_edge_;
+
+  // current size of dual_edge list
   int Nd_;
+
+  // current size of dual_vert list
   int Md_;
+
+  // current size of dual face list
   int Fd_;
+
+  // current size of dual faces that are not fixed
   int Fd_free_;
 
   double maxz_;

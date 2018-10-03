@@ -25,11 +25,13 @@ StiffnessChecker::StiffnessChecker(const std::string &json_file_path, bool verbo
   this->nr_ = 0.0;
   this->shear_ = 0;
 
-  Init();
+  this->Init();
 }
 
 StiffnessChecker::~StiffnessChecker()
 {
+  // TODO: this garbage collection mechanism is very easy to crash the code...
+
   if(ptr_dualgraph_ != NULL)
   {
     if(ptr_dualgraph_->ptr_frame_ != NULL)
@@ -46,25 +48,40 @@ StiffnessChecker::~StiffnessChecker()
 bool StiffnessChecker::checkDeformation(const std::vector<int> &existing_element_ids)
 {
   Eigen::VectorXd D;
-  bool success = CalculateD(D, NULL, true, 0, "FiberTest");
+  Eigen::VectorXd x;
 
-  if (success)
+  x.resize(ptr_dualgraph_->SizeOfVertList());
+  x.setZero();
+
+  for(int id : existing_element_ids)
   {
-    std::cout << "[conmech::stiffness_checker] Maximal node deforamtion (mm): " << D.maxCoeff()
-              << ", tolerance (mm): (N/A)" << std::endl;
-  }
-  else
-  {
-    std::cout << "[conmech::stiffness_checker] stiffness computation fails." << std::endl;
+    x[id] = 1;
   }
 
-  PrintOutTimer();
+  bool success = CalculateD(D, &x, terminal_output_);
+
+  if(terminal_output_)
+  {
+    if (success)
+    {
+      std::cout << "[conmech::stiffness_checker] Maximal node deforamtion (mm): " << D.maxCoeff()
+                << ", tolerance (mm): (N/A)" << std::endl;
+    }
+    else
+    {
+      std::cout << "[conmech::stiffness_checker] stiffness computation fails." << std::endl;
+    }
+
+    PrintOutTimer();
+  }
+
+  return success;
 }
 
 bool StiffnessChecker::checkDeformation(
     const std::vector<int> &existing_element_ids, std::vector<double> &nodes_deformation)
 {
-
+  std::cout << "not implemented at this moment." << std::endl;
 }
 
 } // ns stiffness_checker

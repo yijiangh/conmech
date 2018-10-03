@@ -121,23 +121,6 @@ void DualGraph::Dualization()
   maxz_ = ptr_frame_->maxZ();
   minz_ = ptr_frame_->minZ();
 
-  //maxz_ = -1e20;
-  //minz_ = 1e20;
-
-  //int M = ptr_frame_->SizeOfEdgeList();
-  //for (int i = 0; i < M; i++)
-  //{
-  //	double z = ptr_frame_->GetCenterPos(i).z();
-  //	if (z > maxz_)
-  //	{
-  //		maxz_ = z;
-  //	}
-  //	if (z < minz_)
-  //	{
-  //		minz_ = z;
-  //	}
-  //}
-
   // first time & all exsits
   fill(exist_vert_.begin(), exist_vert_.end(), 1);
   fill(exist_edge_.begin(), exist_edge_.end(), true);
@@ -183,7 +166,7 @@ void DualGraph::UpdateDualization(Eigen::VectorXd *ptr_x)
   }
 
   // Release the last edge_list_
-  int Md = edge_list_->size();
+  size_t Md = edge_list_->size();
   for (int i = 0; i < Md; i++)
   {
     delete (*edge_list_)[i];
@@ -202,13 +185,15 @@ void DualGraph::Establish()
   Fd_ = 0;
   Fd_free_ = 0;
 
-  // vert list
+  // dual vert list
   for (int i = 0; i < M; i++)
   {
     if (exist_edge_[i])
     {
       WF_edge *e = ptr_frame_->GetEdge(i);
       int j = e->ppair_->ID();
+
+      // only pointer to the wf_edge copy with smaller id
       if (i < j)
       {
         InsertVertex(e);
@@ -331,10 +316,15 @@ void DualGraph::InsertVertex(WF_edge *e)
 {
   int i = e->ID();
   int j = e->ppair_->ID();
+  assert(i < j);
+
   (*vert_list_)[i]->SetDualId(Nd_);
   (*vert_list_)[j]->SetDualId(Nd_);
+  assert(i == 2*Nd_);
+
   (*vert_list_)[Nd_]->SetOrigId(i);
   (*vert_list_)[Nd_]->SetHeight((e->CenterPos()).z());
+
   Nd_++;
 }
 
