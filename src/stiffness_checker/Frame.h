@@ -48,10 +48,12 @@ class FrameVert
   void addNghdElement(FrameElementPtr& e)
   {
     p_nghd_element_list_.push_back(e);
+    degree_ = (int)p_nghd_element_list_.size();
   }
   void clearNghdElement()
   {
     p_nghd_element_list_.clear();
+    degree_ = (int)p_nghd_element_list_.size();
   }
 
  private:
@@ -77,6 +79,8 @@ class FrameElement
 
   void setID(int id) { id_ = id; }
   void setLayer(int layer) { layer_ = layer; }
+  void setEndVertU(FrameVertPtr u) { pvert_u = u; }
+  void setEndVertV(FrameVertPtr v) { pvert_v = v; }
 
   double getLength() const
   {
@@ -107,7 +111,6 @@ class FrameElement
   FrameVertPtr pvert_u;
   FrameVertPtr pvert_v;
 
- private:
   int id_;
   int layer_;
 };
@@ -115,81 +118,39 @@ class FrameElement
 class Frame
 {
  public:
-  Frame();
-  ~Frame();
+  Frame(): layer_size_(0), fixed_vert_size_(0), unit_scale_(1.0) {}
+  ~Frame() {}
 
  public:
   bool loadFromJson(const std::string& file_path);
+  void clear();
 
   FrameVertPtr insertVertex(const Eigen::Vector3d& p);
-  FrameElementPtr insertEdge(FrameVertPtr u, FrameVert v);
+  FrameElementPtr insertElement(FrameVertPtr u, FrameVertPtr v);
 
   void unify();
 
-  void setUnitScale(double unit_scale) { unit_scale_ = unit_scale; }
+  inline void setUnitScale(double unit_scale) { unit_scale_ = unit_scale; }
 
-  inline std::size_t sizeOfVertList() const { return vert_list_.size(); }
-  inline std::size_t sizeOfElementList() const { return element_list_.size(); }
+  inline int sizeOfVertList() const { return (int)vert_list_.size(); }
+  inline int sizeOfElementList() const { return (int)element_list_.size(); }
   inline int sizeOfFixedVert() const { return fixed_vert_size_; }
   inline int sizeOfLayer() const { return layer_size_; }
 
-  inline const FrameVertPtr getVert(int vert_id) const
-  {
-    return (vert_id >= sizeOfVertList() || vert_id < 0) ? NULL : vert_list_[vert_id];
-  }
+  const FrameVertPtr getVert(int vert_id) const;
+  const std::vector<FrameElementPtr> getVertNeighborEdgeList(int v_id);
+  Eigen::Vector3d getVertPosition(int v_id) const;
+  int getVertDegree(int v_id) const;
+  bool isVertFixed(int v_id) const;
 
-  inline const FrameElementPtr getElement(int e_id) const 
-  {
-    return (e_id >= sizeOfElementList() || e_id < 0) ? NULL : element_list_[e_id];
-  }
-  
-  inline const std::vector<FrameElementPtr> getVertNeighborEdgeList(int v_id)
-  { 
-    assert(v_id >= sizeOfVertList() || v_id < 0);
-    return vert_list_[v_id]->nghdElements();
-  }
-
-  inline Eigen::Vector3d getVertPosition(int v_id) const
-  {
-    assert(v_id < sizeOfVertList() && v_id >= 0);
-    return vert_list_[v_id]->position();
-  }
-
-  inline int getVertDegree(int v_id) const
-  {
-    assert(v_id < sizeOfVertList() && v_id >= 0);
-    return vert_list_[v_id]->degree();
-  }
-
-  inline const FrameVertPtr getElementEndVertU(int e_id) const
-  {
-    assert(e_id < sizeOfElementList() && e_id >= 0);
-    return element_list_[e_id]->endVertU();
-  }
-
-  inline const FrameVertPtr getElementEndVertV(int e_id) const
-  {
-    assert(e_id < sizeOfElementList() && e_id >= 0);
-    return element_list_[e_id]->endVertV();
-  }
+  const FrameElementPtr getElement(int e_id) const;
+  const FrameVertPtr getElementEndVertU(int e_id) const;
+  const FrameVertPtr getElementEndVertV(int e_id) const;
 
   inline Eigen::Vector3d getCenterPos() const { return center_pos_; }
   inline Eigen::Vector3d getBaseCenterPos() const { return base_center_pos_; }
 
   inline double getUnitScale() const { return unit_scale_; }
-
-  inline bool isFixed(int v_id) const
-  {
-    assert(v_id < sizeOfVertList() && v_id >= 0);
-    return vert_list_[v_id]->isFixed();
-  }
-
-  inline double maxX() const { return maxx_; }
-  inline double minX() const { return minx_; }
-  inline double maxY() const { return maxy_; }
-  inline double minY() const { return miny_; }
-  inline double maxZ() const { return maxz_; }
-  inline double minZ() const { return minz_; }
 
  private:
   std::vector<FrameVertPtr> vert_list_;

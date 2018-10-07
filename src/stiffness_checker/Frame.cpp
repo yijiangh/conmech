@@ -1,8 +1,10 @@
 #include <iostream>
-#include "stiffness_checker/Frame.h"
-
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
+
+#include <eigen3/Eigen/Dense>
+
+#include "stiffness_checker/Frame.h"
 
 namespace
 {
@@ -34,7 +36,6 @@ double convertUnitScale(const std::string& unit)
   std::cout << "WARNING: unrecognized unit in the input json file. Using millimeter by default." << std::endl;
   return 1;
 }
-
 } // util anon ns
 
 namespace conmech
@@ -42,265 +43,75 @@ namespace conmech
 namespace stiffness_checker
 {
 
-WireFrame::WireFrame()
-    : delta_tol_(1e-1), unify_size_(2.0), layer_size_(0), unit_scale_(1.0)
+const FrameVertPtr Frame::getVert(int vert_id) const
 {
-  pvert_list_ = new std::vector<WF_vert*>;
-  pedge_list_ = new std::vector<WF_edge*>;
+  return (vert_id >= sizeOfVertList() || vert_id < 0) ? NULL : vert_list_[vert_id];
 }
 
-WireFrame::~WireFrame()
+const FrameElementPtr Frame::getElement(int e_id) const
 {
-  int N = pvert_list_->size();
-  for (int i = 0; i < N; i++)
-  {
-    delete (*pvert_list_)[i];
-    (*pvert_list_)[i] = NULL;
-  }
-  delete pvert_list_;
-  pvert_list_ = NULL;
-
-  int M = pedge_list_->size();
-  for (int i = 0; i < M; i++)
-  {
-    delete (*pedge_list_)[i];
-    (*pedge_list_)[i] = NULL;
-  }
-  delete pedge_list_;
-  pedge_list_ = NULL;
+  return (e_id >= sizeOfElementList() || e_id < 0) ? NULL : element_list_[e_id];
 }
 
-//void WireFrame::LoadFromPWF(const char *path)
-//{
-//  /* assert that there is no replication in PWF */
-//
-//  FILE *fp = fopen(path, "r");
-//
-//  assert(fp);
-//
-//  try
-//  {
-//    // read vertexes
-//    fseek(fp, 0, SEEK_SET);
-//    char pLine[512];
-//    char *tok;
-//    while (fgets(pLine, 512, fp))
-//    {
-//      if (pLine[0] == 'v' && pLine[1] == ' ')
-//      {
-//        Vec3f p;
-//        char tmp[128];
-//        tok = strtok(pLine, " ");
-//        for (int i = 0; i < 3; i++)
-//        {
-//          tok = strtok(NULL, " ");
-//          strcpy(tmp, tok);
-//          tmp[strcspn(tmp, " ")] = 0;
-//          p[i] = (float) atof(tmp);
-//        }
-//
-//        p = point(p.x(), p.y(), p.z());
-//        InsertVertex(p);
-//      }
-//    }
-//
-//    // read layer
-//    fseek(fp, 0, SEEK_SET);
-//    while (fgets(pLine, 512, fp))
-//    {
-//      if (pLine[0] == 'g' && pLine[1] == ' ')
-//      {
-//        tok = strtok(pLine, " ");
-//
-//        char tmp[128];
-//        tok = strtok(NULL, " ");
-//        strcpy(tmp, tok);
-//        tmp[strcspn(tmp, " ")] = 0;
-//        int u = (int) atof(tmp) - 1;
-//
-//        tok = strtok(NULL, " ");
-//        strcpy(tmp, tok);
-//        tmp[strcspn(tmp, " ")] = 0;
-//        int v = (int) atof(tmp) - 1;
-//
-//        tok = strtok(NULL, " ");
-//        strcpy(tmp, tok);
-//        tmp[strcspn(tmp, " ")] = 0;
-//        int layer = (int) atof(tmp);
-//
-//        if (!(0 <= u && u < pvert_list_->size()))
-//        {
-//          std::cout << "read layer: start node id overflow: " << u << "/" << pvert_list_->size() << std::endl;
-//          assert(0 <= u && u < pvert_list_->size());
-//        }
-//        if (!(0 <= v && v < pvert_list_->size()))
-//        {
-//          std::cout << "read layer: end node id overflow: " << v << "/" << pvert_list_->size() << std::endl;
-//          assert(0 <= v && v < pvert_list_->size());
-//        }
-//
-//        WF_edge *e = InsertEdge((*pvert_list_)[u], (*pvert_list_)[v]);
-//        if (e != NULL)
-//        {
-//          if (e->Layer() != -1)
-//          {
-//            std::cout << "Overwrite previously set id! - prev layer id : " << e->Layer()
-//                      << ", current id: " << layer << std::endl;
-//            assert(e->Layer() == -1);
-//          }
-//
-//          e->SetLayer(layer);
-//          e->ppair_->SetLayer(layer);
-//        }
-//      }
-//    }
-//
-//    // read lines
-//    char c;
-//    int prev;
-//    int curv;
-//    fseek(fp, 0, SEEK_SET);
-//    while (c = fgetc(fp), c != EOF)
-//    {
-//      while (c != 'l' && c != EOF)
-//      {
-//        c = fgetc(fp);
-//      }
-//
-//      if (c == '\n' || c == EOF || (c = fgetc(fp)) != ' ')
-//      {
-//        continue;
-//      }
-//
-//      prev = -1;
-//      while (c != '\n' && c != EOF)
-//      {
-//        while (c = fgetc(fp), c != '\n' && c != EOF && !isdigit(c));
-//
-//        if (c == '\n' || c == EOF)
-//        {
-//          break;
-//        }
-//
-//        for (curv = 0; isdigit(c); c = fgetc(fp))
-//        {
-//          curv = curv * 10 + c - '0';
-//        }
-//        curv--;
-//
-//        if (prev != -1)
-//        {
-//          if (!(0 <= prev && prev < pvert_list_->size()))
-//          {
-//            std::cout << "read lines: start node id overflow: " << prev << "/" << pvert_list_->size() << std::endl;
-//            assert(0 <= prev && prev < pvert_list_->size());
-//          }
-//          if (!(0 <= curv && curv < pvert_list_->size()))
-//          {
-//            std::cout << "read lines: end node id overflow: " << curv << "/" << pvert_list_->size() << std::endl;
-//            assert(0 <= curv && curv < pvert_list_->size());
-//          }
-//
-//          InsertEdge((*pvert_list_)[prev], (*pvert_list_)[curv]);
-//        }
-//
-//        prev = curv;
-//      }
-//    }
-//
-//    // read pillar
-//    fseek(fp, 0, SEEK_SET);
-//    while (fgets(pLine, 512, fp))
-//    {
-//      if (pLine[0] == 'p' && pLine[1] == ' ')
-//      {
-//        tok = strtok(pLine, " ");
-//
-//        char tmp[128];
-//        tok = strtok(NULL, " ");
-//        strcpy(tmp, tok);
-//        tmp[strcspn(tmp, " ")] = 0;
-//        int u = (int) atof(tmp) - 1;
-//
-//        tok = strtok(NULL, " ");
-//        strcpy(tmp, tok);
-//        tmp[strcspn(tmp, " ")] = 0;
-//        int v = (int) atof(tmp) - 1;
-//
-//        WF_vert *b = (*pvert_list_)[u];
-//        b->SetBase(true);
-//
-//        WF_vert *f = (*pvert_list_)[v];
-//        f->SetFixed(true);
-//
-//        WF_edge *e = InsertEdge(b, f);
-//        if (e != NULL)
-//        {
-//          e->SetPillar(true);
-//          e->ppair_->SetPillar(true);
-//        }
-//      }
-//    }
-//
-//    // read ceiling
-//    fseek(fp, 0, SEEK_SET);
-//    while (fgets(pLine, 512, fp))
-//    {
-//      if (pLine[0] == 'c' && pLine[1] == ' ')
-//      {
-//        tok = strtok(pLine, " ");
-//
-//        char tmp[128];
-//        tok = strtok(NULL, " ");
-//        strcpy(tmp, tok);
-//        tmp[strcspn(tmp, " ")] = 0;
-//        int u = (int) atof(tmp) - 1;
-//
-//        tok = strtok(NULL, " ");
-//        strcpy(tmp, tok);
-//        tmp[strcspn(tmp, " ")] = 0;
-//        int v = (int) atof(tmp) - 1;
-//
-//        WF_edge *e = InsertEdge((*pvert_list_)[u], (*pvert_list_)[v]);
-//        if (e != NULL)
-//        {
-//          e->SetCeiling(true);
-//          e->ppair_->SetCeiling(true);
-//        }
-//      }
-//    }
-//
-//    Unify();
-//  }
-//  catch (...)
-//  {
-//    return;
-//  }
-//
-//  fclose(fp);
-//}
+const std::vector<FrameElementPtr> Frame::getVertNeighborEdgeList(int v_id)
+{
+  assert(v_id >= sizeOfVertList() || v_id < 0);
+  return vert_list_[v_id]->nghdElements();
+}
 
-bool WireFrame::LoadFromJson(const std::string &file_path)
+Eigen::Vector3d Frame::getVertPosition(int v_id) const
+{
+  assert(v_id < sizeOfVertList() && v_id >= 0);
+  return vert_list_[v_id]->position();
+}
+
+int Frame::getVertDegree(int v_id) const
+{
+  assert(v_id < sizeOfVertList() && v_id >= 0);
+  return vert_list_[v_id]->degree();
+}
+
+const FrameVertPtr Frame::getElementEndVertU(int e_id) const
+{
+  assert(e_id < sizeOfElementList() && e_id >= 0);
+  return element_list_[e_id]->endVertU();
+}
+
+const FrameVertPtr Frame::getElementEndVertV(int e_id) const
+{
+  assert(e_id < sizeOfElementList() && e_id >= 0);
+  return element_list_[e_id]->endVertV();
+}
+
+bool Frame::isVertFixed(int v_id) const
+{
+  assert(v_id < sizeOfVertList() && v_id >= 0);
+  return vert_list_[v_id]->isFixed();
+}
+
+bool Frame::loadFromJson(const std::string &file_path)
 {
   using namespace std;
   using namespace rapidjson;
 
   FILE *fp = fopen(file_path.c_str(), "r");
-
   assert(fp);
 
   char readBuffer[65536];
   FileReadStream is(fp, readBuffer, sizeof(readBuffer));
 
   Document document;
-
   if (document.ParseStream(is).HasParseError())
   {
     std::cout << "ERROR parsing the input json file!\n";
+    fclose(fp);
     return false;
   }
 
   fclose(fp);
+
+  // reset all existing vert and element list
+  clear();
 
   if (!document.HasMember("unit"))
   {
@@ -308,7 +119,7 @@ bool WireFrame::LoadFromJson(const std::string &file_path)
   }
   else
   {
-    // convert to meter (SI)
+    // convert to millimeter
     unit_scale_ = convertUnitScale(document["unit"].GetString());
   }
 
@@ -319,14 +130,15 @@ bool WireFrame::LoadFromJson(const std::string &file_path)
   for(int i=0; i<document["node_list"].Size(); i++)
   {
     const Value& p = document["node_list"][i]["point"];
-    WF_vert* vert = InsertVertex(
-        point(p["X"].GetDouble()*unit_scale_,
-              p["Y"].GetDouble()*unit_scale_,
-              p["Z"].GetDouble()*unit_scale_));
+    FrameVertPtr vert = insertVertex(
+        Eigen::Vector3d(p["X"].GetDouble()*unit_scale_,
+                        p["Y"].GetDouble()*unit_scale_,
+                        p["Z"].GetDouble()*unit_scale_));
 
     if(document["node_list"][i]["is_grounded"].GetInt())
     {
-      vert->SetFixed(true);
+      vert->setFixed(true);
+      fixed_vert_size_++;
     }
   }
 
@@ -340,238 +152,149 @@ bool WireFrame::LoadFromJson(const std::string &file_path)
     int v = document["element_list"][i]["end_node_ids"][1].GetInt();
     int layer = document["element_list"][i]["layer_id"].GetInt();
 
-    if (!(0 <= u && u < pvert_list_->size()))
-    {
-      std::cout << "ERROR: read edge: start node id overflow: " << u << "/" << pvert_list_->size() << std::endl;
-      assert(0 <= u && u < pvert_list_->size());
-    }
-    if (!(0 <= v && v < pvert_list_->size()))
-    {
-      std::cout << "ERROR read edge: end node id overflow: " << v << "/" << pvert_list_->size() << std::endl;
-      assert(0 <= v && v < pvert_list_->size());
-    }
 
-    WF_edge *e = InsertEdge((*pvert_list_)[u], (*pvert_list_)[v]);
+    assert(0 <= u && u < vert_list_.size());
+    assert(0 <= v && v < vert_list_.size());
+
+    FrameElementPtr e = insertElement(vert_list_[u], vert_list_[v]);
+
     if (e != NULL)
     {
-      if (e->Layer() != -1)
-      {
-        std::cout << "ERROR: Overwrite previously set id! - prev layer id : " << e->Layer()
-                  << ", current id: " << layer << std::endl;
-        assert(e->Layer() == -1);
-      }
+      assert(e->layer() == -1 && "Error: overwriting perviously assigned element's layer id");
+      e->setLayer(layer);
 
-      e->SetLayer(layer);
-      e->ppair_->SetLayer(layer);
-
-      if((*pvert_list_)[u]->isFixed() || (*pvert_list_)[v]->isFixed())
+      if(layer>layer_size_-1)
       {
-        e->SetPillar(true);
-        e->ppair_->SetPillar(true);
+        layer_size_++;
       }
     }
   }
 
-  Unify();
-
+  unify();
   return true;
 }
 
-WF_vert *WireFrame::InsertVertex(Vec3f p)
+void Frame::clear()
+{
+  for(auto e : element_list_)
+  {
+    e.reset();
+  }
+  for(auto v : vert_list_)
+  {
+    v.reset();
+  }
+
+  element_list_.clear();
+  vert_list_.clear();
+
+  layer_size_ = 0;
+  fixed_vert_size_ = 0;
+}
+
+FrameVertPtr Frame::insertVertex(const Eigen::Vector3d& p)
 {
   // detect duplication
-  int N = SizeOfVertList();
+  auto N = (int)sizeOfVertList();
+
   for (int i = 0; i < N; i++)
   {
-    if (Dist(p, (*pvert_list_)[i]->Position()) < 1e-3)
-    {
-      std::cout << "duplicate point read! (" << p.x() << ", " << p.y() << ", " << p.z() << ")" << std::endl;
-      return (*pvert_list_)[i];
-    }
+    assert((p-vert_list_[i]->position()).norm() > 1e-5 && "duplicate point detected.");
   }
 
-  WF_vert *vert = new WF_vert(p);
-  pvert_list_->push_back(vert);
-  vert->SetID(N);
-  return vert;
+  FrameVertPtr pvert = FrameVertPtr(new FrameVert(p));
+  vert_list_.push_back(pvert);
+  pvert->setID(N);
+
+  return pvert;
 }
 
-WF_edge *WireFrame::InsertEdge(WF_vert *u, WF_vert *v)
+FrameElementPtr Frame::insertElement(FrameVertPtr u, FrameVertPtr v)
 {
-  // detect duplication
-  WF_edge *e = u->pedge_;
-  while (e != NULL)
+  // duplication detection
+  auto m = (int)sizeOfElementList();
+
+  for (int i = 0; i < m; i++)
   {
-    if (e->pvert_ == v)
-    {
-      return e;
-    }
-    e = e->pnext_;
+    auto u_prev = element_list_[i]->endVertU();
+    auto v_prev = element_list_[i]->endVertV();
+
+    bool match_1 = ((u_prev->position() - u->position()).norm() < 1e-5)
+        && ((v_prev->position() - v->position()).norm() < 1e-5);
+
+    bool match_2 = ((u_prev->position() - v->position()).norm() < 1e-5)
+        && ((v_prev->position() - u->position()).norm() < 1e-5);
+
+    assert((!match_1) && (!match_2) && "duplicate element detected.");
   }
 
-  WF_edge *e1 = InsertOneWayEdge(u, v);
-  WF_edge *e2 = InsertOneWayEdge(v, u);
-  if (e1 != NULL)
-  {
-    e1->ppair_ = e2;
-    e2->ppair_ = e1;
-  }
-  return e1;
+  FrameElementPtr e = FrameElementPtr(new FrameElement());
+  e->setEndVertU(u);
+  e->setEndVertV(v);
+
+  u->addNghdElement(e);
+  v->addNghdElement(e);
+
+  e->setID(m);
+
+  element_list_.push_back(e);
+
+  return e;
 }
 
-WF_edge *WireFrame::InsertOneWayEdge(WF_vert *u, WF_vert *v)
+void Frame::unify()
 {
-  if (u == v)
-  {
-    return NULL;
-  }
-
-  WF_edge *edge = new WF_edge();
-  edge->pvert_ = v;
-  edge->pnext_ = u->pedge_;
-  u->pedge_ = edge;
-  u->IncreaseDegree();
-
-  pedge_list_->push_back(edge);
-  return edge;
-}
-
-void WireFrame::Unify()
-{
-  maxx_ = -1e20;
-  maxy_ = -1e20;
-  maxz_ = -1e20;
-  minx_ = 1e20;
-  miny_ = 1e20;
-  minz_ = 1e20;
+  maxx_ = maxy_ = maxz_ = -1e20;
+  minx_ = miny_ = minz_ = 1e20;
   basez_ = 1e20;
 
-  fixed_vert_ = 0;
-  base_vert_ = 0;
-  pillar_size_ = 0;
-  ceiling_size_ = 0;
   layer_size_ = 0;
 
-  int N = SizeOfVertList();
+  auto N = sizeOfVertList();
+
   for (int i = 0; i < N; i++)
   {
-    (*pvert_list_)[i]->SetID(i);
-    point p = (*pvert_list_)[i]->Position();
+    vert_list_[i]->setID(i);
+    auto p = vert_list_[i]->position();
 
-    if (!(*pvert_list_)[i]->isFixed())
+    // update min,max xyz
+    if (!vert_list_[i]->isFixed())
     {
-      if (p.x() > maxx_)
+      if (p[0] > maxx_)
       {
-        maxx_ = p.x();
+        maxx_ = p[0];
       }
-      if (p.y() > maxy_)
+      if (p[1] > maxy_)
       {
-        maxy_ = p.y();
+        maxy_ = p[1];
       }
-      if (p.z() > maxz_)
+      if (p[2] > maxz_)
       {
-        maxz_ = p.z();
+        maxz_ = p[2];
       }
-      if (p.x() < minx_)
+      if (p[0] < minx_)
       {
-        minx_ = p.x();
+        minx_ = p[0];
       }
-      if (p.y() < miny_)
+      if (p[1] < miny_)
       {
-        miny_ = p.y();
+        miny_ = p[1];
       }
-      if (p.z() < minz_)
+      if (p[2] < minz_)
       {
-        minz_ = p.z();
+        minz_ = p[2];
       }
     }
 
     //set base_z for once
-    if (p.z() < basez_)
+    if (p[2] < basez_)
     {
-      basez_ = p.z();
+      basez_ = p[2];
     }
   }
 
-  int M = SizeOfEdgeList();
-  for (int i = 0; i < M; i++)
-  {
-    (*pedge_list_)[i]->SetID(i);
-    if ((*pedge_list_)[i]->isPillar())
-    {
-      pillar_size_++;
-    }
-    if ((*pedge_list_)[i]->isCeiling())
-    {
-      ceiling_size_++;
-    }
-    if ((*pedge_list_)[i]->Layer() > layer_size_)
-    {
-      layer_size_ = (*pedge_list_)[i]->Layer();
-    }
-  }
-
-  if (pillar_size_ > 0)
-  {
-    // TODO: this assumption might be relaxed for future work
-    // pillar is always in the first layer if exists
-    if (0 == layer_size_)
-    {
-      layer_size_ = 1;
-    }
-
-    for (int i = 0; i < M; i++)
-    {
-      if (!(*pedge_list_)[i]->isPillar())
-      {
-        if (1 == layer_size_)
-        {
-          (*pedge_list_)[i]->SetLayer(1);
-        }
-        else
-        {
-          assert(0 != (*pedge_list_)[i]->Layer());
-        }
-      }
-      else
-      {
-        (*pedge_list_)[i]->SetLayer(0);
-      }
-    }
-
-    // add base
-    layer_size_++;
-  }
-
-  float scaleX = maxx_ - minx_;
-  float scaleY = maxy_ - miny_;
-  float scaleZ = maxz_ - minz_;
-  float scaleMax = scaleX;
-  if (scaleMax < scaleY)
-  {
-    scaleMax = scaleY;
-  }
-  if (scaleMax < scaleZ)
-  {
-    scaleMax = scaleZ;
-  }
-
-  scaleV_ = unify_size_ / scaleMax;
-  center_pos_ = point((minx_ + maxx_) / 2.f, (miny_ + maxy_) / 2.f, (minz_ + maxz_) / 2.f);
-  base_center_pos_ = point((minx_ + maxx_) / 2.f, (miny_ + maxy_) / 2.f, basez_);
-
-  for (size_t i = 0; i < N; i++)
-  {
-    (*pvert_list_)[i]->SetRenderPos(((*pvert_list_)[i]->Position() - center_pos_) * scaleV_);
-    if ((*pvert_list_)[i]->isFixed())
-    {
-      fixed_vert_++;
-    }
-    if ((*pvert_list_)[i]->isBase())
-    {
-      base_vert_++;
-    }
-  }
+  center_pos_ = Eigen::Vector3d((minx_ + maxx_) / 2, (miny_ + maxy_) / 2, (minz_ + maxz_) / 2);
+  base_center_pos_ = Eigen::Vector3d((minx_ + maxx_) / 2, (miny_ + maxy_) / 2, basez_);
 }
 
 } // ns stiffness_checker
