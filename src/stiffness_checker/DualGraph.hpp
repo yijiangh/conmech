@@ -36,7 +36,7 @@
 
 #pragma once
 #include <eigen3/Eigen/Dense>
-#include "stiffness_checker/WireFrame.hpp"
+#include "stiffness_checker/Frame.h"
 
 namespace conmech
 {

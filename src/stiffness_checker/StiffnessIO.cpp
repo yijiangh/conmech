@@ -1,5 +1,5 @@
 #include "stiffness_checker/StiffnessParm.hpp"
-#include "stiffness_checker/WireFrame.hpp"
+#include "stiffness_checker/Frame.h"
 #include "stiffness_checker/DualGraph.hpp"
 
 #include "stiffness_checker/StiffnessIO.hpp"

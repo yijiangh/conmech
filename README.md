@@ -23,8 +23,8 @@ Coming soon.
 Just clone this repository and pip install. Note the `--recursive` option which is needed for the pybind11 submodule:
 
 ```bash
-git clone --recursive https://github.mit.edu/yijiangh/conmech
-pip install ./conmech
+git clone --recursive git@github.mit.edu:yijiangh/conmech.git
+pip install ./conmech --user
 ```
 
 With the `setup.py` file included in the base folder, the pip install command will invoke CMake and build the pybind11 module as specified in CMakeLists.txt.
