@@ -1,315 +1,230 @@
 #include <cmath>
-#include <stiffness_checker/Stiffness.h>
+#include <algorithm>
+#include "stiffness_checker/Util.h"
+#include "stiffness_checker/Stiffness.h"
 
 namespace conmech
 {
 namespace stiffness_checker
 {
 
-Stiffness::Stiffness()
+Stiffness::Stiffness(Frame& frame, bool verbose)
+    : frame_(frame), verbose_(verbose)
 {
-  terminal_output_ = false;
-  ptr_dualgraph_ = NULL;
+  int N_vert = frame_.sizeOfVertList();
+  int N_element = frame_.sizeOfElementList();
+  assert(N_vert>0 && N_element>0);
+
+  self_weight_load_P_ = Eigen::MatrixXd::Zero(N_vert, 6);
 }
 
-Stiffness::Stiffness(
-    DualGraph *ptr_dualgraph, const StiffnessParm& parm,
-    bool terminal_output)
+void Stiffness::createSelfWeightNodalLoad()
 {
-  /* in use */
-  ptr_dualgraph_ = ptr_dualgraph;
-  parm_ = parm;
+  // refer [MSA McGuire et al.] P111
+  // Loads between nodal points
+  int N_vert = frame_.sizeOfVertList();
+  int N_element = frame_.sizeOfElementList();
+  self_weight_load_P_ = Eigen::MatrixXd::Zero(N_vert, 6);
 
-  nr_ = 0.0;
-  shear_ = 1;
-
-  Init();
-
-  terminal_output_ = terminal_output;
-}
-
-
-Stiffness::~Stiffness()
-{
-}
-
-
-void Stiffness::Init()
-{
-  CreateFe();
-  CreateElasticK();
-
-  num_free_wf_nodes = ptr_dualgraph_->SizeOfFreeFace();
-}
-
-
-void Stiffness::CreateFe()
-{
-  if (terminal_output_)
-  {
-    create_fe_.Start();
-  }
-
-  WireFrame *ptr_frame = ptr_dualgraph_->ptr_frame_;
-  int num_wf_edges = ptr_dualgraph_->SizeOfVertList();
-//  int num_free_wf_nodes = ptr_dualgraph_->SizeOfFaceList();
-
-  CoordTrans coord_trans;
-  // assume solid cross section
-  double Ax = M_PI * parm_.radius_ * parm_.radius_;
+  // assuming solid circular cross sec for now
+  double Ax = M_PI * std::pow(parm_.radius_, 2);
 
   // gravitional acc unit: m/s^2
-  double gx = 0;
-  double gy = 0;
+  // in global frame
   double gz = parm_.g_;
 
-  Fe_.resize(num_wf_edges);
-  for (int i = 0; i < num_wf_edges; i++)
+  for (int i = 0; i < N_element; i++)
   {
-    Fe_[i].setZero();
+    const auto e = frame_.getElement(i);
+    const auto end_u = e->endVertU();
+    const auto end_v = e->endVertV();
 
-    WF_edge *ei = ptr_frame->GetEdge(ptr_dualgraph_->e_orig_id(i));
-    WF_edge *ej = ei->ppair_;
-    int dual_u = ptr_dualgraph_->v_dual_id(ej->pvert_->ID());
-    int dual_v = ptr_dualgraph_->v_dual_id(ei->pvert_->ID());
+    double L = e->getLength();
+    // uniform force density along the element
+    // due to gravity
+    double q = parm_.density_ * Ax * L * gz;
+    // gravity in global frame
+    Eigen::Vector3d P_G(0,0,q*L/2.0);
 
-    double t0, t1, t2, t3, t4, t5, t6, t7, t8;
-    coord_trans.CreateTransMatrix(ej->pvert_->Position(), ei->pvert_->Position(),
-        t0, t1, t2, t3, t4, t5, t6, t7, t8, 0.0);
+    Eigen::Matrix3d R_LG;
+    getGlobal2LocalRotationMatrix(
+        e->endVertU()->position(),
+        e->endVertV()->position(), R_LG);
+    // gravity in local frame
+    Eigen::Vector3d P_L = R_LG * P_G;
 
-    Eigen::VectorXd Fei(12);
-    Fei.setZero();
+    // force density in local frame
+    double q_yL = P_L[1] / L;
+    double q_zL = P_L[2] / L;
 
-    // half of an element's weight, first three entrees are force
-    double L = ei->Length(); // mm
-    double self_mass = parm_.density_ * Ax * L * 1e-3; // kg
+    // according to fixed-end force diagram
+    // uniform load on a beam with both ends fixed ([MSA] p111.)
+    // fixed-end fictitious reaction
+    Eigen::VectorXd P_fL(6);
+    P_fL.head(3) = P_L; // force
+    P_fL[3] = 0.0; // no moment from axial component
+    P_fL[4] = q_yL * std::pow(L,2) / 12;
+    P_fL[5] = q_zL * std::pow(L,2) / 12;
 
-    Fei[0] = Fei[6] = self_mass * gx/ 2.0;
-    Fei[1] = Fei[7] = self_mass * gy / 2.0;
-    Fei[2] = Fei[8] = self_mass * gz / 2.0;
+    // transform back to global frame
+    Eigen::VectorXd P_fG(6);
+    auto R_GL = R_LG.transpose();
+    P_fG.head(3) = R_GL * P_fL.head(3);
+    P_fG.tail(3) = R_GL * P_fL.tail(3);
 
-    // bending caused by self weight, second three entrees are moment
-    Fei[3] = self_mass * L / 12.0 * ((-t3*t7 + t4*t6)*gy + (-t3*t8 + t5*t6)*gz);
-    Fei[4] = self_mass * L / 12.0 * ((-t4*t6 + t3*t7)*gx + (-t4*t8 + t5*t7)*gz);
-    Fei[5] = self_mass * L / 12.0 * ((-t5*t6 + t3*t8)*gx + (-t5*t7 + t4*t8)*gy);
+    self_weight_load_P_.block<1,6>(end_u->id(),0) += P_fG;
 
-    Fei[9]  = self_mass * L / 12.0 * ((t3*t7 - t4*t6)*gy + (t3*t8 - t5*t6)*gz);
-    Fei[10] = self_mass  * L / 12.0 * ((t4*t6 - t3*t7)*gx + (t4*t8 - t5*t7)*gz);
-    Fei[11] = self_mass  * L / 12.0 * ((t5*t6 - t3*t8)*gx + (t5*t7 - t4*t8)*gy);
-
-    Fe_[i] = Fei;
-  }
-
-  if (terminal_output_)
-  {
-    create_fe_.Stop();
-  }
-}
-
-
-void Stiffness::CreateF(Eigen::VectorXd *ptr_x)
-{
-  if (terminal_output_)
-  {
-    create_f_.Start();
-  }
-
-  /* Run only after CreadFe is done! */
-  WireFrame *ptr_frame = ptr_dualgraph_->ptr_frame_;
-  int num_wf_edge = ptr_dualgraph_->SizeOfVertList();
-
-  Eigen::VectorXd x;
-  if (ptr_x == NULL)
-  {
-    ptr_x = &x;
-    ptr_x->resize(num_wf_edge);
-    ptr_x->setOnes();
-  }
-
-  // only considering the unsupported ones
-  F_.resize(6 * num_free_wf_nodes);
-  F_.setZero();
-
-  for (int i = 0; i < num_wf_edge; i++)
-  {
-    WF_edge *ei = ptr_frame->GetEdge(ptr_dualgraph_->e_orig_id(i));
-    WF_edge *ej = ei->ppair_;
-
-    int dual_u = ptr_dualgraph_->v_dual_id(ej->pvert_->ID());
-    int dual_v = ptr_dualgraph_->v_dual_id(ei->pvert_->ID());
-
-    for (int j = 0; j < 6; j++)
-    {
-      // only unrestrained node is added into stiffness equation
-      if (dual_u < num_free_wf_nodes)
-      {
-        F_[dual_u * 6 + j] += (*ptr_x)[i] * Fe_[i][j];
-      }
-      if (dual_v < num_free_wf_nodes)
-      {
-        F_[dual_v * 6 + j] += (*ptr_x)[i] * Fe_[i][j + 6];
-      }
-    }
-  }
-
-  if (terminal_output_)
-  {
-    create_f_.Stop();
+    // moment on the other end needs to be negated for sign consistency
+    P_fG.tail(3) *= -1;
+    self_weight_load_P_.block<1,6>(end_v->id(),0) += P_fG;
   }
 }
 
-
-void Stiffness::CreateElasticK()
+void Stiffness::createExternalNodalLoad(const Eigen::MatrixXd& nodal_forces)
 {
-  if (terminal_output_)
+  // verify input
+  for(int i=0; i < nodal_forces.rows(); i++)
   {
-    create_ek_.Start();
+    int v_id = nodal_forces[i,0];
+    assert(0<=v_id && v_id<N_vert);
   }
 
-  WireFrame *ptr_frame   = ptr_dualgraph_->ptr_frame_;
-  std::vector<WF_edge*> wf_edge_list = *ptr_frame->GetEdgeList();
-  std::vector<WF_vert*> wf_vert_list = *ptr_frame->GetVertList();
+  ext_load_P_ = nodal_forces;
+}
 
-  int num_wf_edges = ptr_dualgraph_->SizeOfVertList();
-//  int num_free_wf_nodes = ptr_dualgraph_->SizeOfFaceList();
+void Stiffness::createLocalStiffnessMatrixList()
+{
+  // check the complete element stiffness matrix
+  // in local frame: [MSA McGuire et al.] P73
+  // for unit used in this function, we conform with
+  // the unit convention used in [MSA]'s example:
 
-  /* ref to Matrix Analysis of Strutures Aslam Kassimali, Section 8.2 Table 8.1*/
-  double Ax = F_PI * std::pow(parm_.radius_,2);
-  double Asy = Ax * (6 + 12 * parm_.poisson_ratio_ + 6 * std::pow(parm_.poisson_ratio_,2))
-      / (7 + 12 * parm_.poisson_ratio_ + 4 * std::pow(parm_.poisson_ratio_,2));
-  double Asz = Asy;
+  // for all cross section's geometrical properties
+  // cross section: mm^2
+  // Iz, Iy: mm^4
+  // J: mm^4
 
-  /* torsion constant */
-  double Jxx = 0.5 * F_PI * std::pow(parm_.radius_, 4);
+  // element length L: mm
+  // E, G: GPa (1Pa = 1 N/m^2 = 1e-9 kN/mm^2)
+  // Force: kN
+  // Moment: kN m
 
-  /* shear deformation constant */
-  double Ksy = 0;
-  double Ksz = 0;
+  double pi = atan(1)*4;
+  double A = pi * std::pow(parm_.radius_,2);
+//  double Asy = Ax * (6 + 12 * parm_.poisson_ratio_ + 6 * std::pow(parm_.poisson_ratio_,2))
+//      / (7 + 12 * parm_.poisson_ratio_ + 4 * std::pow(parm_.poisson_ratio_,2));
+//  double Asz = Asy;
 
-  /* area moment of inertia (bending about local y,z-axis)
-  * https://en.wikipedia.org/wiki/Bending (beam deflection equation)
-  * https://en.wikipedia.org/wiki/List_of_area_moments_of_inertia (numerical value)
-  * note this is slender rod of length L and Mass M, spinning around end
-  */
-  double Iyy = F_PI * std::pow(parm_.radius_,4) / 4;
-  double Izz = Iyy;
+  // torsion constant (around local x axis)
+  // see: https://en.wikipedia.org/wiki/Torsion_constant#Circle
+  double Jx = 0.5 * pi * std::pow(parm_.radius_, 4);
 
-  double t0, t1, t2, t3, t4, t5, t6, t7, t8;     /* coord transf matrix entries */
+  // area moment of inertia (bending about local y,z-axis)
+  // assuming solid circular area of radius r
+  // see: https://en.wikipedia.org/wiki/List_of_area_moments_of_inertia
+  // note this is slender rod of length L and Mass M, spinning around end
+  double Iy = F_PI * std::pow(parm_.radius_,4) / 4;
+  double Iz = Iyy;
 
   double E = parm_.youngs_modulus_;
-  double G = parm_.shear_modulus_;
+  double mu = parm_.poisson_ratio_;
+  double G = E/(2*(1+mu));
 
-  eK_.resize(num_wf_edges);
-  for (int i = 0; i < num_wf_edges; i++)
+  int N_element = frame_.sizeOfElementList();
+  assert(N_element);
+
+  element_K_list_.resize(N_element);
+  for (int i = 0; i < N_element; i++)
   {
-    eK_[i].setZero();
+    const auto e = frame_.getElement(i);
+    const auto end_u = e->endVertU();
+    const auto end_v = e->endVertV();
 
-    //WF_edge *ei = ptr_frame->GetNeighborEdge(ptr_dualgraph_->v_orig_id(i));
-    WF_edge *ei = wf_edge_list[ptr_dualgraph_->e_orig_id(i)];
+    // element stiffness matrix in local frame
+    Eigen::MatrixXd K_eL(12, 12);
+    K_eL.setZero();
+    
+    Eigen::Matrix3d R_LG;
+    getGlobal2LocalRotationMatrix(end_u->position(), end_v->position(), R_LG);
 
-    int u = ei->ppair_->pvert_->ID();
-    int v = ei->pvert_->ID();
-    double L = ei->Length();
-    double Le = L - 2 * nr_;
+    // see: [Matrix Structural Analysis, McGuire et al., 2rd edition]
+    // P73 - eq(4.34)
+    Eigen::MatrixXd K_block(6,6);
+    K_block.setZero();
+    Eigen::VectorXd diag(6);
 
-    Eigen::MatrixXd eKuv(12, 12);
-    eKuv.setZero();
+    // block_00 and block_11
+    K_block(1,5) = 6*Iz / std::pow(L,2);
+    K_block(2,4) = - 6*Izy / std::pow(L,2);
+    K_block = K_block.eval() + K_block.transpose().eval();
+    K_eL.block<6,6>(0,0) = K_block;
+    K_eL.block<6,6>(6,6) = -K_block;
 
-    trimesh::point node_u = wf_vert_list[u]->Position();
-    trimesh::point node_v = wf_vert_list[v]->Position();
+    diag[0] = A/L;
+    diag[1] = 12*Iz / std::pow(L,3);
+    diag[2] = 12*Iy / std::pow(L,3);
+    diag[3] = Jx / (2*(1+mu)*L);
+    diag[4] = 4*Iy / L;
+    diag[5] = 4*Iz / L;
+    K_eL.block<6,6>(0,0) = diag.asDiagonal();
+    K_eL.block<6,6>(6,6) = diag.asDiagonal();
 
-    transf_.CreateTransMatrix(node_u, node_v, t0, t1, t2, t3, t4, t5, t6, t7, t8, 0);
+    // block_01 and block_10
+    K_block.setZero();
 
-    if (1 == shear_)
+    K_block(1,5) = 6*Iz / std::pow(L,2);
+    K_block(2,4) = - 6*Izy / std::pow(L,2);
+    K_block = K_block.eval() - K_block.transpose().eval();
+    K_eL.block<6,6>(0,6) = K_block;
+    K_eL.block<6,6>(6,0) = -K_block;
+
+    diag[0] = -A/L;
+    diag[1] = -12*Iz / std::pow(L,3);
+    diag[2] = -12*Iy / std::pow(L,3);
+    diag[3] = -Jx / (2*(1+mu)*L);
+    diag[4] = 2*Iy / L;
+    diag[5] = 2*Iz / L;
+    K_eL.block<6,6>(0,6) = diag.asDiagonal();
+    K_eL.block<6,6>(6,0) = diag.asDiagonal();
+
+    K_eL *= E;
+
+    assert(K_eL.isDiagonal());
+
+    // transform to global frame
+    Eigen::MatrixXd R_LG_diag(12, 12);
+    R_LG_diag.setZero();
+    for(i=0;i<4;i++)
     {
-      /* for circular cross-sections, the shape factor for shear(fs) = 1.2 (ref. Aslam's book) */
-      double fs = 1.2;
-      Ksy = 12. * E * Izz * fs / (G * Asy * Le * Le);
-      Ksz = 12. * E * Iyy * fs / (G * Asz * Le * Le);
+      R_LG_diag.block<3, 3>(i*3, i*3) = R_LG;
     }
-    else
-    {
-      Ksy = 0;
-      Ksz = 0;
-    }
-
-    int n1 = ptr_dualgraph_->v_dual_id(u);
-    int n2 = ptr_dualgraph_->v_dual_id(v);
-
-    eKuv(0,0) = eKuv(6,6) = E * Ax / Le;
-    eKuv(1,1) = eKuv(7,7) = 12. * E * Izz / (Le * Le * Le * (1. + Ksy));
-    eKuv(2,2) = eKuv(8,8) = 12. * E * Iyy / (Le * Le * Le * (1. + Ksz));
-    eKuv(3,3) = eKuv(9,9) =  G * Jxx / Le;
-    eKuv(4,4) = eKuv(10,10) = (4. + Ksz) * E * Iyy / (Le * (1. + Ksz));
-    eKuv(5,5) = eKuv(11,11) = (4. + Ksy) * E * Izz / (Le * (1. + Ksy));
-
-    eKuv(4,2) = eKuv(2,4) = -6. * E * Iyy / (Le * Le * (1. + Ksz));
-    eKuv(5,1) = eKuv(1,5) = 6. * E * Izz / (Le * Le * (1. + Ksy));
-    eKuv(6,0) = eKuv(0,6) = - eKuv(0,0);
-
-    eKuv(11,7) = eKuv(7,11) = eKuv(7,5) = eKuv(5,7) = -eKuv(5,1);
-    eKuv(10,8) = eKuv(8,10) = eKuv(8,4) = eKuv(4,8) = -eKuv(4,2);
-    eKuv(9,3) = eKuv(3,9)   = - eKuv(3,3);
-    eKuv(10, 2) = eKuv(2, 10) = eKuv(4, 2);
-    eKuv(11, 1) = eKuv(1, 11) = eKuv(5, 1);
-
-    eKuv(7,1) = eKuv(1,7) = -eKuv(1,1);
-    eKuv(8,2) = eKuv(2,8) = -eKuv(2,2);
-    eKuv(10,4) = eKuv(4,10) = (2. - Ksz) * E * Iyy / (Le * (1. + Ksz));
-    eKuv(11,5) = eKuv(5,11) = (2. - Ksy) * E * Izz / (Le * (1. + Ksy));
-
-    transf_.TransLocToGlob(t0, t1, t2, t3, t4, t5, t6, t7, t8, eKuv, 0, 0);
-
-    // symmetry check
-    for (int k = 0; k < 12; k++)
-    {
-      for (int l = k + 1; l < 12; l++)
-      {
-        if (eKuv(k, l) != eKuv(l, k))
-        {
-          if (fabs(eKuv(k,l) / eKuv(l,k) - 1.0) > SPT_EPS
-              &&
-                  (fabs(eKuv(k, l) / eKuv(k, k)) > SPT_EPS || fabs(eKuv(l, k) / eKuv(k, k)) > SPT_EPS)
-              )
-          {
-            fprintf(stderr, "elastic_K: element stiffness matrix not symetric ...\n");
-            fprintf(stderr, " ... k[%d][%d] = %15.6e \n", k, l, eKuv(k,l));
-            fprintf(stderr, " ... k[%d][%d] = %15.6e   ", l, k, eKuv(l,k));
-            fprintf(stderr, " ... relative error = %e \n", fabs(eKuv(k,l) / eKuv(l,k) - 1.0));
-          }
-
-          eKuv(k, l) = eKuv(l, k) = (eKuv(k, l) + eKuv(l, k)) / 2;
-        }
-      }
-    }
-
-    eK_[i] = eKuv;
-  }
-
-  if (terminal_output_)
-  {
-    create_ek_.Stop();
+    
+    element_K_list_[i] = R_LG_diag.transpose() * K_eL * R_LG_diag;
   }
 }
 
 
-void Stiffness::CreateGlobalK(Eigen::VectorXd *ptr_x)
+void Stiffness::createGlobalStiffnessMatrix(const std::vector<int>& exist_element_ids,
+                                            Eigen::Sparse<double>& K_assembled,
+                                            Eigen::MatrixX2i& id_map)
 {
-  if (terminal_output_)
+  if (verbose_)
   {
     create_k_.Start();
   }
 
-  WireFrame *ptr_frame = ptr_dualgraph_->ptr_frame_;
-  int num_wf_edges = ptr_dualgraph_->SizeOfVertList();
-  int num_free_wf_nodes = ptr_dualgraph_->SizeOfFaceList();
+  assert(exist_element_ids.size()>0);
 
-  Eigen::VectorXd x;
-  if (ptr_x == NULL)
+  // get existing elements' fixities
+  std::vector<int> exist_fix_node_ids;
+  assert(fixities_.rows() > 0 && fixities_.cols() == 7);
+
+  for(int i=0; i<fixities_.rows(); i++)
   {
-    ptr_x = &x;
-    ptr_x->resize(num_wf_edges);
-    ptr_x->setOnes();
+    if(std::find(exist_element_ids.begin(), exist_element_ids.end(), fixities_(i,0)))
+    {
+      exist_fix_node_ids.push_back(fixities_(i,0));
+    }
   }
 
   std::vector<Eigen::Triplet<double>> K_list;
@@ -393,7 +308,7 @@ void Stiffness::CreateGlobalK(Eigen::VectorXd *ptr_x)
   }
   K_.setFromTriplets(K_list.begin(), K_list.end());
 
-  if (terminal_output_)
+  if (verbose_)
   {
     create_k_.Stop();
   }
@@ -423,12 +338,12 @@ bool Stiffness::CalculateD(
 //	}
 
   /* --- Solving Process --- */
-  if (terminal_output_)
+  if (verbose_)
   {
     fprintf(stdout, "Stiffness : Linear Elastic Analysis ... Element Gravity Loads\n");
   }
 
-  if (!stiff_solver_.SolveSystem(K_, D, F_, terminal_output_, info))
+  if (!stiff_solver_.SolveSystem(K_, D, F_, verbose_, info))
   {
     cout << "Stiffness Solver fail!\n" << endl;
     return false;
@@ -445,7 +360,7 @@ bool Stiffness::CalculateD(
 
 //bool Stiffness::CheckIllCondition(IllCondDetector &stiff_inspector)
 //{
-//	if (terminal_output_)
+//	if (verbose_)
 //	{
 //		check_ill_.Start();
 //	}
@@ -456,7 +371,7 @@ bool Stiffness::CalculateD(
 //	printf("Condition Number = %9.3e\n", cond_num);
 //	if (cond_num < MCOND_TOL)
 //	{
-//		if (terminal_output_)
+//		if (verbose_)
 //		{
 //			printf(" < tol = %7.1e\n", MCOND_TOL);
 //			printf(" * Acceptable Matrix! *\n");
@@ -470,7 +385,7 @@ bool Stiffness::CalculateD(
 //		bSuccess = false;
 //	}
 //
-//	if (terminal_output_)
+//	if (verbose_)
 //	{
 //		check_ill_.Stop();
 //	}
@@ -481,20 +396,20 @@ bool Stiffness::CalculateD(
 //
 //bool Stiffness::CheckError(IllCondDetector &stiff_inspector, Eigen::VectorXd &D)
 //{
-//	if (terminal_output_)
+//	if (verbose_)
 //	{
 //		check_error_.Start();
 //	}
 //
 //	bool bSuccess = true;
 //	double error = stiff_inspector.EquilibriumError(K_, D, F_);
-//	if (terminal_output_)
+//	if (verbose_)
 //	{
 //		printf("Root Mean Square (RMS) equilibrium error = %9.3e\n", error);
 //	}
 //	if (error < STIFF_TOL)
 //	{
-//		if (terminal_output_)
+//		if (verbose_)
 //		{
 //			printf(" < tol = %7.1e\n", STIFF_TOL);
 //			printf(" * Converged *\n");
@@ -508,7 +423,7 @@ bool Stiffness::CalculateD(
 //		bSuccess = false;
 //	}
 //
-//	if (terminal_output_)
+//	if (verbose_)
 //	{
 //		check_error_.Stop();
 //	}
@@ -519,7 +434,7 @@ bool Stiffness::CalculateD(
 
 void Stiffness::PrintOutTimer()
 {
-  if (terminal_output_)
+  if (verbose_)
   {
     printf("***Stiffness timer result:\n");
     stiff_solver_.compute_k_.Print("ComputeK:");

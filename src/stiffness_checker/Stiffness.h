@@ -1,9 +1,9 @@
 #pragma once
 
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Sparse>
 #include "stiffness_checker/Frame.h"
 #include "stiffness_checker/StiffnessParm.h"
-#include "stiffness_checker/Util.h"
-#include "stiffness_checker/GCommon.h"
 #include "stiffness_checker/StiffnessSolver.h"
 //#include "stiffness_checker/IllCondDetector.hpp"
 
@@ -15,12 +15,10 @@ namespace stiffness_checker
 class Stiffness
 {
  public:
-  Stiffness();
-  ~Stiffness();
+  Stiffness(Frame& frame, bool verbose=false);
+  ~Stiffness() {}
 
  public:
-  void init();
-
   /**
    * Construct external load (force, moment) on nodes.
    * @param nodal_forces
@@ -49,10 +47,10 @@ class Stiffness
 
   /**
    * Compute nodal displacement given existing node's indices.
-   * @param exist_node_ids
-   * (n_desire x 1) int vector
+   * @param exist_element_ids
+   * (n_desire x 1) int std::vector
    * n_desire is the number of nodes that you wants to prescribe
-   *    exist_node_ids[i] = node_id,
+   *    exist_element_ids[i] = node_id,
    *    if the corresponding node exists in the (partial-)structure
    *    that you want to evaluate.
    * @param[out] node_displ
@@ -72,7 +70,7 @@ class Stiffness
    * @return boolean success flag
    */
   bool solve(
-      const Eigen::VectorXi& exist_node_ids,
+      const std::vector<int>& exist_element_ids,
       Eigen::MatrixXd& node_displ,
       Eigen::MatrixXd& fixities_reaction,
       Eigen::MatrixXd& element_reation,
@@ -128,7 +126,38 @@ class Stiffness
    */
   void createSelfWeightNodalLoad();
 
+  /**
+   * set all grounded nodes in the input frame
+   * to the same type of fixities
+   * @param Tx flag for fixities restrain
+   * @param Ty
+   * @param Tz
+   * @param Rx
+   * @param Ry
+   * @param Rz
+   */
+  void setGroundedNodesUniformFixities(bool Tx, bool Ty, bool Tz, bool Rx, bool Ry, bool Rz);
+
+  /**
+   * create a list of local element stiffness matrix,
+   * and store it to the class var local_K_list_.
+   */
   void createLocalStiffnessMatrixList();
+
+  /**
+   * assemble global stiffness matrix from the saved list of
+   * stiffness matrix, given the existing elements' ids.
+   * @param exist_element_ids
+   * (n_desire x 1) int std::vector
+   *    exist_element_ids[i] = element's id
+   * @param[out] K_sp Sparse global stiffness matrix
+   * (TODO: dimension?)
+   *
+   * @param[out] id_map
+   */
+  void createGlobalStiffnessMatrix(const std::vector<int>& exist_element_ids,
+                                   Eigen::Sparse<double>& K_assembled,
+                                   Eigen::MatrixX2i& id_map);
 
  protected:
   Frame frame_;
@@ -136,34 +165,35 @@ class Stiffness
   StiffnessSolver stiff_solver_;
 
   /**
-   * a list of local stiffness matrix (TODO: in global or local frame?)
-   * (N_all_element x (6x6)) list
+   * a list of element stiffness matrix in global frame
+   * (N_all_element x (12x12)) list
    * Ne * 1 std::vector, Ne is number of elements
-   * each entry is a 6*6 local stiffness matrix K
+   * each entry is a 12*12 local stiffness matrix K
    */
-  std::vector<Eigen::MatrixXd> local_K_list_;
+  std::vector<Eigen::MatrixXd> element_K_list_;
 
   /**
    * external nodal load P
-   * (N_all_node*6 x 1) double vector
-   * @note the size of this vector is fixed to include
-   * all the nodes in the structure. In solving process,
-   * a sub-vector can be carved out for specific partial structure.
+   * (N_ext_loaded x 7) double matrix
+   *    ext_load_P[i] = [node_id, (6x1)load vector]
    */
-  Eigen::VectorXd ext_load_P_;
+  Eigen::MatrixXd ext_load_P_;
 
   /**
    * self-weight nodal load P
-   * (N_all_node*6 x 1) double vector
-   * @note the size of this vector is fixed to include
+   * (N_all_node x 6) double matrix
+   * @note the size of this matrix is fixed to include
    * all the nodes in the structure. In solving process,
    * a sub-vector can be carved out for specific partial structure.
    */
-  Eigen::VectorXd self_weight_load_P_;
+  Eigen::MatrixXd self_weight_load_P_;
 
-  Timer create_fe_;
-  Timer create_f_;
-  Timer create_ek_;
+  /**
+   * (N_fixities_node x 7) int matrix
+   *    fixities[i] = [n_id, is_Tx, is_Ty, is_Tz, is_Rx, is_Ry, is_Rz]
+   */
+  Eigen::MatrixXi fixities_;
+
   Timer create_k_;
   Timer check_ill_;
   Timer check_error_;

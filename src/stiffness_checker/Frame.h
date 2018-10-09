@@ -171,6 +171,9 @@ class Frame
   Eigen::Vector3d center_pos_;
   Eigen::Vector3d base_center_pos_;
 
+  /**
+   * unit used inside Frame is millimeter.
+   */
   double unit_scale_;
 };
 

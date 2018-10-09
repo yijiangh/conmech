@@ -11,15 +11,11 @@ namespace stiffness_checker
 #define VERSION "20180921+"
 #endif
 
-#ifndef F_PI
-#define F_PI 3.14159265358979323846264338327950288419716939937510
-#endif
-
 #ifndef SPT_EPS
 #define SPT_EPS  1e-7	// sparse matrix eps
 #endif
 
-#ifndef  GEO_EPS // geometry eps
+#ifndef GEO_EPS // geometry eps
 #define GEO_EPS  1e-3
 #endif
 
