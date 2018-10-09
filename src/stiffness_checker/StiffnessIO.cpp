@@ -1,8 +1,8 @@
-#include "stiffness_checker/StiffnessParm.hpp"
+#include "stiffness_checker/StiffnessParm.h"
 #include "stiffness_checker/Frame.h"
 #include "stiffness_checker/DualGraph.hpp"
 
-#include "stiffness_checker/StiffnessIO.hpp"
+#include "stiffness_checker/StiffnessIO.h"
 
 #include <iostream>
 #include <vector>

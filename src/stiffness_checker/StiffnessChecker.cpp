@@ -3,10 +3,10 @@
 //
 
 #include <iostream>
-#include "stiffness_checker/Stiffness.hpp"
-#include "stiffness_checker/StiffnessIO.hpp"
+#include "stiffness_checker/Stiffness.h"
+#include "stiffness_checker/StiffnessIO.h"
 
-#include "stiffness_checker/StiffnessChecker.hpp"
+#include "stiffness_checker/StiffnessChecker.h"
 
 namespace conmech
 {

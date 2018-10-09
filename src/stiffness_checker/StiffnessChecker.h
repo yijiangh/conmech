@@ -5,7 +5,7 @@
 #ifndef CONMECH_STIFFNESSCHECKER_H
 #define CONMECH_STIFFNESSCHECKER_H
 
-#include <stiffness_checker/Stiffness.hpp>
+#include <stiffness_checker/Stiffness.h>
 
 namespace conmech
 {

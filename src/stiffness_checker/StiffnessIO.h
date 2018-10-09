@@ -1,6 +1,6 @@
 #pragma once
 
-#include "stiffness_checker/StiffnessParm.hpp"
+#include "stiffness_checker/StiffnessParm.h"
 #include "stiffness_checker/DualGraph.hpp"
 
 namespace conmech

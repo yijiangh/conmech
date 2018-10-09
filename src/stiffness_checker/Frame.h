@@ -37,6 +37,7 @@ class FrameVert
   int degree() const { return degree_; }
   const std::vector<FrameElementPtr> nghdElements() const { return p_nghd_element_list_; };
 
+  // TODO: this "Fixed" is ambiguous, use "grounded" instead
   bool isFixed() const { return b_fixed_; }
 
   void setFixed(bool b_fixed) { b_fixed_ = b_fixed; }

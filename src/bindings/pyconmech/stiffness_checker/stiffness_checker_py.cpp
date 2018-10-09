@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "stiffness_checker/StiffnessChecker.hpp"
+#include "stiffness_checker/StiffnessChecker.h"
 
 namespace py = pybind11;
 

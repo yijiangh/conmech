@@ -1,5 +1,5 @@
 #include <cmath>
-#include <stiffness_checker/Stiffness.hpp>
+#include <stiffness_checker/Stiffness.h>
 
 namespace conmech
 {

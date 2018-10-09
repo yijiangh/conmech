@@ -1,4 +1,4 @@
-#include "stiffness_checker/StiffnessSolver.hpp"
+#include "stiffness_checker/StiffnessSolver.h"
 
 namespace conmech
 {

@@ -1,4 +1,4 @@
-#include "stiffness_checker/Timer.hpp"
+#include "stiffness_checker/Timer.h"
 
 namespace conmech
 {

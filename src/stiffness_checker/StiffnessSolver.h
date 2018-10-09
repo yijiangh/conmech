@@ -3,7 +3,7 @@
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Sparse>
 
-#include "stiffness_checker/Timer.hpp"
+#include "stiffness_checker/Timer.h"
 
 using namespace std;
 
@@ -68,8 +68,6 @@ class StiffnessSolver
       int verbose,
       int &info
   );
-
-  void Debug();
 
  public:
   /*
