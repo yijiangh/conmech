@@ -1,12 +1,9 @@
 #include <string>
 #include <iostream>
 
-//#include <stiffness_checker/StiffnessParm.hpp>
-//#include <stiffness_checker/DualGraph.hpp>
-//#include <stiffness_checker/StiffnessIO.hpp>
-//#include <stiffness_checker/StiffnessChecker.hpp>
-
+#include <eigen3/Eigen/Dense>
 #include "stiffness_checker/Frame.h"
+#include "stiffness_checker/Util.h"
 
 namespace
 {
@@ -45,10 +42,26 @@ void testLoadingFrame()
     std::cout << "===========" << std::endl;
   }
 }
+
+void testLocalGlobalTransf()
+{
+  auto end_u = Eigen::Vector3d(1,1,1);
+  auto end_v = Eigen::Vector3d(1,1,1) + Eigen::Vector3d(3,5,8);
+  Eigen::Matrix3d m;
+
+  double pi = atan(1)*4;
+
+  using namespace conmech::stiffness_checker;
+  getGlobal2LocalRotationMatrix(end_u, end_v, m, 70 * pi/180);
+
+  std::cout << m << std::endl;
+
+}
 } // util anon ns
 
 int main(int argc, char** argv)
 {
-  testLoadingFrame();
+//  testLoadingFrame();
+  testLocalGlobalTransf();
   return 0;
 }
