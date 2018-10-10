@@ -206,30 +206,70 @@ void Stiffness::createLocalStiffnessMatrixList()
 
 void Stiffness::createGlobalStiffnessMatrix(const std::vector<int>& exist_element_ids,
                                             Eigen::Sparse<double>& K_assembled,
-                                            Eigen::MatrixX2i& id_map)
+                                            Eigen::VectorXi& id_map)
 {
   if (verbose_)
   {
     create_k_.Start();
   }
 
+  // exist_element ids sanity check
   assert(exist_element_ids.size()>0);
+  for(auto e_id : exist_element_ids)
+  {
+    assert(e_id>=0 && e_id<frame_.sizeOfElementList());
+  }
+  // sort ids in ascending order
+  std::sort(exist_element_ids.begin(), exist_element_ids.end());
+  int n_exist_element = exist_element_ids.size();
 
-  // get existing elements' fixities
-  std::vector<int> exist_fix_node_ids;
   assert(fixities_.rows() > 0 && fixities_.cols() == 7);
 
+  // compute n_exist_free_dof
+  int n_exist_fix_dof = 0;
+  std::vector<Eigen::VectorXi> exist_fixities;
   for(int i=0; i<fixities_.rows(); i++)
   {
     if(std::find(exist_element_ids.begin(), exist_element_ids.end(), fixities_(i,0)))
     {
-      exist_fix_node_ids.push_back(fixities_(i,0));
+      exist_fixities.push_back(fixities_.row(i));
+      n_exist_fix_dof += fixities_.block<1,6>(i,1).sum();
+    }
+  }
+  int n_exist_free_dof = 6*n_exist_element - n_exist_fix_dof;
+
+  // init permutation id map
+  id_map.resize(6*n_exist_element);
+  for(int i=0; i<6*n_exist_element;i++)
+  {
+    id_map(i) = i;
+  }
+
+  for(int i=0; i<exist_fixities.size(); i++)
+  {
+    // position in the whole exist_ids
+    auto pos = std::distance(
+        exist_element_ids.begin(),
+        find(exist_element_ids.begin(), exist_element_ids.end(), exist_fixities[i](0)));
+
+    for(int j=0;j<6;j++)
+    {
+      if(1 == exist_fixities[i](j+1))
+      {
+        for(int k=pos+j; k<6*n_exist_element-1; k++)
+        {
+          id_map(k) = id_map(k+1);
+        }
+        id_map.tail(1) = pos+j;
+      }
     }
   }
 
-  std::vector<Eigen::Triplet<double>> K_list;
+  Eigen::Transpositions rc_trans(6*n_exist_element);
+  rc_trans.indices() = id_map;
 
-  K_.resize(6 * num_free_wf_nodes, 6 * num_free_wf_nodes);
+  std::vector<Eigen::Triplet<double>> K_assembled_list;
+
   for (int i = 0; i < num_wf_edges; i++)
   {
     WF_edge *ei = ptr_frame->GetEdge(ptr_dualgraph_->e_orig_id(i));

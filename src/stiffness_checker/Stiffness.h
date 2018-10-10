@@ -157,7 +157,7 @@ class Stiffness
    */
   void createGlobalStiffnessMatrix(const std::vector<int>& exist_element_ids,
                                    Eigen::Sparse<double>& K_assembled,
-                                   Eigen::MatrixX2i& id_map);
+                                   Eigen::VectorXi& id_map);
 
  protected:
   Frame frame_;
