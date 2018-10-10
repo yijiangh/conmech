@@ -107,7 +107,7 @@ class Stiffness
   /**
    * print out timing result in console.
    */
-  void PrintOutTimer();
+  void printOutTimer();
 
  private:
   /**
@@ -139,31 +139,45 @@ class Stiffness
   void setGroundedNodesUniformFixities(bool Tx, bool Ty, bool Tz, bool Rx, bool Ry, bool Rz);
 
   /**
-   * create a list of local element stiffness matrix,
+   * create a list of element stiffness matrix (in global frame),
    * and store it to the class var local_K_list_.
    */
-  void createLocalStiffnessMatrixList();
+  void createElementStiffnessMatrixList();
 
   /**
-   * assemble global stiffness matrix from the saved list of
-   * stiffness matrix, given the existing elements' ids.
-   * @param exist_element_ids
-   * (n_desire x 1) int std::vector
-   *    exist_element_ids[i] = element's id
-   * @param[out] K_sp Sparse global stiffness matrix
-   * (TODO: dimension?)
-   *
-   * @param[out] id_map
+   * assemble global stiffness matrix from all elements,
+   * i.e. (dof x dof) K_assembled, dof = n_Node*6
    */
-  void createGlobalStiffnessMatrix(const std::vector<int>& exist_element_ids,
-                                   Eigen::Sparse<double>& K_assembled,
-                                   Eigen::VectorXi& id_map);
+  void createCompleteGlobalStiffnessMatrix();
+
+  /**
+   * for the stiffness linear equation K d = P
+   * partition the system as:
+   *        [K_ff]{d_f} + [K_fs]{d_s} = P_f
+   *        [K_sf]{d_f} + [K_ss]{d_s} = P_s
+   * where {P_f}, {d_s} are known and {d_f}, {P_s} are unknown,
+   * i.e. "f" represents free dof, "s" represents support (restrained) dof.
+   * This function takes an existence-free-support indicator s,
+   * slices the saved full global stiffness matrix, and returns
+   * the corresponding slice K_slice_ff and K_slice_sf
+   * @param s
+   * (6*N_node) int std::vector
+   *    s[i] = -1 if dof_i does not exist (because no element is connected to the corresponding node)
+   *    s[i] = 1  if dof_i is fixed
+   *    s[i] = 0  if dof_i is free
+   * @param[out] K_assembled_slice
+   *
+   */
+  void getSlicesGlobalStiffnessMatrix(const std::vector<int>& s,
+                                      Eigen::Sparse<double>& K_assembled_slice_ff,
+                                      Eigen::Sparse<double>& K_assembled_slice_sf);
 
  protected:
   Frame frame_;
   StiffnessParm material_parm_;
   StiffnessSolver stiff_solver_;
 
+ private:
   /**
    * a list of element stiffness matrix in global frame
    * (N_all_element x (12x12)) list
@@ -171,6 +185,13 @@ class Stiffness
    * each entry is a 12*12 local stiffness matrix K
    */
   std::vector<Eigen::MatrixXd> element_K_list_;
+
+  /**
+   * Global assembled stiffness matrix for the entire structure
+   * the matrix will be sliced to solve for partial-structure
+   * by the getSlicesGlobalStiffnessMatrix method.
+   */
+  Eigen::Sparse<double> K_assembled_full_;
 
   /**
    * external nodal load P

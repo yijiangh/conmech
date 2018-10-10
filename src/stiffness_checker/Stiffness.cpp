@@ -143,7 +143,7 @@ void Stiffness::createLocalStiffnessMatrixList()
     // element stiffness matrix in local frame
     Eigen::MatrixXd K_eL(12, 12);
     K_eL.setZero();
-    
+
     Eigen::Matrix3d R_LG;
     getGlobal2LocalRotationMatrix(end_u->position(), end_v->position(), R_LG);
 
@@ -198,155 +198,59 @@ void Stiffness::createLocalStiffnessMatrixList()
     {
       R_LG_diag.block<3, 3>(i*3, i*3) = R_LG;
     }
-    
+
     element_K_list_[i] = R_LG_diag.transpose() * K_eL * R_LG_diag;
   }
 }
 
 
-void Stiffness::createGlobalStiffnessMatrix(const std::vector<int>& exist_element_ids,
-                                            Eigen::Sparse<double>& K_assembled,
-                                            Eigen::VectorXi& id_map)
+void Stiffness::createCompleteGlobalStiffnessMatrix()
 {
   if (verbose_)
   {
     create_k_.Start();
   }
 
-  // exist_element ids sanity check
-  assert(exist_element_ids.size()>0);
-  for(auto e_id : exist_element_ids)
+  assert(element_K_list_.size() > 0);
+
+  int dof = frame_.sizeOfVertList() * 6;
+  int N_element = frame_.sizeOfElementList();
+
+  K_assembled_full_.resize(dof, dof);
+  std::vector<Eigen::Triplet<double>> K_list;
+
+  Eigen::MatrixXi id_map(N_element, 12);
+  const Eigen::VectorXi lin_sp_id = Eigen::LinSpaced(6,0,5); // 0,1,..,5
+
+  for(int i=0; i<N_element; i++)
   {
-    assert(e_id>=0 && e_id<frame_.sizeOfElementList());
+    const auto e = frame_.getElement(i);
+    const auto end_u = e->endVertU();
+    const auto end_v = e->endVertV();
+
+    id_map.block<1,6>(i,0) = Eigen::VectorXi::Ones(6)*end_u->id() + lin_sp_id;
+    id_map.block<1,6>(i,6) = Eigen::VectorXi::Ones(6)*end_v->id() + lin_sp_id;
   }
-  // sort ids in ascending order
-  std::sort(exist_element_ids.begin(), exist_element_ids.end());
-  int n_exist_element = exist_element_ids.size();
 
-  assert(fixities_.rows() > 0 && fixities_.cols() == 7);
-
-  // compute n_exist_free_dof
-  int n_exist_fix_dof = 0;
-  std::vector<Eigen::VectorXi> exist_fixities;
-  for(int i=0; i<fixities_.rows(); i++)
+  for(int i = 0; i < N_element; i++)
   {
-    if(std::find(exist_element_ids.begin(), exist_element_ids.end(), fixities_(i,0)))
+    const auto K_e = element_K_list_[i];
+    assert(K_e.rows() == 12 && K_e.cols() == 12);
+
+    for(int j=0; j < 12; j++)
     {
-      exist_fixities.push_back(fixities_.row(i));
-      n_exist_fix_dof += fixities_.block<1,6>(i,1).sum();
-    }
-  }
-  int n_exist_free_dof = 6*n_exist_element - n_exist_fix_dof;
+      int row_id = id_map[i][j];
 
-  // init permutation id map
-  id_map.resize(6*n_exist_element);
-  for(int i=0; i<6*n_exist_element;i++)
-  {
-    id_map(i) = i;
-  }
-
-  for(int i=0; i<exist_fixities.size(); i++)
-  {
-    // position in the whole exist_ids
-    auto pos = std::distance(
-        exist_element_ids.begin(),
-        find(exist_element_ids.begin(), exist_element_ids.end(), exist_fixities[i](0)));
-
-    for(int j=0;j<6;j++)
-    {
-      if(1 == exist_fixities[i](j+1))
+      for(int k=0; k < 12; k++)
       {
-        for(int k=pos+j; k<6*n_exist_element-1; k++)
-        {
-          id_map(k) = id_map(k+1);
-        }
-        id_map.tail(1) = pos+j;
+        int col_id = id_map[i][k];
+
+        K_list.push_back(Eigen::Triplet<double>(row_id, col_id, K_e(j,k)));
       }
     }
   }
 
-  Eigen::Transpositions rc_trans(6*n_exist_element);
-  rc_trans.indices() = id_map;
-
-  std::vector<Eigen::Triplet<double>> K_assembled_list;
-
-  for (int i = 0; i < num_wf_edges; i++)
-  {
-    WF_edge *ei = ptr_frame->GetEdge(ptr_dualgraph_->e_orig_id(i));
-    WF_edge *ej = ei->ppair_;
-    int u = ej->pvert_->ID();
-    int v = ei->pvert_->ID();
-    int dual_u = ptr_dualgraph_->v_dual_id(u);
-    int dual_v = ptr_dualgraph_->v_dual_id(v);
-
-    if (dual_u < num_free_wf_nodes && dual_v < num_free_wf_nodes)
-    {
-      // dual_u and dual_v are both unrestrained node
-      for (int k = 0; k < 6; k++)
-      {
-        for (int l = 0; l < 6; l++)
-        {
-          double tmp;
-
-          tmp = (*ptr_x)[i] * eK_[i](k, l);
-          if (fabs(tmp) > SPT_EPS)
-          {
-            K_list.push_back(Eigen::Triplet<double>(dual_u * 6 + k, dual_u * 6 + l, tmp));
-          }
-
-          tmp = (*ptr_x)[i] * eK_[i](k + 6, l + 6);
-          if (fabs(tmp) > SPT_EPS)
-          {
-            K_list.push_back(Eigen::Triplet<double>(dual_v * 6 + k, dual_v * 6 + l, tmp));
-          }
-
-          tmp = (*ptr_x)[i] * eK_[i](k, l + 6);
-          if (fabs(tmp) > SPT_EPS)
-          {
-            K_list.push_back(Eigen::Triplet<double>(dual_u * 6 + k, dual_v * 6 + l, tmp));
-          }
-
-          tmp = (*ptr_x)[i] * eK_[i](k + 6, l);
-          if (fabs(tmp) > SPT_EPS)
-          {
-            K_list.push_back(Eigen::Triplet<double>(dual_v * 6 + k, dual_u * 6 + l, tmp));
-          }
-        }
-      }
-    }
-    else
-    if (dual_u < num_free_wf_nodes)
-    {
-      // dual_u is free while dual_v is restrained
-      for (int k = 0; k < 6; k++)
-      {
-        for (int l = 0; l < 6; l++)
-        {
-          double tmp = (*ptr_x)[i] * eK_[i](k, l);
-          if (fabs(tmp) > SPT_EPS)
-          {
-            K_list.push_back(Eigen::Triplet<double>(dual_u * 6 + k, dual_u * 6 + l, tmp));
-          }
-        }
-      }
-    }
-    else
-    if (dual_v < num_free_wf_nodes)
-    {
-      for (int k = 0; k < 6; k++)
-      {
-        for (int l = 0; l < 6; l++)
-        {
-          double tmp = (*ptr_x)[i] * eK_[i](k + 6, l + 6);
-          if (fabs(tmp) > SPT_EPS)
-          {
-            K_list.push_back(Eigen::Triplet<double>(dual_v * 6 + k, dual_v * 6 + l, tmp));
-          }
-        }
-      }
-    }
-  }
-  K_.setFromTriplets(K_list.begin(), K_list.end());
+  K_assembled_full_.setFromTriplets(K_list.begin(), K_list.end());
 
   if (verbose_)
   {
@@ -354,6 +258,58 @@ void Stiffness::createGlobalStiffnessMatrix(const std::vector<int>& exist_elemen
   }
 }
 
+void Stiffness::getSlicesGlobalStiffnessMatrix(const std::vector<int>& s,
+                                               Eigen::Sparse<double>& K_a_slice_ff,
+                                               Eigen::Sparse<double>& K_a_slice_sf)
+{
+  int n_Node = frame_.sizeOfVertList();
+  int n_Element = frame_.sizeOfElementList();
+  assert(s.size() == 6*n_Node);
+
+  // count supp_dof and res_dof to init K_slice
+  int f_dof = std::count(s.begin(), s.end(), 0);
+  int s_dof = std::count(s.begin(), s.end(), 1);
+  int n_exist_dof = std::count(s.begin(), s.end(), -1);
+  int dof = 6*n_Node;
+
+  assert(s_dof + f_dof + n_exist_dof == dof);
+
+  // mapping rearranged (R) dof_id into original (O) dof_id
+  Eigen::VectorXi id_map_RO(dof);
+  int f_tail = 0;
+  int s_tail = s_dof;
+  int n_exist_tail = f_dof + s_dof;
+  for(int i=0; i<dof; i++)
+  {
+    if(-1 == s[i])
+    {
+      id_map_RO[n_exist_tail] = i;
+      n_exist_tail++;
+    }
+    if(0 == s[i])
+    {
+      id_map_RO[f_tail] = i;
+      f_tail++;
+    }
+    if(1 == s[i])
+    {
+      id_map_RO[s_tail] = i;
+      s_tail++;
+    }
+  }
+
+  // mapping original (O) dof_ids into new rearranged (R) dof_id
+  Eigen::VectorXi id_map_OR(dof);
+  for(int i=0; i<dof; i++)
+  {
+    id_map_OR[id_map_RO[i]] = i;
+  }
+
+  PermutationMatrix<dof, dof> Perm;
+  Perm.indices() = id_map_OR;
+
+  // permute the full stiffness matrix & carve the needed portion out
+}
 
 bool Stiffness::CalculateD(
     Eigen::VectorXd &D, Eigen::VectorXd *ptr_x, bool cond_num)
@@ -472,23 +428,17 @@ bool Stiffness::CalculateD(
 //}
 
 
-void Stiffness::PrintOutTimer()
+void Stiffness::printOutTimer()
 {
   if (verbose_)
   {
     printf("***Stiffness timer result:\n");
     stiff_solver_.compute_k_.Print("ComputeK:");
     stiff_solver_.solve_d_.Print("SolveD:");
-    create_fe_.Print("CreateFe:");
-    create_f_.Print("CreateF:");
-    create_ek_.Print("CreateElasticK:");
+
     create_k_.Print("CreateGlobalK:");
     check_ill_.Print("CheckIllCond:");
     check_error_.Print("CheckError:");
-  }
-  else
-  {
-    printf("***Stiffness detailed timing turned off.\n");
   }
 }
 
