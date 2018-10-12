@@ -45,6 +45,8 @@ class Stiffness
    */
   bool setRigidFixities(const Eigen::Matrixi& fixities);
 
+  bool init();
+
   /**
    * Compute nodal displacement given existing node's indices.
    * @param exist_element_ids
@@ -76,6 +78,10 @@ class Stiffness
       Eigen::MatrixXd& element_reation,
       const bool& cond_num = true);
 
+  bool solve(
+      const std::vector<int>& exist_element_ids,
+      const bool& cond_num = true);
+
   /**
    * Compute nodal displacement for the entire structure (assuming all elements exist).
    * @param[out] node_displ
@@ -100,6 +106,9 @@ class Stiffness
       Eigen::MatrixXd& element_reation,
       const bool& cond_num = true);
 
+  bool solve(
+      const bool& cond_num = true);
+
   /* Check condition number */
 //  bool CheckIllCondition(IllCondDetector &stiff_inspector);
 //  bool CheckError(IllCondDetector &stiff_inspector, Eigen::VectorXd &D);
@@ -118,13 +127,13 @@ class Stiffness
    *    nodal_forces[i, :] = [node_id, Fx, Fy, Fz, Mx, My, Mz]
    *    described in global (world) frame. 0 <= node_id < N_vert.
    */
-  void createExternalNodalLoad(const Eigen::MatrixXd& nodal_forces);
+  void createExternalNodalLoad(const Eigen::MatrixXd& nodal_forces, Eigen::VectorXd& ext_load);
 
   /**
    * convert self-weight load (between nodal points) to nodal
    * loads and save it to the class var self_weight_load_P.
    */
-  void createSelfWeightNodalLoad();
+  void createSelfWeightNodalLoad(Eigen::VectorXd& self_weight_load);
 
   /**
    * set all grounded nodes in the input frame
@@ -150,28 +159,6 @@ class Stiffness
    */
   void createCompleteGlobalStiffnessMatrix();
 
-  /**
-   * for the stiffness linear equation K d = P
-   * partition the system as:
-   *        [K_ff]{d_f} + [K_fs]{d_s} = P_f
-   *        [K_sf]{d_f} + [K_ss]{d_s} = P_s
-   * where {P_f}, {d_s} are known and {d_f}, {P_s} are unknown,
-   * i.e. "f" represents free dof, "s" represents support (restrained) dof.
-   * This function takes an existence-free-support indicator s,
-   * slices the saved full global stiffness matrix, and returns
-   * the corresponding slice K_slice_ff and K_slice_sf
-   * @param s
-   * (6*N_node) int std::vector
-   *    s[i] = -1 if dof_i does not exist (because no element is connected to the corresponding node)
-   *    s[i] = 1  if dof_i is fixed
-   *    s[i] = 0  if dof_i is free
-   * @param[out] K_assembled_slice
-   *
-   */
-  void getSlicesGlobalStiffnessMatrix(const std::vector<int>& s,
-                                      Eigen::Sparse<double>& K_assembled_slice_ff,
-                                      Eigen::Sparse<double>& K_assembled_slice_sf);
-
  protected:
   Frame frame_;
   StiffnessParm material_parm_;
@@ -191,23 +178,13 @@ class Stiffness
    * the matrix will be sliced to solve for partial-structure
    * by the getSlicesGlobalStiffnessMatrix method.
    */
-  Eigen::Sparse<double> K_assembled_full_;
+  Eigen::MatrixXd K_assembled_full_;
 
   /**
    * external nodal load P
-   * (N_ext_loaded x 7) double matrix
-   *    ext_load_P[i] = [node_id, (6x1)load vector]
+   * (dof) double vector
    */
-  Eigen::MatrixXd ext_load_P_;
-
-  /**
-   * self-weight nodal load P
-   * (N_all_node x 6) double matrix
-   * @note the size of this matrix is fixed to include
-   * all the nodes in the structure. In solving process,
-   * a sub-vector can be carved out for specific partial structure.
-   */
-  Eigen::MatrixXd self_weight_load_P_;
+  Eigen::VectorXd nodal_load_P_;
 
   /**
    * (N_fixities_node x 7) int matrix
@@ -215,9 +192,10 @@ class Stiffness
    */
   Eigen::MatrixXi fixities_;
 
+  bool is_init_;
+
   Timer create_k_;
   Timer check_ill_;
-  Timer check_error_;
 
   bool verbose_;
 };

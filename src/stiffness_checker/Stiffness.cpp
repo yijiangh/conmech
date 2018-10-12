@@ -1,6 +1,7 @@
 #include <cmath>
 #include <algorithm>
 #include "stiffness_checker/Util.h"
+#include "stiffness_checker/StiffnessSolver.h"
 #include "stiffness_checker/Stiffness.h"
 
 namespace conmech
@@ -9,13 +10,14 @@ namespace stiffness_checker
 {
 
 Stiffness::Stiffness(Frame& frame, bool verbose)
-    : frame_(frame), verbose_(verbose)
+    : frame_(frame), verbose_(verbose), is_init_(false)
 {
+  // frame sanity check
   int N_vert = frame_.sizeOfVertList();
   int N_element = frame_.sizeOfElementList();
   assert(N_vert>0 && N_element>0);
 
-  self_weight_load_P_ = Eigen::MatrixXd::Zero(N_vert, 6);
+  init();
 }
 
 void Stiffness::createSelfWeightNodalLoad()
@@ -92,7 +94,25 @@ void Stiffness::createExternalNodalLoad(const Eigen::MatrixXd& nodal_forces)
   ext_load_P_ = nodal_forces;
 }
 
-void Stiffness::createLocalStiffnessMatrixList()
+bool Stiffness::setNodalLoad(const Eigen::MatrixXd& nodal_forces,
+                             const bool& include_self_weight)
+{
+  int dof = 6*frame_.sizeOfVertList();
+
+  auto sw_load = Eigen::VectorXd::Zero(dof);
+  auto ext_load = Eigen::VectorXd::Zero(dof);
+  nodal_load_P_.resize(dof);
+
+  if(include_self_weight)
+  {
+    createSelfWeightNodalLoad(sw_load);
+  }
+  createExternalNodalLoad(nodal_forces, ext_load);
+
+  nodal_load_P_ = sw_load + ext_load;
+}
+
+void Stiffness::createElementStiffnessMatrixList()
 {
   // check the complete element stiffness matrix
   // in local frame: [MSA McGuire et al.] P73
@@ -203,7 +223,6 @@ void Stiffness::createLocalStiffnessMatrixList()
   }
 }
 
-
 void Stiffness::createCompleteGlobalStiffnessMatrix()
 {
   if (verbose_)
@@ -215,9 +234,6 @@ void Stiffness::createCompleteGlobalStiffnessMatrix()
 
   int dof = frame_.sizeOfVertList() * 6;
   int N_element = frame_.sizeOfElementList();
-
-  K_assembled_full_.resize(dof, dof);
-  std::vector<Eigen::Triplet<double>> K_list;
 
   Eigen::MatrixXi id_map(N_element, 12);
   const Eigen::VectorXi lin_sp_id = Eigen::LinSpaced(6,0,5); // 0,1,..,5
@@ -232,6 +248,8 @@ void Stiffness::createCompleteGlobalStiffnessMatrix()
     id_map.block<1,6>(i,6) = Eigen::VectorXi::Ones(6)*end_v->id() + lin_sp_id;
   }
 
+  K_assembled_full_.resize(dof, dof);
+  K_assembled_full_.setZero();
   for(int i = 0; i < N_element; i++)
   {
     const auto K_e = element_K_list_[i];
@@ -245,12 +263,10 @@ void Stiffness::createCompleteGlobalStiffnessMatrix()
       {
         int col_id = id_map[i][k];
 
-        K_list.push_back(Eigen::Triplet<double>(row_id, col_id, K_e(j,k)));
+        K_assembled_full_(row_id, col_id) += K_e(j,k);
       }
     }
   }
-
-  K_assembled_full_.setFromTriplets(K_list.begin(), K_list.end());
 
   if (verbose_)
   {
@@ -258,26 +274,76 @@ void Stiffness::createCompleteGlobalStiffnessMatrix()
   }
 }
 
-void Stiffness::getSlicesGlobalStiffnessMatrix(const std::vector<int>& s,
-                                               Eigen::Sparse<double>& K_a_slice_ff,
-                                               Eigen::Sparse<double>& K_a_slice_sf)
+bool Stiffness::init()
 {
+  createElementStiffnessMatrixList();
+  createCompleteGlobalStiffnessMatrix();
+
+  is_init_ = true;
+}
+
+bool Stiffness::solve(
+    const std::vector<int>& exist_element_ids,
+    Eigen::MatrixXd& node_displ,
+    Eigen::MatrixXd& fixities_reaction,
+    Eigen::MatrixXd& element_reation,
+    const bool& cond_num)
+{
+  assert(is_init_);
+
   int n_Node = frame_.sizeOfVertList();
   int n_Element = frame_.sizeOfElementList();
-  assert(s.size() == 6*n_Node);
+
+  if (verbose_)
+  {
+    create_k_.Start();
+  }
+
+  // turn exist_element_ids into a full dof free/fix/exist indicator
+  // s[i] = 0 free, = 1 fixed, = -1 not exist
+  std::vector<int> s(n_Node*6, -1);
+  for(int e_id : exist_element_ids)
+  {
+    assert(e_id >= 0 && e_id < frame_.sizeOfElementList());
+    auto e = frame_.getElement(e_id);
+
+    std::vector<int> end_ids;
+    end_ids.push_back(e->endVertU()->id());
+    end_ids.push_back(e->endVertV()->id());
+
+    for(auto id : end_ids)
+    {
+      if (frame_.getVert(id)->isFixed())
+      {
+        // TODO: assuming all dofs are fixed now
+        for (int j = 0; j < 6; j++)
+        {
+          s(id * 6 + j) = 1;
+        }
+      }
+      else
+      {
+        for (int j = 0; j < 6; j++)
+        {
+          s(id * 6 + j) = 0;
+        }
+      }
+    }
+  }
 
   // count supp_dof and res_dof to init K_slice
-  int f_dof = std::count(s.begin(), s.end(), 0);
-  int s_dof = std::count(s.begin(), s.end(), 1);
-  int n_exist_dof = std::count(s.begin(), s.end(), -1);
-  int dof = 6*n_Node;
+  const int f_dof = std::count(s.begin(), s.end(), 0);
+  const int s_dof = std::count(s.begin(), s.end(), 1);
+  const int n_exist_dof = std::count(s.begin(), s.end(), -1);
+  const int dof = 6*n_Node;
 
   assert(s_dof + f_dof + n_exist_dof == dof);
+  assert(K_assembled_full_.rows() == dof && K_assembled_full_.cols() == dof);
 
   // mapping rearranged (R) dof_id into original (O) dof_id
   Eigen::VectorXi id_map_RO(dof);
   int f_tail = 0;
-  int s_tail = s_dof;
+  int s_tail = f_dof;
   int n_exist_tail = f_dof + s_dof;
   for(int i=0; i<dof; i++)
   {
@@ -298,60 +364,121 @@ void Stiffness::getSlicesGlobalStiffnessMatrix(const std::vector<int>& s,
     }
   }
 
-  // mapping original (O) dof_ids into new rearranged (R) dof_id
-  Eigen::VectorXi id_map_OR(dof);
+  Eigen::MatrixXd Perm(dof, dof);
+  Perm.setZero();
   for(int i=0; i<dof; i++)
   {
-    id_map_OR[id_map_RO[i]] = i;
+    Perm(i, id_map_RO(i)) = 1;
   }
-
-  PermutationMatrix<dof, dof> Perm;
-  Perm.indices() = id_map_OR;
 
   // permute the full stiffness matrix & carve the needed portion out
-}
+  auto K_perm = Perm * K_assembled_full_ * Perm.inverse();
+  auto K_ff = K_perm.block<f_dof, f_dof>(0,0);
+  auto K_sf = K_perm.block<s_dof, f_dof>(f_dof,0);
 
-bool Stiffness::CalculateD(
-    Eigen::VectorXd &D, Eigen::VectorXd *ptr_x, bool cond_num)
-{
-  D.resize(6 * num_free_wf_nodes);
-  D.setZero();
+  Eigen::VectorXd P_perm = Perm * nodal_load_P_;
+  auto P_ff = P_perm.segment(0, f_dof);
 
-  CreateGlobalK(ptr_x);
-  CreateF(ptr_x);
-
-  /* Parameter for StiffnessSolver */
-  int	info;
-//	IllCondDetector	stiff_inspector(K_);
-
-  /* --- Check Stiffness Matrix Condition Number --- */
-//	if (cond_num)
-//	{
-//		if (!CheckIllCondition(stiff_inspector))
-//		{
-//			return false;
-//		}
-//	}
-
-  /* --- Solving Process --- */
   if (verbose_)
   {
-    fprintf(stdout, "Stiffness : Linear Elastic Analysis ... Element Gravity Loads\n");
+    create_k_.Stop();
   }
 
-  if (!stiff_solver_.SolveSystem(K_, D, F_, verbose_, info))
+  Eigen::VectorXd U_ff(f_dof);
+  if (!stiff_solver_.solveSystemLU(K_ff, P_ff, U_ff))
   {
-    cout << "Stiffness Solver fail!\n" << endl;
+    std::cout << "ERROR: Stiffness Solver fail!\n" << std::endl;
     return false;
   }
 
-  /* --- Equilibrium Error Check --- */
-//	if (!CheckError(stiff_inspector, D))
+  // reaction force
+  auto R = Eigen::VectorXd::Zero(dof);
+  auto R_s = K_sf * U_ff;
+  R.segment(f_dof, f_dof + s_dof) = R_s;
+  R = Perm.inverse() * R.eval();
+
+  // assemble and permute the result back
+  auto U = Eigen::VectorXd::Zero(dof);
+  U.segment(0, f_dof) = U_ff;
+  U = Perm.inverse() * U.eval();
+
+  // TODO: get element internal reaction force
+
+  // stiffness criteria check
+//	if (!CheckError(stiff_inspector, U, R, int_F))
 //	{
 //		return false;
 //	}
 
+  // assemble result into formats
+  // node displacement
+  node_displ.resize(f_dof,3);
+  int fill_cnt=0;
+  for(int i=0; i<n_Node; i++)
+  {
+    for(int j=0; j<6; j++)
+    {
+      if(0 == s[6*i+j])
+      {
+        node_displ(fill_cnt,0) = i;
+        node_displ(fill_cnt,1) = j;
+        node_displ(fill_cnt,2) = U(6*i+j);
+
+        fill_cnt++;
+      }
+    }
+  }
+
+  // fixities reaction
+  fixities_reaction.resize(s_dof,3);
+  int fill_cnt=0;
+  for(int i=0; i<n_Node; i++)
+  {
+    for(int j=0; j<6; j++)
+    {
+      if(1 == s[6*i+j])
+      {
+        node_displ(fill_cnt,0) = i;
+        node_displ(fill_cnt,1) = j;
+        node_displ(fill_cnt,2) = R(6*i+j);
+
+        fill_cnt++;
+      }
+    }
+  }
+
+  // element internal reaction
+
+
   return true;
+}
+
+bool Stiffness::solve(const std::vector<int>& exist_element_ids,
+                      const bool& cond_num)
+{
+  Eigen::MatrixXd U,R,F;
+  return solve(exist_element_ids, U, R, F, cond_num);
+}
+
+bool Stiffness::solve(Eigen::MatrixXd& node_displ,
+                      Eigen::MatrixXd& fixities_reaction,
+                      Eigen::MatrixXd& element_reation,
+                      const bool& cond_num)
+{
+  int nElement = frame_.sizeOfElementList();
+  std::vector<int> all_e_ids;
+  for(int i=0; i<nElement; i++)
+  {
+    all_e_ids.push_back(i);
+  }
+  return solve(
+      all_e_ids, node_displ, fixities_reaction, element_reation, cond_num);
+}
+
+bool Stiffness::solve(const bool& cond_num)
+{
+  Eigen::MatrixXd U,R,F;
+  return solve(U, R, F, cond_num);
 }
 
 //bool Stiffness::CheckIllCondition(IllCondDetector &stiff_inspector)
@@ -433,12 +560,10 @@ void Stiffness::printOutTimer()
   if (verbose_)
   {
     printf("***Stiffness timer result:\n");
-    stiff_solver_.compute_k_.Print("ComputeK:");
-    stiff_solver_.solve_d_.Print("SolveD:");
+    stiff_solver_.solve_timer_.Print("SolveK:");
 
     create_k_.Print("CreateGlobalK:");
     check_ill_.Print("CheckIllCond:");
-    check_error_.Print("CheckError:");
   }
 }
 
