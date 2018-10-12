@@ -39,6 +39,8 @@ class Stiffness
   bool setNodalLoad(const Eigen::MatrixXd& nodal_forces,
                     const bool& include_self_weight = false);
 
+  bool setSelfWeightNodalLoad();
+
   /**
    * Construct infinitely rigid fixities on nodes.
    * @param fixities

@@ -38,13 +38,18 @@ Stiffness::Stiffness(const std::string &json_file_path, bool verbose)
   // parse material properties
   parseMaterialPropertiesJson(json_file_path, material_parm_);
 
-  init();
+//  init();
 }
 
 bool Stiffness::init()
 {
   createElementStiffnessMatrixList();
   createCompleteGlobalStiffnessMatrix();
+
+  if(verbose_)
+  {
+    std::cout << "Initialization done" << std::endl;
+  }
 
   is_init_ = true;
 }
@@ -55,7 +60,7 @@ void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd& self_weight_load_P)
   // Loads between nodal points
   int N_vert = frame_.sizeOfVertList();
   int N_element = frame_.sizeOfElementList();
-  self_weight_load_P = Eigen::MatrixXd::Zero(N_vert, 6);
+  self_weight_load_P.resize(N_vert*6);
 
   // assuming solid circular cross sec for now
   double Ax = M_PI * std::pow(material_parm_.radius_, 2);
@@ -103,11 +108,12 @@ void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd& self_weight_load_P)
     P_fG.head(3) = R_GL * P_fL.head(3);
     P_fG.tail(3) = R_GL * P_fL.tail(3);
 
-    self_weight_load_P.block<1,6>(end_u->id(),0) += P_fG;
+    self_weight_load_P.segment(end_u->id()*6, 6) += P_fG;
 
     // moment on the other end needs to be negated for sign consistency
     P_fG.tail(3) *= -1;
-    self_weight_load_P.block<1,6>(end_v->id(),0) += P_fG;
+
+    self_weight_load_P.segment(end_v->id()*6, 6) += P_fG;
   }
 }
 
@@ -130,7 +136,8 @@ bool Stiffness::setNodalLoad(const Eigen::MatrixXd& nodal_forces,
                              const bool& include_self_weight)
 {
   int dof = 6*frame_.sizeOfVertList();
-  bool is_empty_ext = nodal_forces.size() == 0;
+  bool is_empty_ext = nodal_forces.isZero(0) || nodal_forces.rows() == 0;
+
   assert((include_self_weight || is_empty_ext) && "No load is assigned.");
 
   Eigen::VectorXd sw_load(dof);
@@ -143,14 +150,40 @@ bool Stiffness::setNodalLoad(const Eigen::MatrixXd& nodal_forces,
 
   if(include_self_weight)
   {
+    if(verbose_)
+    {
+      std::cout << "self-weight turned on." << std::endl;
+    }
+
     createSelfWeightNodalLoad(sw_load);
   }
+
   if(is_empty_ext)
   {
     createExternalNodalLoad(nodal_forces, ext_load);
   }
+  else
+  {
+    if(verbose_)
+    {
+      std::cout << "no external load is assigned." << std::endl;
+    }
+  }
 
   nodal_load_P_ = sw_load + ext_load;
+}
+
+bool Stiffness::setSelfWeightNodalLoad()
+{
+  int dof = 6*frame_.sizeOfVertList();
+
+  Eigen::VectorXd sw_load(dof);
+  sw_load.setZero();
+
+  nodal_load_P_.resize(dof);
+
+  createSelfWeightNodalLoad(sw_load);
+  nodal_load_P_ = sw_load;
 }
 
 void Stiffness::createElementStiffnessMatrixList()
@@ -251,7 +284,7 @@ void Stiffness::createElementStiffnessMatrixList()
     K_eL.block<6,6>(6,0) = diag.asDiagonal();
 
     K_eL *= E;
-    
+
     // transform to global frame
     Eigen::MatrixXd R_LG_diag(12, 12);
     R_LG_diag.setZero();
@@ -266,10 +299,10 @@ void Stiffness::createElementStiffnessMatrixList()
 
 void Stiffness::createCompleteGlobalStiffnessMatrix()
 {
-  if (verbose_)
-  {
-    create_k_.Start();
-  }
+//  if (verbose_)
+//  {
+//    create_k_.Start();
+//  }
 
   assert(element_K_list_.size() > 0);
 
@@ -309,10 +342,10 @@ void Stiffness::createCompleteGlobalStiffnessMatrix()
     }
   }
 
-  if (verbose_)
-  {
-    create_k_.Stop();
-  }
+//  if (verbose_)
+//  {
+//    create_k_.Stop();
+//  }
 }
 
 bool Stiffness::solve(

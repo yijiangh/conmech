@@ -68,8 +68,9 @@ void testStiffness()
   Stiffness sf(file_path_1, true);
 
   Eigen::MatrixXd empty_ext_P;
+
   sf.setNodalLoad(empty_ext_P, true);
-  sf.solve();
+//  sf.solve();
 }
 
 } // util anon ns
