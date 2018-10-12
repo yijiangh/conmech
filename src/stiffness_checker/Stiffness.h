@@ -16,9 +16,14 @@ class Stiffness
 {
  public:
   Stiffness(Frame& frame, bool verbose=false);
+  Stiffness(const std::string& json_file_path, bool verbose=false);
+
   ~Stiffness() {}
 
  public:
+
+  bool init();
+
   /**
    * Construct external load (force, moment) on nodes.
    * @param nodal_forces
@@ -43,9 +48,8 @@ class Stiffness
    *    where is_X is a boolean flag.
    * @return boolean success flag
    */
-  bool setRigidFixities(const Eigen::Matrixi& fixities);
-
-  bool init();
+  // TODO: not implemented yet
+  virtual bool setRigidFixities(const Eigen::MatrixXi& fixities) {}
 
   /**
    * Compute nodal displacement given existing node's indices.
@@ -56,18 +60,16 @@ class Stiffness
    *    if the corresponding node exists in the (partial-)structure
    *    that you want to evaluate.
    * @param[out] node_displ
-   * (n_exist x 7) double matrix
-   *    node_displ[i] = [node_id, d_x, d_y, d_z, theta_x, theta_y, theta_z]
-   *    where d_() is the translation displacement,
-   *    theta_() is the rotational displ.
-   *    See [MSA McGuire et al.] P75.
+   * (n_exist x 3) double matrix
+   *    node_displ[i] = [node_id, dof_id, disp.]
+   *    where dof_id in [0,5]
    * @param[out] fixities_reaction
-   * (n_fix x 7) double matrix
-   *    fixities_reaction[i] = [node_id, F_x, F_y, F_z, M_x, M_y, M_z]
+   * (n_fix x 3) double matrix
+   *    fixities_reaction[i] = [node_id, dof_id, R]
    * @param[out] element_reation
    * (n_elements x 7) double matrix
-   *    element_reaction[i] = [node_id, F_x, F_y, F_z, M_x, M_y, M_z]
-   *    element's internal force described in global frame.
+   *    element_reaction[i] = [element_id, F_x, F_y, F_z, M_x, M_y, M_z]
+   *    element's internal force described in **local frame**.
    * @param cond_num flag for including condition number checking, default true
    * @return boolean success flag
    */
@@ -164,6 +166,11 @@ class Stiffness
   StiffnessParm material_parm_;
   StiffnessSolver stiff_solver_;
 
+  Timer create_k_;
+  Timer check_ill_;
+
+  bool verbose_;
+
  private:
   /**
    * a list of element stiffness matrix in global frame
@@ -193,11 +200,6 @@ class Stiffness
   Eigen::MatrixXi fixities_;
 
   bool is_init_;
-
-  Timer create_k_;
-  Timer check_ill_;
-
-  bool verbose_;
 };
 
 } // namespace stiffness_checker

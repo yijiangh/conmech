@@ -83,7 +83,8 @@ namespace stiffness_checker
 //  return true;
 //}
 
-bool StiffnessSolver::LUDecomp(MX &A, VX &x, VX &b)
+bool StiffnessSolver::solveSystemLU(
+    const Eigen::MatrixXd& A, const Eigen::VectorXd& b, Eigen::VectorXd& x)
 {
   if(timing_)
   {

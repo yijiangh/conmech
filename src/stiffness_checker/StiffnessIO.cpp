@@ -1,15 +1,12 @@
-#include "stiffness_checker/StiffnessParm.h"
-#include "stiffness_checker/Frame.h"
-#include "stiffness_checker/DualGraph.hpp"
-
-#include "stiffness_checker/StiffnessIO.h"
-
 #include <iostream>
 #include <vector>
 #include <string>
 
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
+
+#include "stiffness_checker/StiffnessParm.h"
+#include "stiffness_checker/StiffnessIO.h"
 
 namespace conmech
 {
@@ -45,38 +42,6 @@ bool parseMaterialPropertiesJson(const std::string& file_path, StiffnessParm& fr
   frame_parm.poisson_ratio_ = document["material_properties"]["poisson_ratio"].GetDouble();
   frame_parm.density_ = document["material_properties"]["density"].GetDouble();
   frame_parm.radius_ = document["material_properties"]["radius"].GetDouble();
-}
-
-bool parseFrameJson(const std::string &file_path, DualGraph* ptr_dg, StiffnessParm& frame_parm)
-{
-  // parse frame from Json
-  assert(ptr_dg != NULL);
-
-  ptr_dg->ptr_frame_ = new WireFrame();
-
-  if(!ptr_dg->ptr_frame_->LoadFromJson(file_path))
-  {
-    std::cout << "ERROR: load wireframe from json fails." << std::endl;
-    return false;
-  }
-
-  const WireFrame* ptr_wf = ptr_dg->ptr_frame_;
-  std::cout << "frame read from: " << file_path << std::endl;
-  std::cout << "vert size - " << ptr_wf->SizeOfVertList()
-            << ", edge size - " << ptr_wf->SizeOfEdgeList()/2
-            << ", grounded vert size - " << ptr_wf->SizeOfFixedVert()
-//            << ", grounded edge size - " << ptr_wf->SizeOfPillar()/2
-            << std::endl;
-
-  ptr_dg->Init();
-  ptr_dg->Dualization();
-
-  assert(ptr_dg->SizeOfVertList() == ptr_wf->SizeOfEdgeList()/2);
-  assert(ptr_dg->SizeOfFaceList() == ptr_wf->SizeOfVertList());
-
-  parseMaterialPropertiesJson(file_path, frame_parm);
-
-  return true;
 }
 
 } // ns stiffness_checker

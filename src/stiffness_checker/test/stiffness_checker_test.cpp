@@ -4,6 +4,7 @@
 #include <eigen3/Eigen/Dense>
 #include "stiffness_checker/Frame.h"
 #include "stiffness_checker/Util.h"
+#include "stiffness_checker/Stiffness.h"
 
 namespace
 {
@@ -57,11 +58,27 @@ void testLocalGlobalTransf()
   std::cout << m << std::endl;
 
 }
+
+void testStiffness()
+{
+  std::string file_path_1 =
+      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/voronoi/voronoi_S1_10-03-2018.json";
+  using namespace conmech::stiffness_checker;
+
+  Stiffness sf(file_path_1, true);
+
+  Eigen::MatrixXd empty_ext_P;
+  sf.setNodalLoad(empty_ext_P, true);
+  sf.solve();
+}
+
 } // util anon ns
 
 int main(int argc, char** argv)
 {
 //  testLoadingFrame();
-  testLocalGlobalTransf();
+//  testLocalGlobalTransf();
+  testStiffness();
+  
   return 0;
 }
