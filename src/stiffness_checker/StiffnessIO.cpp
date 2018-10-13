@@ -8,6 +8,70 @@
 #include "stiffness_checker/StiffnessParm.h"
 #include "stiffness_checker/StiffnessIO.h"
 
+namespace {
+double convertLengthScale(const std::string& unit)
+{
+  if("millimeter" == unit || "mm" == unit)
+  {
+    return 1;
+  }
+  if("centimeter" == unit || "cm" == unit)
+  {
+    return 10;
+  }
+  if("meter" == unit || "m" == unit)
+  {
+    return 100;
+  }
+  if("inch" == unit || "in" == unit)
+  {
+    return 25.4;
+  }
+  if("foot" == unit || "ft" == unit)
+  {
+    return 304.8;
+  }
+
+  // default millimeter
+  std::cout << "WARNING: unrecognized length unit in the input json file. Using millimeter by default." << std::endl;
+  return 1;
+}
+
+double convertModulusScale(const std::string& unit)
+{
+  // 1 pa = 1 N/m^2 = 1e-4 N/cm^2 = 1e-6 N/mm^2
+  // 1 Mpa = 1 N/mm^2
+
+  if("MPa" == unit)
+  {
+    return 1;
+  }
+  if("GPa" == unit)
+  {
+    return 1e3;
+  }
+
+  // default MPa
+  std::cout << "WARNING: unrecognized modulus unit in the input json file. "
+      "Using MPa by default." << std::endl;
+  return 1;
+}
+
+double convertDensityScale(const std::string& unit)
+{
+  if("kg/m3" == unit)
+  {
+    return 1;
+  }
+
+  // default MPa
+  std::cout << "WARNING: unrecognized material density unit in the input json file. "
+      "Using kg/m3 by default." << std::endl;
+  return 1;
+}
+
+} // anon util ns
+
 namespace conmech
 {
 namespace stiffness_checker
@@ -37,11 +101,30 @@ bool parseMaterialPropertiesJson(const std::string& file_path, StiffnessParm& fr
 
   assert(document.HasMember("material_properties"));
 
-  frame_parm.youngs_modulus_ = document["material_properties"]["youngs_modulus"].GetDouble();
-  frame_parm.shear_modulus_ = document["material_properties"]["shear_modulus"].GetDouble();
+  double unit_conversion;
+
+  assert(document["material_properties"].HasMember("youngs_modulus_unit"));
+  assert(document["material_properties"].HasMember("youngs_modulus"));
+  unit_conversion = convertModulusScale(document["material_properties"]["youngs_modulus_unit"].GetString());
+  frame_parm.youngs_modulus_ = unit_conversion * document["material_properties"]["youngs_modulus"].GetDouble();
+
+  assert(document["material_properties"].HasMember("shear_modulus_unit"));
+  assert(document["material_properties"].HasMember("shear_modulus"));
+  unit_conversion = convertModulusScale(document["material_properties"]["shear_modulus_unit"].GetString());
+  frame_parm.shear_modulus_ = unit_conversion * document["material_properties"]["shear_modulus"].GetDouble();
+
+  assert(document["material_properties"].HasMember("poisson_ratio"));
   frame_parm.poisson_ratio_ = document["material_properties"]["poisson_ratio"].GetDouble();
-  frame_parm.density_ = document["material_properties"]["density"].GetDouble();
-  frame_parm.radius_ = document["material_properties"]["radius"].GetDouble();
+
+  assert(document["material_properties"].HasMember("density_unit"));
+  assert(document["material_properties"].HasMember("density"));
+  unit_conversion = convertDensityScale(document["material_properties"]["density_unit"].GetString());
+  frame_parm.density_ = unit_conversion * document["material_properties"]["density"].GetDouble();
+
+  assert(document["material_properties"].HasMember("radius_unit"));
+  assert(document["material_properties"].HasMember("radius"));
+  unit_conversion = convertDensityScale(document["material_properties"]["radius_unit"].GetString());
+  frame_parm.radius_ = unit_conversion * document["material_properties"]["radius"].GetDouble();
 }
 
 } // ns stiffness_checker

@@ -11,18 +11,18 @@ namespace
 void testLoadingFrame()
 {
   std::string file_path_1 =
-      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/voronoi/voronoi_S1_10-03-2018.json";
-  std::string file_path_2 =
-      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/topopt-310/topopt-310_S1.0_09-17-2018.json";
+      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/sf-test_4-frame/sf-test_4-frameS1_10-13-2018.json";
+//  std::string file_path_2 =
+//      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/topopt-310/topopt-310_S1.0_09-17-2018.json";
 
   using namespace conmech::stiffness_checker;
 
   Frame f;
 
-  f.loadFromJson(file_path_2);
-  std::cout << "frame readed: vert size: " << f.sizeOfVertList() << ", element size: " << f.sizeOfElementList()
-            << std::endl;
-  std::cout << "fixed vert size: " << f.sizeOfFixedVert() << ", layer size: " << f.sizeOfLayer() << std::endl;
+//  f.loadFromJson(file_path_2);
+//  std::cout << "frame readed: vert size: " << f.sizeOfVertList() << ", element size: " << f.sizeOfElementList()
+//            << std::endl;
+//  std::cout << "fixed vert size: " << f.sizeOfFixedVert() << ", layer size: " << f.sizeOfLayer() << std::endl;
 
   f.loadFromJson(file_path_1);
   std::cout << "frame readed: vert size: " << f.sizeOfVertList() << ", element size: " << f.sizeOfElementList()
@@ -33,7 +33,8 @@ void testLoadingFrame()
   for(int i=0; i<f.sizeOfVertList(); i++)
   {
     auto v = f.getVert(i);
-    std::cout << "vert #" << i << " has degree" << v->degree() << ", ngbh elements:" << std::endl;
+    std::cout << "vert #" << i << " has degree" << v->degree() << ", ngbh elements:"
+              << "grounded: " << v->isFixed() << std::endl;
     for(auto e : v->nghdElements())
     {
       std::cout << "E #" << e->id() << ", vert id: "
@@ -62,14 +63,17 @@ void testLocalGlobalTransf()
 void testStiffness()
 {
   std::string file_path_1 =
-      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/voronoi/voronoi_S1_10-03-2018.json";
+      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/sf-test_4-frame/sf-test_4-frameS1_10-13-2018.json";
   using namespace conmech::stiffness_checker;
 
   Stiffness sf(file_path_1, true);
 
-  Eigen::MatrixXd empty_ext_P;
+  Eigen::MatrixXd ext_P(1,7);
+  ext_P.setZero();
+  ext_P(0,0) = 4; // node_id
+  ext_P(0,1) = 500 * 1e3; // N
 
-  sf.setNodalLoad(empty_ext_P, true);
+  sf.setNodalLoad(ext_P, false);
 //  sf.solve();
 }
 

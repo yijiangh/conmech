@@ -38,7 +38,7 @@ Stiffness::Stiffness(const std::string &json_file_path, bool verbose)
   // parse material properties
   parseMaterialPropertiesJson(json_file_path, material_parm_);
 
-//  init();
+  init();
 }
 
 bool Stiffness::init()
@@ -199,17 +199,21 @@ void Stiffness::createElementStiffnessMatrixList()
   // J: mm^4
 
   // element length L: mm
-  // E, G: GPa (1Pa = 1 N/m^2 = 1e-9 kN/mm^2)
-  // Force: kN
-  // Moment: kN m
+  // E, G: MPa (1Pa = 1 N/m^2 = 1e-9 kN/mm^2)
+  // Force: N
+  // Moment: N m
+  //TODO
+  using namespace std;
 
   double pi = atan(1)*4;
+  // cross section area: assuming solid circular, unit: mm^2
   double A = pi * std::pow(material_parm_.radius_,2);
 //  double Asy = Ax * (6 + 12 * material_parm_.poisson_ratio_ + 6 * std::pow(material_parm_.poisson_ratio_,2))
 //      / (7 + 12 * material_parm_.poisson_ratio_ + 4 * std::pow(material_parm_.poisson_ratio_,2));
 //  double Asz = Asy;
 
   // torsion constant (around local x axis)
+  // for solid circle: (1/2)pi*r^4
   // see: https://en.wikipedia.org/wiki/Torsion_constant#Circle
   double Jx = 0.5 * pi * std::pow(material_parm_.radius_, 4);
 
@@ -220,6 +224,7 @@ void Stiffness::createElementStiffnessMatrixList()
   double Iy = pi * std::pow(material_parm_.radius_,4) / 4;
   double Iz = Iy;
 
+  // E,G: MPa; mu: unitless
   double E = material_parm_.youngs_modulus_;
   double mu = material_parm_.poisson_ratio_;
   double G = E/(2*(1+mu));
@@ -227,13 +232,14 @@ void Stiffness::createElementStiffnessMatrixList()
   int N_element = frame_.sizeOfElementList();
   assert(N_element);
 
-  element_K_list_.resize(N_element);
+  element_K_list_.reserve(N_element);
   for (int i = 0; i < N_element; i++)
   {
     const auto e = frame_.getElement(i);
     const auto end_u = e->endVertU();
     const auto end_v = e->endVertV();
 
+    // element length, unit: mm
     double L = (end_v->position() - end_u->position()).norm();
 
     // element stiffness matrix in local frame
@@ -252,7 +258,7 @@ void Stiffness::createElementStiffnessMatrixList()
     // block_00 and block_11
     K_block(1,5) = 6*Iz / std::pow(L,2);
     K_block(2,4) = - 6*Iy / std::pow(L,2);
-    K_block = K_block.eval() + K_block.transpose().eval();
+    K_block = K_block.eval() +  K_block.transpose().eval();
     K_eL.block<6,6>(0,0) = K_block;
     K_eL.block<6,6>(6,6) = -K_block;
 
@@ -288,12 +294,12 @@ void Stiffness::createElementStiffnessMatrixList()
     // transform to global frame
     Eigen::MatrixXd R_LG_diag(12, 12);
     R_LG_diag.setZero();
-    for(i=0;i<4;i++)
+    for(int j=0;j<4;j++)
     {
-      R_LG_diag.block<3, 3>(i*3, i*3) = R_LG;
+      R_LG_diag.block<3, 3>(j*3, j*3) = R_LG;
     }
 
-    element_K_list_[i] = R_LG_diag.transpose() * K_eL * R_LG_diag;
+    element_K_list_.push_back(R_LG_diag.transpose() * K_eL * R_LG_diag);
   }
 }
 

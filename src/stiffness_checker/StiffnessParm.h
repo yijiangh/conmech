@@ -1,43 +1,4 @@
-/*
-* ==========================================================================
-*		This file is part of the implementation of
-*
-*		<FrameFab: Robotic Fabrication of Frame Shapes>
-*		Yijiang Huang, Juyong Zhang, Xin Hu, Guoxian Song, Zhongyuan Liu, Lei Yu, Ligang Liu
-*		In ACM Transactions on Graphics (Proc. SIGGRAPH Asia 2016)
-----------------------------------------------------------------------------
-*		class:	FiberPrintPARM
-*
-*		Description:	FiberPrintPARM takes charge of computation related parameters configuration.
-*
-*		Version: 2.0
-*		Created: Oct/10/2015
-*		Updated: Aug/24/2016
-*
-*		Author:  Xin Hu, Yijiang Huang, Guoxian Song
-*		Company:  GCL@USTC
-
-----------------------------------------------------------------------------
-*		Copyright (C) 2016  Yijiang Huang, Xin Hu, Guoxian Song, Juyong Zhang
-*		and Ligang Liu.
-*
-*		FrameFab is free software: you can redistribute it and/or modify
-*		it under the terms of the GNU General Public License as published by
-*		the Free Software Foundation, either version 3 of the License, or
-*		(at your option) any later version.
-*
-*		FrameFab is distributed in the hope that it will be useful,
-*		but WITHOUT ANY WARRANTY; without even the implied warranty of
-*		MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*		GNU General Public License for more details.
-*
-*		You should have received a copy of the GNU General Public License
-*		along with FrameFab.  If not, see <http://www.gnu.org/licenses/>.
-* ==========================================================================
-*/
-
-#ifndef FRAMEFAB_TASK_SEQUENCE_PLANNER_FIBERPRIN_PARM_H
-#define FRAMEFAB_TASK_SEQUENCE_PLANNER_FIBERPRIN_PARM_H
+#pragma once
 
 namespace conmech
 {
@@ -47,24 +8,47 @@ namespace stiffness_checker
 class StiffnessParm
 {
  public:
-  StiffnessParm():g_(9.8){}
+  StiffnessParm():g_(9.80665){}
 
   ~StiffnessParm(){};
 
  public:
   // TODO: this radius should be associated with geometry
-  // material & environment
+  /**
+   * raidus of the cross section, unit: millimeter
+   */
   double radius_;
+
+  /**
+   * material density, unit: kg/m^3
+   */
   double density_;
+
+  /**
+   * unit: MPa
+   */
   double youngs_modulus_;
+
+  /**
+   * unit: MPa
+   */
   double shear_modulus_;
+
+  /**
+   * unit: [] (unitless)
+   * G = E / 2(1+mu),
+   * where G is shear modulus, E is Young's modulus
+   * mu is poission ratio
+   */
   double poisson_ratio_;
 
-  // gravitational acc.
+  /**
+   * gravity on Earth, unit: m/s^2 = N/kg
+   * default value: 9.80665 m/s^2
+   * see: https://en.wikipedia.org/wiki/Gravity_of_Earth
+   */
   double g_;
 };
 
 } // ns stiffness_checker
 } // ns conmech
-
-#endif
