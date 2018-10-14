@@ -3,7 +3,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include "assert.h"
-#include <Eigen/Sparse>
+#include <eigen3/Eigen/Sparse>
 
 #include "choreo_task_sequence_planner/utils/Statistics.h"
 

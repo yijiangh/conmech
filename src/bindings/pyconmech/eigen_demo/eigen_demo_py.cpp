@@ -10,7 +10,7 @@ namespace conmech
 namespace pyconmech
 {
 
-PYBIND11_MODULE(eigen_demo_py, m)
+PYBIND11_MODULE(conmech_py, m)
 {
 
 py::class_<EigenSolveDemo>(m,"EigenSolveDemo")

@@ -1,17 +1,18 @@
-include_directories(
-	${Eigen_INCLUDE_DIRS}
-	${JSON_INCLUDE_DIRS}
-)
+add_definitions("-std=c++11")
 
-if (NOT APPLE)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
-endif()
+#find_package(LAPACK REQUIRED)
 
-# TODO: add tests
-#add_subdirectory(test)
+include_directories(${EIGEN_INCLUDE_DIRS} ${RAPIDJSON_INCLUDE_DIRS})
 
-#add_library(stiffness_checker
-#
-#	)
+add_executable(sc_test test/stiffness_checker_test.cpp)
 
-#target_link_libraries(stiffness_checker )
+add_library(stiffness_checker
+	Frame.cpp
+	Util.cpp
+	Stiffness.cpp
+	StiffnessSolver.cpp
+	Timer.cpp
+	StiffnessIO.cpp
+	)
+
+target_link_libraries(sc_test stiffness_checker)
