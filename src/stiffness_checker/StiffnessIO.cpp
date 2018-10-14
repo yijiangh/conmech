@@ -21,7 +21,7 @@ double convertLengthScale(const std::string& unit)
   }
   if("meter" == unit || "m" == unit)
   {
-    return 100;
+    return 1000;
   }
   if("inch" == unit || "in" == unit)
   {

@@ -74,7 +74,7 @@ void testStiffness()
   ext_P(0,1) = 500 * 1e3; // N
 
   sf.setNodalLoad(ext_P, false);
-//  sf.solve();
+  sf.solve();
 }
 
 } // util anon ns

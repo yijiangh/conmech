@@ -138,7 +138,7 @@ bool Stiffness::setNodalLoad(const Eigen::MatrixXd& nodal_forces,
   int dof = 6*frame_.sizeOfVertList();
   bool is_empty_ext = nodal_forces.isZero(0) || nodal_forces.rows() == 0;
 
-  assert((include_self_weight || is_empty_ext) && "No load is assigned.");
+  assert((!include_self_weight && !is_empty_ext) && "No load is assigned.");
 
   Eigen::VectorXd sw_load(dof);
   sw_load.setZero();
@@ -158,7 +158,7 @@ bool Stiffness::setNodalLoad(const Eigen::MatrixXd& nodal_forces,
     createSelfWeightNodalLoad(sw_load);
   }
 
-  if(is_empty_ext)
+  if(!is_empty_ext)
   {
     createExternalNodalLoad(nodal_forces, ext_load);
   }
@@ -202,8 +202,6 @@ void Stiffness::createElementStiffnessMatrixList()
   // E, G: MPa (1Pa = 1 N/m^2 = 1e-9 kN/mm^2)
   // Force: N
   // Moment: N m
-  //TODO
-  using namespace std;
 
   double pi = atan(1)*4;
   // cross section area: assuming solid circular, unit: mm^2
@@ -213,24 +211,26 @@ void Stiffness::createElementStiffnessMatrixList()
 //  double Asz = Asy;
 
   // torsion constant (around local x axis)
-  // for solid circle: (1/2)pi*r^4
+  // for solid circle: (1/2)pi*r^4, unit: mm^4
   // see: https://en.wikipedia.org/wiki/Torsion_constant#Circle
   double Jx = 0.5 * pi * std::pow(material_parm_.radius_, 4);
 
   // area moment of inertia (bending about local y,z-axis)
-  // assuming solid circular area of radius r
+  // assuming solid circular area of radius r, unit: mm^4
   // see: https://en.wikipedia.org/wiki/List_of_area_moments_of_inertia
   // note this is slender rod of length L and Mass M, spinning around end
   double Iy = pi * std::pow(material_parm_.radius_,4) / 4;
   double Iz = Iy;
 
-  // E,G: MPa; mu: unitless
+  // E,G: MPa; mu (poisson ratio): unitless
   double E = material_parm_.youngs_modulus_;
   double mu = material_parm_.poisson_ratio_;
   double G = E/(2*(1+mu));
+  assert((G - material_parm_.shear_modulus_) < 1e-3
+      && "input poisson ratio not compatible with shear and Young's modulus!");
 
   int N_element = frame_.sizeOfElementList();
-  assert(N_element);
+  assert(N_element > 0);
 
   element_K_list_.reserve(N_element);
   for (int i = 0; i < N_element; i++)
@@ -268,8 +268,8 @@ void Stiffness::createElementStiffnessMatrixList()
     diag[3] = Jx / (2*(1+mu)*L);
     diag[4] = 4*Iy / L;
     diag[5] = 4*Iz / L;
-    K_eL.block<6,6>(0,0) = diag.asDiagonal();
-    K_eL.block<6,6>(6,6) = diag.asDiagonal();
+    K_eL.block<6,6>(0,0) += diag.asDiagonal();
+    K_eL.block<6,6>(6,6) += diag.asDiagonal();
 
     // block_01 and block_10
     K_block.setZero();
@@ -286,8 +286,8 @@ void Stiffness::createElementStiffnessMatrixList()
     diag[3] = -Jx / (2*(1+mu)*L);
     diag[4] = 2*Iy / L;
     diag[5] = 2*Iz / L;
-    K_eL.block<6,6>(0,6) = diag.asDiagonal();
-    K_eL.block<6,6>(6,0) = diag.asDiagonal();
+    K_eL.block<6,6>(0,6) += diag.asDiagonal();
+    K_eL.block<6,6>(6,0) += diag.asDiagonal();
 
     K_eL *= E;
 
@@ -299,7 +299,9 @@ void Stiffness::createElementStiffnessMatrixList()
       R_LG_diag.block<3, 3>(j*3, j*3) = R_LG;
     }
 
-    element_K_list_.push_back(R_LG_diag.transpose() * K_eL * R_LG_diag);
+    auto K_eG = R_LG_diag.transpose() * K_eL * R_LG_diag;
+
+    element_K_list_.push_back(K_eG);
   }
 }
 
@@ -309,6 +311,7 @@ void Stiffness::createCompleteGlobalStiffnessMatrix()
 //  {
 //    create_k_.Start();
 //  }
+  using namespace std;
 
   assert(element_K_list_.size() > 0);
 
@@ -324,8 +327,8 @@ void Stiffness::createCompleteGlobalStiffnessMatrix()
     const auto end_u = e->endVertU();
     const auto end_v = e->endVertV();
 
-    id_map.block<1,6>(i,0) = Eigen::VectorXi::Ones(6)*end_u->id() + lin_sp_id;
-    id_map.block<1,6>(i,6) = Eigen::VectorXi::Ones(6)*end_v->id() + lin_sp_id;
+    id_map.block<1,6>(i,0) = Eigen::VectorXi::Constant(6, 6*end_u->id()) + lin_sp_id;
+    id_map.block<1,6>(i,6) = Eigen::VectorXi::Constant(6, 6*end_v->id()) + lin_sp_id;
   }
 
   K_assembled_full_.resize(dof, dof);
@@ -361,6 +364,9 @@ bool Stiffness::solve(
     Eigen::MatrixXd& element_reaction,
     const bool& cond_num)
 {
+  //todo
+  using namespace std;
+
   assert(is_init_);
 
   int n_Node = frame_.sizeOfVertList();
@@ -421,17 +427,17 @@ bool Stiffness::solve(
   {
     if(-1 == s[i])
     {
-      id_map_RO[n_exist_tail] = i;
+      id_map_RO(n_exist_tail) = i;
       n_exist_tail++;
     }
     if(0 == s[i])
     {
-      id_map_RO[f_tail] = i;
+      id_map_RO(f_tail) = i;
       f_tail++;
     }
     if(1 == s[i])
     {
-      id_map_RO[s_tail] = i;
+      id_map_RO(s_tail) = i;
       s_tail++;
     }
   }
@@ -446,7 +452,7 @@ bool Stiffness::solve(
   // permute the full stiffness matrix & carve the needed portion out
   auto K_perm = Perm * K_assembled_full_ * Perm.inverse();
   auto K_ff = K_perm.block(0,0,f_dof,f_dof);
-  auto K_sf = K_perm.block(f_dof,0,f_dof+s_dof,f_dof);
+  auto K_sf = K_perm.block(f_dof,0,s_dof,f_dof);
 
   Eigen::VectorXd P_perm = Perm * nodal_load_P_;
   auto P_ff = P_perm.segment(0, f_dof);
@@ -468,7 +474,7 @@ bool Stiffness::solve(
   R.setZero();
 
   auto R_s = K_sf * U_ff;
-  R.segment(f_dof, f_dof + s_dof) = R_s;
+  R.segment(f_dof, s_dof) = R_s;
   R = Perm.inverse() * R.eval();
 
   // assemble and permute the nodal displacement result back
@@ -488,14 +494,22 @@ bool Stiffness::solve(
     const auto end_u = e->endVertU();
     const auto end_v = e->endVertV();
 
+    // transform to global frame
     Eigen::Matrix3d R_LG;
     getGlobal2LocalRotationMatrix(end_u->position(), end_v->position(), R_LG);
+
+    Eigen::MatrixXd R_LG_diag(12, 12);
+    R_LG_diag.setZero();
+    for(int j=0;j<4;j++)
+    {
+      R_LG_diag.block<3, 3>(j*3, j*3) = R_LG;
+    }
 
     Eigen::VectorXd Ue(12);
     Ue.segment(0,6) = U.segment(end_u->id()*6, 6);
     Ue.segment(6,6) = U.segment(end_v->id()*6, 6);
 
-    eF.segment(12*i, 12) = R_LG * element_K_list_[i] * Ue;
+    eF.segment(12*i, 12) = R_LG_diag * element_K_list_[i] * Ue;
   }
 
   // stiffness criteria check
@@ -515,6 +529,7 @@ bool Stiffness::solve(
     {
       if(0 == s[6*i+j])
       {
+        assert(fill_cnt < f_dof);
         node_displ(fill_cnt,0) = i;
         node_displ(fill_cnt,1) = j;
         node_displ(fill_cnt,2) = U(6*i+j);
@@ -523,6 +538,8 @@ bool Stiffness::solve(
       }
     }
   }
+
+  cout << "nodal disp:\n" << node_displ << endl;
 
   // fixities reaction
   fixities_reaction.resize(s_dof,3);
@@ -533,27 +550,32 @@ bool Stiffness::solve(
     {
       if(1 == s[6*i+j])
       {
-        node_displ(fill_cnt,0) = i;
-        node_displ(fill_cnt,1) = j;
-        node_displ(fill_cnt,2) = R(6*i+j);
+        assert(fill_cnt < s_dof);
+        fixities_reaction(fill_cnt,0) = i;
+        fixities_reaction(fill_cnt,1) = j;
+        fixities_reaction(fill_cnt,2) = R(6*i+j);
 
         fill_cnt++;
       }
     }
   }
 
+  cout << "fixities reaction:\n" << fixities_reaction << endl;
+
   // element internal reaction
   int N_exist_element = exist_element_ids.size();
-  element_reaction.resize(N_exist_element, 7);
+  element_reaction.resize(N_exist_element, 13);
   for(int i=0; i<N_exist_element; i++)
   {
     for(int j=0; j<6; j++)
     {
       int e_id = exist_element_ids[i];
-      node_displ(i,0) = e_id;
-      node_displ.block<1,6>(i,1) = eF.segment(e_id*12,6);
+      element_reaction(i,0) = e_id;
+      element_reaction.block<1,12>(i,1) = eF.segment(e_id*12,12);
     }
   }
+
+  cout << "element reaction:\n" << element_reaction << endl;
 
   if(verbose_)
   {

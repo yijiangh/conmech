@@ -179,6 +179,7 @@ class Stiffness
    * (N_all_element x (12x12)) list
    * Ne * 1 std::vector, Ne is number of elements
    * each entry is a 12*12 local stiffness matrix K
+   * Note: length unit: mm, force unit: N
    */
   std::vector<Eigen::MatrixXd> element_K_list_;
 
@@ -186,12 +187,14 @@ class Stiffness
    * Global assembled stiffness matrix for the entire structure
    * the matrix will be sliced to solve for partial-structure
    * by the getSlicesGlobalStiffnessMatrix method.
+   * Note: length unit: mm, force unit: N
    */
   Eigen::MatrixXd K_assembled_full_;
 
   /**
    * external nodal load P
    * (dof) double vector
+   * Note: length unit: mm, force unit: N
    */
   Eigen::VectorXd nodal_load_P_;
 
