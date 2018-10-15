@@ -1,4 +1,5 @@
 #include <cmath>
+#include <set>
 #include <algorithm>
 
 #include <eigen3/Eigen/Dense>
@@ -379,8 +380,18 @@ bool Stiffness::solve(
   assert(is_init_);
 
   // TODO: get existing eleme ids' vert number
-  int n_Node = frame_.sizeOfVertList();
-  int n_Element = frame_.sizeOfElementList();
+  int n_Element = exist_element_ids.size();
+  std::set<int> exist_node_ids;
+  assert(n_Element>0 && n_Element<=frame_.sizeOfElementList());
+  for(const int e_id : exist_element_ids)
+  {
+    assert(e_id>0 && e_id<=frame_.sizeOfElementList());
+    int u_id = frame_.getElement(e_id)->endVertU()->id();
+    int v_id = frame_.getElement(e_id)->endVertV()->id();
+    exist_node_ids.insert(u_id);
+    exist_node_ids.insert(v_id);
+  }
+  int n_Node = exist_node_ids.size();
 
   if (verbose_)
   {
