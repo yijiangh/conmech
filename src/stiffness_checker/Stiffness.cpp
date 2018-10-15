@@ -228,7 +228,7 @@ void Stiffness::createElementStiffnessMatrixList()
   double mu = material_parm_.poisson_ratio_;
   double G = E/(2*(1+mu));
   assert((G - material_parm_.shear_modulus_) < 1e-3
-      && "input poisson ratio not compatible with shear and Young's modulus!");
+             && "input poisson ratio not compatible with shear and Young's modulus!");
 
   int N_element = frame_.sizeOfElementList();
   assert(N_element > 0);
@@ -296,7 +296,7 @@ void Stiffness::createElementStiffnessMatrixList()
 
     K_eL *= E;
 
-    std::cout << "K_eL#" << i << "before tf:\n"<< K_eL << std::endl << std::endl;
+//    std::cout << "K_eL#" << i << "before tf:\n"<< K_eL << std::endl << std::endl;
 
     // transform to global frame
     Eigen::MatrixXd R_LG_diag(12, 12);
@@ -305,8 +305,6 @@ void Stiffness::createElementStiffnessMatrixList()
     {
       R_LG_diag.block<3, 3>(j*3, j*3) = R_LG;
     }
-
-    std::cout << R_LG_diag << std::endl;
 
     auto K_eG = R_LG_diag.transpose() * K_eL * R_LG_diag;
 
@@ -559,7 +557,31 @@ bool Stiffness::solve(
 
   if(verbose_)
   {
-    std::cout << "nodal disp:\n" << node_displ << std::endl;
+    std::cout << "nodal disp (mm/rad):" << std::endl;
+    std::cout << "node_id\tdof\tval" << std::endl;
+    for(int i=0; i<node_displ.rows(); i++)
+    {
+      std::string dof_name;
+      switch ((int)node_displ(i,1))
+      {
+        case 0: dof_name = "Tx";
+          break;
+        case 1: dof_name = "Ty";
+          break;
+        case 2: dof_name = "Tz";
+          break;
+        case 3: dof_name = "Rx";
+          break;
+        case 4: dof_name = "Ry";
+          break;
+        case 5: dof_name = "Rz";
+          break;
+      }
+      std::cout << node_displ(i,0) << "\t"
+                << node_displ(i,1) << "(" << dof_name << ")" << "\t"
+                << node_displ(i,2) << std::endl;
+    }
+    std:cout << std::endl;
   }
 
   // fixities reaction
@@ -583,7 +605,31 @@ bool Stiffness::solve(
 
   if(verbose_)
   {
-    cout << "fixities reaction:\n" << fixities_reaction << endl;
+    std::cout << "fixities reaction (N, N-mm):" << std::endl;
+    std::cout << "node_id\tdof\tval" << std::endl;
+    for(int i=0; i<fixities_reaction.rows(); i++)
+    {
+      std::string dof_name;
+      switch ((int)fixities_reaction(i,1))
+      {
+        case 0: dof_name = "Fx";
+          break;
+        case 1: dof_name = "Fy";
+          break;
+        case 2: dof_name = "Fz";
+          break;
+        case 3: dof_name = "Mx";
+          break;
+        case 4: dof_name = "My";
+          break;
+        case 5: dof_name = "Mz";
+          break;
+      }
+      std::cout << fixities_reaction(i,0) << "\t"
+                << fixities_reaction(i,1) << "(" << dof_name << ")" << "\t"
+                << fixities_reaction(i,2) << std::endl;
+    }
+    std::cout << std::endl;
   }
 
   // element internal reaction
@@ -601,7 +647,21 @@ bool Stiffness::solve(
 
   if(verbose_)
   {
-    cout << "element reaction:\n" << element_reaction << endl;
+    std::cout << "element reaction (N, N-mm):" << std::endl;
+    std::cout << "e_id\tnode_id" << std::endl;
+    for(int i=0; i<element_reaction.rows(); i++)
+    {
+      std::cout << element_reaction(i,0) << "\t"
+                << frame_.getElement(element_reaction(i,0))->endVertU()->id();
+
+      std::cout << element_reaction.block<1,6>(i,1) << std::endl;
+
+      std::cout << "\t"
+                << frame_.getElement(element_reaction(i,0))->endVertV()->id();
+
+      std::cout << element_reaction.block<1,6>(i,7) << std::endl;
+    }
+    std::cout << std::endl;
   }
 
   if(verbose_)

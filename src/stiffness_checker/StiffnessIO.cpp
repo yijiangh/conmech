@@ -129,7 +129,7 @@ bool parseMaterialPropertiesJson(const std::string& file_path, StiffnessParm& fr
 
 
 /**
- * createGnuPltStaticMesh  - create mesh data of deformed and undeformed mesh  25/Nov/2015
+ * createGnuPltStaticMesh  - create mesh data of deformed and undeformed mesh
  * use gnuplot
  * useful gnuplot options: unset xtics ytics ztics border view key
  * This function illustrates how to read the internal force output data file.
