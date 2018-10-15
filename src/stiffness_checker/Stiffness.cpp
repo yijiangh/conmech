@@ -214,6 +214,7 @@ void Stiffness::createElementStiffnessMatrixList()
   // for solid circle: (1/2)pi*r^4, unit: mm^4
   // see: https://en.wikipedia.org/wiki/Torsion_constant#Circle
   double Jx = 0.5 * pi * std::pow(material_parm_.radius_, 4);
+//  double Jx = (2.0/3.0) * pi * std::pow(material_parm_.radius_, 4);
 
   // area moment of inertia (bending about local y,z-axis)
   // assuming solid circular area of radius r, unit: mm^4
@@ -232,6 +233,9 @@ void Stiffness::createElementStiffnessMatrixList()
   int N_element = frame_.sizeOfElementList();
   assert(N_element > 0);
 
+  using namespace std;
+//  std::cout << "radius: " << material_parm_.radius_ << std::endl;
+
   element_K_list_.reserve(N_element);
   for (int i = 0; i < N_element; i++)
   {
@@ -241,6 +245,7 @@ void Stiffness::createElementStiffnessMatrixList()
 
     // element length, unit: mm
     double L = (end_v->position() - end_u->position()).norm();
+//    cout << "eL: " << L << e ndl;
 
     // element stiffness matrix in local frame
     Eigen::MatrixXd K_eL(12, 12);
@@ -291,6 +296,8 @@ void Stiffness::createElementStiffnessMatrixList()
 
     K_eL *= E;
 
+    std::cout << "K_eL#" << i << "before tf:\n"<< K_eL << std::endl << std::endl;
+
     // transform to global frame
     Eigen::MatrixXd R_LG_diag(12, 12);
     R_LG_diag.setZero();
@@ -298,6 +305,8 @@ void Stiffness::createElementStiffnessMatrixList()
     {
       R_LG_diag.block<3, 3>(j*3, j*3) = R_LG;
     }
+
+    std::cout << R_LG_diag << std::endl;
 
     auto K_eG = R_LG_diag.transpose() * K_eL * R_LG_diag;
 
@@ -366,9 +375,12 @@ bool Stiffness::solve(
 {
   //todo
   using namespace std;
+  // TODO: a lot of dimension not right, should be compatible
+  // with existing element ids
 
   assert(is_init_);
 
+  // TODO: get existing eleme ids' vert number
   int n_Node = frame_.sizeOfVertList();
   int n_Element = frame_.sizeOfElementList();
 
@@ -465,7 +477,10 @@ bool Stiffness::solve(
   Eigen::VectorXd U_ff(f_dof);
   if (!stiff_solver_.solveSystemLU(K_ff, P_ff, U_ff))
   {
-    std::cout << "ERROR: Stiffness Solver fail!\n" << std::endl;
+    if(verbose_)
+    {
+      std::cout << "ERROR: Stiffness Solver fail!\n" << std::endl;
+    }
     return false;
   }
 
@@ -488,11 +503,12 @@ bool Stiffness::solve(
   Eigen::VectorXd eF(n_Element*12);
   eF.setZero();
 
-  for (int i = 0; i < n_Element; i++)
+  for (const int e_id : exist_element_ids)
   {
-    const auto e = frame_.getElement(i);
+    const auto e = frame_.getElement(e_id);
     const auto end_u = e->endVertU();
     const auto end_v = e->endVertV();
+    assert(e_id == e->id());
 
     // transform to global frame
     Eigen::Matrix3d R_LG;
@@ -509,7 +525,9 @@ bool Stiffness::solve(
     Ue.segment(0,6) = U.segment(end_u->id()*6, 6);
     Ue.segment(6,6) = U.segment(end_v->id()*6, 6);
 
-    eF.segment(12*i, 12) = R_LG_diag * element_K_list_[i] * Ue;
+//    cout << "end u,v id #:" << end_u->id() << "," << end_v->id() << ":\n" << element_K_list_[e_id] << endl;
+
+    eF.segment(12*e_id, 12) = R_LG_diag * element_K_list_[e->id()] * Ue;
   }
 
   // stiffness criteria check
@@ -539,7 +557,10 @@ bool Stiffness::solve(
     }
   }
 
-  cout << "nodal disp:\n" << node_displ << endl;
+  if(verbose_)
+  {
+    std::cout << "nodal disp:\n" << node_displ << std::endl;
+  }
 
   // fixities reaction
   fixities_reaction.resize(s_dof,3);
@@ -560,7 +581,10 @@ bool Stiffness::solve(
     }
   }
 
-  cout << "fixities reaction:\n" << fixities_reaction << endl;
+  if(verbose_)
+  {
+    cout << "fixities reaction:\n" << fixities_reaction << endl;
+  }
 
   // element internal reaction
   int N_exist_element = exist_element_ids.size();
@@ -575,7 +599,10 @@ bool Stiffness::solve(
     }
   }
 
-  cout << "element reaction:\n" << element_reaction << endl;
+  if(verbose_)
+  {
+    cout << "element reaction:\n" << element_reaction << endl;
+  }
 
   if(verbose_)
   {

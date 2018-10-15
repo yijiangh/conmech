@@ -63,7 +63,7 @@ void testLocalGlobalTransf()
 void testStiffness()
 {
   std::string file_path_1 =
-      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/sf-test_4-frame/sf-test_4-frameS1_10-13-2018.json";
+      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/sf-test_4-frame/sf-test_4-frameS1_10-14-2018.json";
   using namespace conmech::stiffness_checker;
 
   Stiffness sf(file_path_1, true);
@@ -71,7 +71,7 @@ void testStiffness()
   Eigen::MatrixXd ext_P(1,7);
   ext_P.setZero();
   ext_P(0,0) = 4; // node_id
-  ext_P(0,1) = 500 * 1e3; // N
+  ext_P(0,3) = 500 * 1e3; // N
 
   sf.setNodalLoad(ext_P, false);
   sf.solve();
