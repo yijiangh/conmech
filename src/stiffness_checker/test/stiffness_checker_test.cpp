@@ -71,10 +71,17 @@ void testStiffness()
   Eigen::MatrixXd ext_P(1,7);
   ext_P.setZero();
   ext_P(0,0) = 3; // node_id
-  ext_P(0,3) = 500 * 1e3; // N
+  ext_P(0,3) = -500 * 1e3; // N
+
+  std::vector<int> exist_e_ids;
+  exist_e_ids.push_back(0);
+//  exist_e_ids.push_back(1);
 
   sf.setNodalLoad(ext_P, false);
-  sf.solve();
+  bool success = sf.solve();
+// bool success = sf.solve(exist_e_ids);
+
+  std::cout << "stiffness check result: " << success << std::endl;
 }
 
 } // util anon ns
