@@ -2,7 +2,7 @@
 #include <set>
 #include <algorithm>
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 
 #include "stiffness_checker/Util.h"
 #include "stiffness_checker/StiffnessSolver.h"

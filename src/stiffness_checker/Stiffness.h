@@ -1,7 +1,7 @@
 #pragma once
 
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/Sparse>
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
 #include "stiffness_checker/Frame.h"
 #include "stiffness_checker/StiffnessParm.h"
 #include "stiffness_checker/StiffnessSolver.h"
@@ -21,9 +21,6 @@ class Stiffness
   ~Stiffness() {}
 
  public:
-
-  bool init();
-
   /**
    * set maximal nodal translational and rotational tolerance
    * for stiffness checking criteria.
@@ -129,6 +126,9 @@ class Stiffness
   void printOutTimer();
 
  protected:
+
+  bool init();
+
   virtual bool checkStiffnessCriteria(const Eigen::MatrixXd& node_displ,
                                       const Eigen::MatrixXd& fixities_reaction,
                                       const Eigen::MatrixXd& element_reation);

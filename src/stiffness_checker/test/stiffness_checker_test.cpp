@@ -1,7 +1,8 @@
 #include <string>
 #include <iostream>
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
+
 #include "stiffness_checker/Frame.h"
 #include "stiffness_checker/Util.h"
 #include "stiffness_checker/Stiffness.h"
@@ -77,7 +78,8 @@ void testStiffness()
   exist_e_ids.push_back(0);
 //  exist_e_ids.push_back(1);
 
-  sf.setNodalLoad(ext_P, false);
+//  sf.setNodalLoad(ext_P, false);
+  sf.setSelfWeightNodalLoad();
   bool success = sf.solve();
 // bool success = sf.solve(exist_e_ids);
 
