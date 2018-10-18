@@ -1,7 +1,7 @@
 #pragma once
 
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/Sparse>
+#include <Eigen/Dense>
+#include <Eigen/Sparse>
 #include "stiffness_checker/Frame.h"
 #include "stiffness_checker/StiffnessParm.h"
 #include "stiffness_checker/StiffnessSolver.h"
@@ -21,8 +21,11 @@ class Stiffness
   ~Stiffness() {}
 
  public:
-
-  bool init();
+  /**
+   * set maximal nodal translational and rotational tolerance
+   * for stiffness checking criteria.
+   */
+  void setNodalDisplacementTolerance(double transl_tol, double rot_tol);
 
   /**
    * Construct external load (force, moment) on nodes.
@@ -122,6 +125,14 @@ class Stiffness
    */
   void printOutTimer();
 
+ protected:
+
+  bool init();
+
+  virtual bool checkStiffnessCriteria(const Eigen::MatrixXd& node_displ,
+                                      const Eigen::MatrixXd& fixities_reaction,
+                                      const Eigen::MatrixXd& element_reation);
+
  private:
   /**
    * create external nodal load to class var ext_load_P
@@ -149,7 +160,7 @@ class Stiffness
    * @param Ry
    * @param Rz
    */
-  void setGroundedNodesUniformFixities(bool Tx, bool Ty, bool Tz, bool Rx, bool Ry, bool Rz);
+//  void setGroundedNodesUniformFixities(bool Tx, bool Ty, bool Tz, bool Rx, bool Ry, bool Rz);
 
   /**
    * create a list of element stiffness matrix (in global frame),
@@ -161,7 +172,7 @@ class Stiffness
    * assemble global stiffness matrix from all elements,
    * i.e. (dof x dof) K_assembled, dof = n_Node*6
    */
-  void createCompleteGlobalStiffnessMatrix();
+  void createCompleteGlobalStiffnessMatrix(const std::vector<int>& exist_e_ids);
 
  protected:
   Frame frame_;
@@ -170,6 +181,9 @@ class Stiffness
 
   Timer create_k_;
   Timer check_ill_;
+
+  double transl_tol_;
+  double rot_tol_;
 
   bool verbose_;
 

@@ -5,7 +5,7 @@
 #include <string>
 #include <iostream>
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 #include "eigen_demo/eigen_demo.hpp"
 #include "eigen_demo/eigen_demo_IO.hpp"
 

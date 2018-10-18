@@ -1,7 +1,8 @@
 #include <cmath>
+#include <set>
 #include <algorithm>
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 
 #include "stiffness_checker/Util.h"
 #include "stiffness_checker/StiffnessSolver.h"
@@ -15,7 +16,7 @@ namespace stiffness_checker
 {
 
 Stiffness::Stiffness(Frame& frame, bool verbose)
-    : frame_(frame), verbose_(verbose), is_init_(false)
+    : frame_(frame), verbose_(verbose), is_init_(false), transl_tol_(1.0), rot_tol_(5*(3.14/180))
 {
   // frame sanity check
   int N_vert = frame_.sizeOfVertList();
@@ -27,7 +28,7 @@ Stiffness::Stiffness(Frame& frame, bool verbose)
 }
 
 Stiffness::Stiffness(const std::string &json_file_path, bool verbose)
-    : verbose_(verbose), is_init_(false)
+    : verbose_(verbose), is_init_(false), transl_tol_(1.0), rot_tol_(5*(3.14/180))
 {
   verbose_ = verbose;
   stiff_solver_.timing_ = verbose;
@@ -44,7 +45,6 @@ Stiffness::Stiffness(const std::string &json_file_path, bool verbose)
 bool Stiffness::init()
 {
   createElementStiffnessMatrixList();
-  createCompleteGlobalStiffnessMatrix();
 
   if(verbose_)
   {
@@ -52,6 +52,13 @@ bool Stiffness::init()
   }
 
   is_init_ = true;
+}
+
+void Stiffness::setNodalDisplacementTolerance(double transl_tol, double rot_tol)
+{
+  assert(transl_tol > 0 && rot_tol > 0 && "invalid tolerance!");
+  transl_tol_ = transl_tol;
+  rot_tol_ = rot_tol;
 }
 
 void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd& self_weight_load_P)
@@ -214,6 +221,7 @@ void Stiffness::createElementStiffnessMatrixList()
   // for solid circle: (1/2)pi*r^4, unit: mm^4
   // see: https://en.wikipedia.org/wiki/Torsion_constant#Circle
   double Jx = 0.5 * pi * std::pow(material_parm_.radius_, 4);
+//  double Jx = (2.0/3.0) * pi * std::pow(material_parm_.radius_, 4);
 
   // area moment of inertia (bending about local y,z-axis)
   // assuming solid circular area of radius r, unit: mm^4
@@ -232,6 +240,9 @@ void Stiffness::createElementStiffnessMatrixList()
   int N_element = frame_.sizeOfElementList();
   assert(N_element > 0);
 
+  using namespace std;
+//  std::cout << "radius: " << material_parm_.radius_ << std::endl;
+
   element_K_list_.reserve(N_element);
   for (int i = 0; i < N_element; i++)
   {
@@ -241,6 +252,7 @@ void Stiffness::createElementStiffnessMatrixList()
 
     // element length, unit: mm
     double L = (end_v->position() - end_u->position()).norm();
+//    cout << "eL: " << L << e ndl;
 
     // element stiffness matrix in local frame
     Eigen::MatrixXd K_eL(12, 12);
@@ -291,6 +303,8 @@ void Stiffness::createElementStiffnessMatrixList()
 
     K_eL *= E;
 
+//    std::cout << "K_eL#" << i << "before tf:\n"<< K_eL << std::endl << std::endl;
+
     // transform to global frame
     Eigen::MatrixXd R_LG_diag(12, 12);
     R_LG_diag.setZero();
@@ -305,15 +319,10 @@ void Stiffness::createElementStiffnessMatrixList()
   }
 }
 
-void Stiffness::createCompleteGlobalStiffnessMatrix()
+void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int>& exist_e_ids)
 {
-//  if (verbose_)
-//  {
-//    create_k_.Start();
-//  }
-  using namespace std;
-
   assert(element_K_list_.size() > 0);
+  assert(exist_e_ids.size()>0);
 
   int dof = frame_.sizeOfVertList() * 6;
   int N_element = frame_.sizeOfElementList();
@@ -333,28 +342,24 @@ void Stiffness::createCompleteGlobalStiffnessMatrix()
 
   K_assembled_full_.resize(dof, dof);
   K_assembled_full_.setZero();
-  for(int i = 0; i < N_element; i++)
+  for(const int e_id : exist_e_ids)
   {
-    const auto K_e = element_K_list_[i];
+    assert(e_id>=0 && e_id<frame_.sizeOfElementList());
+
+    const auto K_e = element_K_list_[e_id];
     assert(K_e.rows() == 12 && K_e.cols() == 12);
 
     for(int j=0; j < 12; j++)
     {
-      int row_id = id_map(i,j);
+      int row_id = id_map(e_id,j);
 
       for(int k=0; k < 12; k++)
       {
-        int col_id = id_map(i,k);
-
+        int col_id = id_map(e_id,k);
         K_assembled_full_(row_id, col_id) += K_e(j,k);
       }
     }
   }
-
-//  if (verbose_)
-//  {
-//    create_k_.Stop();
-//  }
 }
 
 bool Stiffness::solve(
@@ -369,8 +374,19 @@ bool Stiffness::solve(
 
   assert(is_init_);
 
+  int n_Element = exist_element_ids.size();
+  int n_Exist_element = exist_element_ids.size();
+  std::set<int> exist_node_ids;
+  assert(n_Element>0 && n_Element<=frame_.sizeOfElementList());
+  for(const int e_id : exist_element_ids)
+  {
+    assert(e_id>=0 && e_id<frame_.sizeOfElementList());
+    int u_id = frame_.getElement(e_id)->endVertU()->id();
+    int v_id = frame_.getElement(e_id)->endVertV()->id();
+    exist_node_ids.insert(u_id);
+    exist_node_ids.insert(v_id);
+  }
   int n_Node = frame_.sizeOfVertList();
-  int n_Element = frame_.sizeOfElementList();
 
   if (verbose_)
   {
@@ -414,9 +430,7 @@ bool Stiffness::solve(
   int s_dof = std::count(s.begin(), s.end(), 1);
   int n_exist_dof = std::count(s.begin(), s.end(), -1);
   int dof = 6*n_Node;
-
   assert(s_dof + f_dof + n_exist_dof == dof);
-  assert(K_assembled_full_.rows() == dof && K_assembled_full_.cols() == dof);
 
   // mapping rearranged (R) dof_id into original (O) dof_id
   Eigen::VectorXi id_map_RO(dof);
@@ -448,13 +462,16 @@ bool Stiffness::solve(
   {
     Perm(i, id_map_RO(i)) = 1;
   }
+  auto Perm_inv = Perm.inverse();
 
   // permute the full stiffness matrix & carve the needed portion out
-  auto K_perm = Perm * K_assembled_full_ * Perm.inverse();
+  createCompleteGlobalStiffnessMatrix(exist_element_ids);
+  auto K_perm = Perm * K_assembled_full_ * Perm_inv;
   auto K_ff = K_perm.block(0,0,f_dof,f_dof);
   auto K_sf = K_perm.block(f_dof,0,s_dof,f_dof);
 
   Eigen::VectorXd P_perm = Perm * nodal_load_P_;
+
   auto P_ff = P_perm.segment(0, f_dof);
 
   if (verbose_)
@@ -465,7 +482,10 @@ bool Stiffness::solve(
   Eigen::VectorXd U_ff(f_dof);
   if (!stiff_solver_.solveSystemLU(K_ff, P_ff, U_ff))
   {
-    std::cout << "ERROR: Stiffness Solver fail!\n" << std::endl;
+    if(verbose_)
+    {
+      std::cout << "ERROR: Stiffness Solver fail!\n" << std::endl;
+    }
     return false;
   }
 
@@ -475,24 +495,24 @@ bool Stiffness::solve(
 
   auto R_s = K_sf * U_ff;
   R.segment(f_dof, s_dof) = R_s;
-  R = Perm.inverse() * R.eval();
+  R = Perm_inv * R.eval();
 
   // assemble and permute the nodal displacement result back
   Eigen::VectorXd U(dof);
   U.setZero();
 
   U.segment(0, f_dof) = U_ff;
-  U = Perm.inverse() * U.eval();
+  U = Perm_inv * U.eval();
 
-  // element force
-  Eigen::VectorXd eF(n_Element*12);
-  eF.setZero();
-
-  for (int i = 0; i < n_Element; i++)
+  // element internal reaction
+  element_reaction.resize(n_Exist_element, 13);
+  int fill_cnt = 0;
+  for (const int e_id : exist_element_ids)
   {
-    const auto e = frame_.getElement(i);
+    const auto e = frame_.getElement(e_id);
     const auto end_u = e->endVertU();
     const auto end_v = e->endVertV();
+    assert(e_id == e->id());
 
     // transform to global frame
     Eigen::Matrix3d R_LG;
@@ -509,18 +529,14 @@ bool Stiffness::solve(
     Ue.segment(0,6) = U.segment(end_u->id()*6, 6);
     Ue.segment(6,6) = U.segment(end_v->id()*6, 6);
 
-    eF.segment(12*i, 12) = R_LG_diag * element_K_list_[i] * Ue;
-  }
+    element_reaction(fill_cnt,0) = e_id;
+    element_reaction.block<1,12>(fill_cnt,1) = R_LG_diag * element_K_list_[e->id()] * Ue;
 
-  // stiffness criteria check
-//	if (!CheckError(stiff_inspector, U, R, eF))
-//	{
-//		return false;
-//	}
+    fill_cnt++;
+  }
 
   // assemble result into output formats
   // node displacement
-  int fill_cnt;
   node_displ.resize(f_dof,3);
   fill_cnt=0;
   for(int i=0; i<n_Node; i++)
@@ -539,7 +555,34 @@ bool Stiffness::solve(
     }
   }
 
-  cout << "nodal disp:\n" << node_displ << endl;
+  if(verbose_)
+  {
+    std::cout << "nodal disp (mm/rad):" << std::endl;
+    std::cout << "node_id\tdof\tval" << std::endl;
+    for(int i=0; i<node_displ.rows(); i++)
+    {
+      std::string dof_name;
+      switch ((int)node_displ(i,1))
+      {
+        case 0: dof_name = "Tx";
+          break;
+        case 1: dof_name = "Ty";
+          break;
+        case 2: dof_name = "Tz";
+          break;
+        case 3: dof_name = "Rx";
+          break;
+        case 4: dof_name = "Ry";
+          break;
+        case 5: dof_name = "Rz";
+          break;
+      }
+      std::cout << node_displ(i,0) << "\t"
+                << node_displ(i,1) << "(" << dof_name << ")" << "\t"
+                << node_displ(i,2) << std::endl;
+    }
+    std:cout << std::endl;
+  }
 
   // fixities reaction
   fixities_reaction.resize(s_dof,3);
@@ -560,39 +603,61 @@ bool Stiffness::solve(
     }
   }
 
-  cout << "fixities reaction:\n" << fixities_reaction << endl;
-
-  // element internal reaction
-  int N_exist_element = exist_element_ids.size();
-  element_reaction.resize(N_exist_element, 13);
-  for(int i=0; i<N_exist_element; i++)
+  if(verbose_)
   {
-    for(int j=0; j<6; j++)
+    std::cout << "fixities reaction (N, N-mm):" << std::endl;
+    std::cout << "node_id\tdof\tval" << std::endl;
+    for(int i=0; i<fixities_reaction.rows(); i++)
     {
-      int e_id = exist_element_ids[i];
-      element_reaction(i,0) = e_id;
-      element_reaction.block<1,12>(i,1) = eF.segment(e_id*12,12);
+      std::string dof_name;
+      switch ((int)fixities_reaction(i,1))
+      {
+        case 0: dof_name = "Fx";
+          break;
+        case 1: dof_name = "Fy";
+          break;
+        case 2: dof_name = "Fz";
+          break;
+        case 3: dof_name = "Mx";
+          break;
+        case 4: dof_name = "My";
+          break;
+        case 5: dof_name = "Mz";
+          break;
+      }
+      std::cout << fixities_reaction(i,0) << "\t"
+                << fixities_reaction(i,1) << "(" << dof_name << ")" << "\t"
+                << fixities_reaction(i,2) << std::endl;
     }
+    std::cout << std::endl;
   }
-
-  cout << "element reaction:\n" << element_reaction << endl;
 
   if(verbose_)
   {
-//    if (success)
-//    {
-//      std::cout << "[conmech::stiffness_checker] Maximal node deforamtion (mm): " << D.maxCoeff()
-//                << ", tolerance (mm): (N/A)" << std::endl;
-//    }
-//    else
-//    {
-//      std::cout << "[conmech::stiffness_checker] stiffness computation fails." << std::endl;
-//    }
+    std::cout << "element reaction (N, N-mm):" << std::endl;
+    std::cout << "e_id\tv_id\t" << std::endl;
+    for(int i=0; i<element_reaction.rows(); i++)
+    {
+      std::cout << element_reaction(i,0) << "\t"
+                << frame_.getElement(element_reaction(i,0))->endVertU()->id() << " ";
 
+      std::cout << element_reaction.block<1,6>(i,1) << std::endl;
+
+      std::cout << " " << "\t"
+                << frame_.getElement(element_reaction(i,0))->endVertV()->id() << " ";
+
+      std::cout << element_reaction.block<1,6>(i,7) << std::endl;
+    }
+    std::cout << std::endl;
+  }
+
+  if(verbose_)
+  {
     printOutTimer();
   }
 
-  return true;
+  // stiffness criteria check
+  return checkStiffnessCriteria(node_displ, fixities_reaction, element_reaction);
 }
 
 bool Stiffness::solve(const std::vector<int>& exist_element_ids,
@@ -657,44 +722,72 @@ bool Stiffness::solve(const bool& cond_num)
 //
 //	return bSuccess;
 //}
-//
-//
-//bool Stiffness::CheckError(IllCondDetector &stiff_inspector, Eigen::VectorXd &D)
-//{
-//	if (verbose_)
-//	{
-//		check_error_.Start();
-//	}
-//
-//	bool bSuccess = true;
-//	double error = stiff_inspector.EquilibriumError(K_, D, F_);
-//	if (verbose_)
-//	{
-//		printf("Root Mean Square (RMS) equilibrium error = %9.3e\n", error);
-//	}
-//	if (error < STIFF_TOL)
-//	{
-//		if (verbose_)
-//		{
-//			printf(" < tol = %7.1e\n", STIFF_TOL);
-//			printf(" * Converged *\n");
-//		}
-//	}
-//	else
-//	{
-//		printf(" > tol = %7.1e\n", STIFF_TOL);
-//		printf(" !! Not Converged !!\n");
-//		printf("Press any key to exit...\n");
-//		bSuccess = false;
-//	}
-//
-//	if (verbose_)
-//	{
-//		check_error_.Stop();
-//	}
-//
-//	return bSuccess;
-//}
+
+bool Stiffness::checkStiffnessCriteria(const Eigen::MatrixXd& node_displ,
+                                       const Eigen::MatrixXd& fixities_reaction,
+                                       const Eigen::MatrixXd& element_reation)
+{
+  // stiffness check
+  // nodal displacement check
+  for(int i=0; i<node_displ.rows(); i++)
+  {
+    if(0<=node_displ(i,1) && node_displ(i,1)<=2)
+    {
+      if(std::abs(node_displ(i,2)) > transl_tol_)
+      {
+        if(verbose_)
+        {
+          std::cout << "node #" << node_displ(i,0)
+                    << "translational dof #" << node_displ(i,1)
+                    << " disp: " << node_displ(i,2)
+                    << " > " << "tolerance " << transl_tol_ << std::endl;
+        }
+        return false;
+      }
+    }
+    else
+    {
+      if(std::abs(node_displ(i,2)) > rot_tol_)
+      {
+        if(verbose_)
+        {
+          std::cout << "node #" << node_displ(i,0)
+                    << "rotational dof #" << node_displ(i,1)
+                    << " disp: " << node_displ(i,2)
+                    << " > " << "tolerance " << rot_tol_ << std::endl;
+        }
+        return false;
+      }
+    }
+  }
+
+  // stability check
+  // element reaction check
+  // grounded element shouldn't be in tension
+  for(int i=0; i<element_reation.rows(); i++)
+  {
+    int e_id = (int)element_reation(i,0);
+    const auto e = frame_.getElement(e_id);
+    if(e->endVertU()->isFixed() || e->endVertV()->isFixed())
+    {
+      // check tension
+      if(element_reation(i,1) < 0)
+      {
+        assert(element_reation(i,7) > 0 && "element axial reaction sign not consistent!");
+
+        if(verbose_)
+        {
+          std::cout << "grounded element #" << e_id
+                    << " is in tension, the structure is not stable." << std::endl;
+        }
+
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
 
 
 void Stiffness::printOutTimer()

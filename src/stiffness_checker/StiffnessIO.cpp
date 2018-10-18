@@ -65,8 +65,8 @@ double convertDensityScale(const std::string& unit)
   }
 
   // default MPa
-  std::cout << "WARNING: unrecognized material density unit in the input json file. "
-      "Using kg/m3 by default." << std::endl;
+//  std::cout << "WARNING: unrecognized material density unit in the input json file. "
+//      "Using kg/m3 by default." << std::endl;
   return 1;
 }
 
@@ -127,60 +127,22 @@ bool parseMaterialPropertiesJson(const std::string& file_path, StiffnessParm& fr
   frame_parm.radius_ = unit_conversion * document["material_properties"]["radius"].GetDouble();
 }
 
-} // ns stiffness_checker
-} // ns conmech
 
-///*
-//* OUTPUT_PATH
-//* return path for output files using specific output directory
-//*/
-//void StiffnessIO::OutputPath(const char *fname, char fullpath[], const int len, char *default_outdir, int verbose)
-//{
-//	int res;
-//	assert(fname != NULL);
-//
-//	const char *outdir;
-//	outdir = getenv("FRAMEFAB_OUTDIR");
-//	if (outdir == NULL)
-//	{
-//		if (default_outdir == NULL)
-//			outdir = TempDir();
-//		else
-//			outdir = default_outdir;
-//	}
-//
-//	res = sprintf(fullpath, "%s%c%s", outdir, '\\', fname);
-//
-//	if (res > len)
-//	{
-//		printf("ERROR: unable to construct output filename: overflow.\n");
-//		exit(16);
-//	}
-//
-//	if (verbose)
-//	{
-//		printf("StiffnessIO->OuputPath: Output file path generated: %s\n", fullpath); /* debug */
-//	}
-//}
-//
-//
-///*
-//* GnuPltStaticMesh  - create mesh data of deformed and undeformed mesh  25/Nov/2015
-//* use gnuplot
-//* useful gnuplot options: unset xtics ytics ztics border view key
-//* This function illustrates how to read the internal force output data file.
-//* The internal force output data file contains all the information required
-//* to plot deformed meshes, internal axial force, internal shear force, internal
-//* torsion, and internal bending moment diagrams.
-//*/
-//void StiffnessIO::GnuPltStaticMesh(
-//	const char *fpath,
-//	const char *meshpath, const char *plotpath,
-//	VX &D,
-//	double exagg_static, float scale,
-//	DualGraph *ptr_dualgraph, WireFrame *ptr_frame
-//	)
-//{
+/**
+ * createGnuPltStaticMesh  - create mesh data of deformed and undeformed mesh
+ * use gnuplot
+ * useful gnuplot options: unset xtics ytics ztics border view key
+ * This function illustrates how to read the internal force output data file.
+ * The internal force output data file contains all the information required
+ * to plot deformed meshes, internal axial force, internal shear force, internal
+ * torsion, and internal bending moment diagrams.
+*/
+void createGnuPltStaticMesh(
+    const std::string& file_path,
+    const Frame& frame,
+    const Eigen::MatrixXd& nodal_displ,
+    double exagg_static, float scale)
+{
 //	int nN = ptr_dualgraph->SizeOfFaceList();
 //	int nE = ptr_dualgraph->SizeOfVertList();
 //	WireFrame *ptr_wf = ptr_dualgraph->ptr_frame_;
@@ -434,22 +396,19 @@ bool parseMaterialPropertiesJson(const std::string& file_path, StiffnessParm& fr
 //	fclose(fpl);
 //	fclose(fpv);
 //	fclose(fpm);
-//}
-//
-///*
-//* GnuPltCubicBentBeam  -  computes cubic deflection functions from end deflections
-//* and end rotations.  Saves deflected shapes to a file.  These bent shapes
-//* are exact for mode-shapes, and for frames loaded at their nodes.
-//* Nov/25/2015
-//*/
-//void StiffnessIO::GnuPltCubicBentBeam(
-//	vector<point> &beam,
-//	VX &D,
-//	int dual_i,
-//	DualGraph *ptr_dualgraph, WireFrame *ptr_frame,
-//	double exagg
-//	)
-//{
+}
+
+/**
+ * createGnuPltCubicBentBeam  -  computes cubic deflection functions from end deflections
+ * and end rotations.  Saves deflected shapes to a file.  These bent shapes
+ * are exact for mode-shapes, and for frames loaded at their nodes.
+*/
+void createGnuPltCubicBentBeam(
+    const Frame& frame,
+    const Eigen::MatrixXd& nodal_displ,
+    std::vector<Eigen::Vector3d>& beam,
+    double exagg)
+{
 //	double	t0, t1, t2, t3, t4, t5, t6, t7, t8, 	/* coord transf matrix entries	*/
 //		u1, u2, u3, u4, u5, u6, u7, u8, u9, u10, u11, u12,
 //		s, v, w, dX, dY, dZ;
@@ -548,16 +507,14 @@ bool parseMaterialPropertiesJson(const std::string& file_path, StiffnessParm& fr
 //	}
 //
 //	return;
-//}
-//
-//
-//void StiffnessIO::WriteInputData(
-//	const char *fpath,
-//	DualGraph *ptr_dualgraph,
-//	FiberPrintPARM *ptr_parm,
-//	int verbose
-//	)
-//{
+}
+
+void writeFrame3ddData(
+    const std::string& fpath,
+    const Frame& frame,
+    const StiffnessParm& parm,
+    int verbose)
+{
 //	FILE *fp;
 //	string title_s = "FiberPrint Test File -- static analysis (N,mm,Ton)\n";
 //	char errMsg[512];
@@ -693,104 +650,7 @@ bool parseMaterialPropertiesJson(const std::string& file_path, StiffnessParm& fr
 //	fprintf(fp, "# End of transfer data file for fiber test");
 //
 //	fclose(fp);
-//}
-//
-///*
-//* SaveUpperMatrix - save a symmetric matrix of dimension [1..n][1..n]	Nov/26/2015
-//* to the named file, use only upper-triangular part
-//*/
-//void StiffnessIO::SaveUpperMatrix(char filename[], const MX &A, int n)
-//{
-//	FILE    *fp_m;
-//	int     i, j;
-//	time_t	now;
-//
-//	if ((fp_m = fopen(filename, "w")) == NULL)
-//	{
-//		printf(" error: cannot open file: %s \n", filename);
-//		exit(1016);
-//	}
-//
-//	(void)time(&now);
-//	fprintf(fp_m, "%% filename: %s - %s\n", filename, ctime(&now));
-//	fprintf(fp_m, "%% type: matrix \n");
-//	fprintf(fp_m, "%% rows: %d\n", n);
-//	fprintf(fp_m, "%% columns: %d\n", n);
-//	for (i = 0; i < n; i++)
-//	{
-//		for (j = 0; j < n; j++)
-//		{
-//			if (i > j)
-//			{
-//				if (fabs(A(j,i)) > 1.e-99)
-//				{
-//					fprintf(fp_m, "%21.12e", A(j,i));
-//				}
-//				else
-//				{
-//					fprintf(fp_m, "    0                ");
-//				}
-//			}
-//			else
-//			{
-//				if (fabs(A(i, j)) > 1.e-99)
-//				{
-//					fprintf(fp_m, "%21.12e", A(i,j));
-//				}
-//				else
-//				{
-//					fprintf(fp_m, "    0                ");
-//				}
-//			}
-//		}
-//		fprintf(fp_m, "\n");
-//	}
-//	fclose(fp_m);
-//	return;
-//
-//}
-//
-//void StiffnessIO::SaveDisplaceVector(char filename[], const VX &D, int n, DualGraph *ptr_dual_graph)
-//{
-//	FILE    *fp;
-//	int     i, j;
-//	time_t	now;
-//	int nN = n / 6;
-//	vector<DualFace*> dual_face_list = *ptr_dual_graph->GetFaceList();
-//	VX tmp_D(D.size());
-//
-//	if ((fp = fopen(filename, "w")) == NULL)
-//	{
-//		printf(" error: cannot open file: %s \n", filename);
-//		exit(1016);
-//	}
-//
-//	(void)time(&now);
-//	fprintf(fp, "%% filename: %s - %s\n", filename, ctime(&now));
-//	fprintf(fp, "%% type: vector \n");
-//	fprintf(fp, "%% rows: %d\n", n);
-//
-//	fprintf(fp, "\n");
-//	fprintf(fp, "NODE DISPLACEMENTS		(global)\n");
-//	fprintf(fp, "#.node		X-dsp	Y-dsp	Z-dsp	X-rot	Y-rot	Z-rot\n");
-//	for (i = 0; i < nN; i++)
-//	{
-//		/* i is the dual face id, convert it back to wf_vert id*/
-//		int v_id = dual_face_list[i]->orig_id();
-//		int v_dual_id = ptr_dual_graph->v_dual_id(v_id);
-//		for (j = 0; j < 6; j++)
-//		{
-//			tmp_D[6 * v_dual_id + j] = D[6 * i + j];
-//		}
-//	}
-//
-//	for (i = 0; i < nN; i++)
-//	{
-//		fprintf(fp, "%d		%.6f		%.6f		%.6f		%.6f		%.6f		%.6f\n",
-//			i+1, tmp_D[6 * i], tmp_D[6 * i + 1], tmp_D[6 * i + 2], tmp_D[6 * i + 3], tmp_D[6 * i + 4], tmp_D[6 * i + 5]);
-//	}
-//
-//	fclose(fp);
-//	return;
-//
-//}
+}
+
+} // ns stiffness_checker
+} // ns conmech

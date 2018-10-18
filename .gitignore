@@ -10,3 +10,6 @@ _generate/
 .idea/
 cmake-build-debug/
 
+# Jupyter check point
+**/.ipynb_checkpoints/
+

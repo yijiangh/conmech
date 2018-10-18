@@ -35,7 +35,7 @@ void Timer::Reset()
 
 void Timer::Print(const std::string& item)
 {
-	printf("%s total-time:%3.4lf   count:%4d   avg-time:%3.4lf\n",
+	printf("%s \ttotal-time: %f s, \tcount: %d, \tavg-time: %f s\n",
 		   item.c_str(), sum_time_, count_, sum_time_ / count_);
 }
 

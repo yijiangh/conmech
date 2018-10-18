@@ -48,37 +48,5 @@ void getGlobal2LocalRotationMatrix(
   }
 }
 
-//void CoordTrans::TransLocToGlob(
-//    double t0, double t1, double t2, double t3, double t4,
-//    double t5, double t6, double t7, double t8,
-//    Eigen::MatrixXd	   &m, float r1, float r2)
-//{
-//  int     i, j, k;
-//
-//  Eigen::MatrixXd t(12, 12);
-//  Eigen::MatrixXd mt(12, 12);
-//
-//  t.setZero();
-//  mt.setZero();
-//
-//  for (i = 0; i < 4; i++)
-//  {
-//    t(3 * i, 3 * i) = t0;
-//    t(3 * i, 3 * i + 1) = t1;
-//    t(3 * i, 3 * i + 2) = t2;
-//    t(3 * i + 1, 3 * i) = t3;
-//    t(3 * i + 1, 3 * i + 1) = t4;
-//    t(3 * i + 1, 3 * i + 2) = t5;
-//    t(3 * i + 2, 3 * i) = t6;
-//    t(3 * i + 2, 3 * i + 1) = t7;
-//    t(3 * i + 2, 3 * i + 2) = t8;
-//  }
-//
-//  /*  effect of finite node radius on coordinate transformation  is not supported now */
-//
-//  mt = t.transpose() * m * t;
-//  m = mt;
-//}
-
 } // namespace stiffness_checker
 } // namespace conmech

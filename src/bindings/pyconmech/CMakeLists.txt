@@ -1,3 +1,5 @@
+# needed for pybind11 to find eigen path
+include_directories(${EIGEN_INCLUDE_DIRS})
 
 pybind11_add_module(conmech_py
 	stiffness_checker/stiffness_checker_py.cpp

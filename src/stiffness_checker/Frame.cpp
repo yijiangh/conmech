@@ -2,7 +2,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 
 #include "stiffness_checker/Frame.h"
 
