@@ -65,8 +65,8 @@ double convertDensityScale(const std::string& unit)
   }
 
   // default MPa
-  std::cout << "WARNING: unrecognized material density unit in the input json file. "
-      "Using kg/m3 by default." << std::endl;
+//  std::cout << "WARNING: unrecognized material density unit in the input json file. "
+//      "Using kg/m3 by default." << std::endl;
   return 1;
 }
 
