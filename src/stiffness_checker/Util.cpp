@@ -29,8 +29,8 @@ void getGlobal2LocalRotationMatrix(
     // cross product is not defined, in this case
     // it's just a rotation about the global z axis
     // in x-y plane
-    rot_m(0,2) = 1.0;
-    rot_m.block<2,2>(1,0) = Eigen::Rotation2Dd(rot_y2x).toRotationMatrix();
+    rot_m(2,0) = 1.0;
+    rot_m.block<2,2>(0,1) = Eigen::Rotation2Dd(rot_y2x).toRotationMatrix();
   }
   else
   {
