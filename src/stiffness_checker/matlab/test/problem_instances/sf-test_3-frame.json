@@ -5,15 +5,15 @@
   "unit": "meter",
   "material_properties": {
     "material_name": "Steel-S235",
-    "youngs_modulus": 210000.0,
-    "youngs_modulus_unit": "MPa",
-    "shear_modulus": 80760.0,
-    "shear_modulus_unit": "MPa",
+    "youngs_modulus": 21000.0,
+    "youngs_modulus_unit": "kN/cm2",
+    "shear_modulus": 8076.0,
+    "shear_modulus_unit": "kN/cm2",
     "density": 8010.204082,
     "density_unit": "kg/m3",
     "poisson_ratio": 0.300149,
-    "radius": 14.3,
-    "radius_unit": "millimeter"
+    "radius": 2.5,
+    "radius_unit": "centimeter"
   },
   "node_list": [
     {

@@ -1,4 +1,4 @@
-function [] = draw_frame(N, T, S, Load, F, R, D, thkMin, thkMax, magn)
+function [] = draw_frame(N, T, S, Load, F, R, D, thkMin, thkMax, magn, r_scale)
 % Input
 %
 % N = node coordinates
@@ -117,7 +117,7 @@ if 3 == dim
     xlabel('x axis');
     ylabel('y axis');
     zlabel('z axis');
-    view(26,10.35);
+    view(10,10.35);
 else
     % dim = 2
     gap = 0.1*max([maxX-minX, maxY-minY]);
@@ -134,11 +134,11 @@ plot_frame(N,T,undeformed_color,[],dim);
 % plot_fixities(N,S,dim,alpha);
 
 if ~isempty(Load)
-    plot_load(N,Load,dim,alpha*0.005)
+    plot_load(N,Load,dim,alpha*r_scale)
 end
 
 if ~isempty(R)
-    plot_reaction(N,R,dim,alpha*0.005)
+    plot_reaction(N,R,dim,alpha*r_scale)
 end
 
 % Verify and complete node displacements input

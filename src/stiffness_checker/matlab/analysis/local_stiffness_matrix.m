@@ -1,6 +1,8 @@
 function [K_loc] = local_stiffness_matrix(L, A, Jx, Iy, Iz, dim, m_p)
+% use centimeter
 DA = m_p.E * A;
 mu = m_p.mu;
+L = L*100;
 
 switch dim
     case 2

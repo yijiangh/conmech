@@ -36,6 +36,9 @@ function [F, R, D] = displacement_method(N, T, S, A, m_p, Load, varargin)
 % D = node displacements
 % (number of nodes)-by-2 matrix with D(n,1) and D(n,2) the displacements of
 % node n in the X and Y directions
+%
+% Note: the calculation inside use centimeter and kN
+% output will be in meter and kN
 
 % Ddetermine the number of nodes and elements
 nNodes = size(N,1);
@@ -121,6 +124,7 @@ for e=1:1:nElements
     end_u = N(T(e,1), :);
     end_v = N(T(e,2), :);
     
+    % r is in cm
     Jx = 0.5 * pi * m_p.r^4;
     Iy = pi * m_p.r^4 / 4;
     Iz = Iy;
@@ -217,7 +221,6 @@ assert(size(perm_RO,2) == size(unique(perm_RO),2));
 Perm = eye(dof);
 Perm = Perm(perm_RO,:);
 
-% K * (10.0/(E*A(1,1)))
 K_perm = Perm * K * inv(Perm);
 
 Kmm = K_perm(1:nFree,1:nFree);
@@ -250,6 +253,8 @@ D = zeros(nNodes, node_dof);
 for i=1:1:nNodes
     D(i,1:node_dof)=U(i*node_dof-node_dof+1:i*node_dof);
 end
+% convert from centimeter to meter
+D = D * 1e-2;
 
 % Initialize the output vector F, which must be filled with the
 % element forces
