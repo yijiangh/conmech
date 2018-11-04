@@ -9,8 +9,8 @@ function plot_circle(center,z_axis,r,dim,color,lw)
 
 if 2 == dim
     theta=0:0.1:2*pi;
-    x=r*cos(theta)+x0(1);
-    y=r*sin(theta)+x0(2);
+    x=r*cos(theta)+center(0);
+    y=r*sin(theta)+center(1);
     
     plot(x,y,'Color',color,'LineWidth',lw);
 else

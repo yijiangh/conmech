@@ -1,4 +1,4 @@
-function [] = draw_frame(N, T, S, F, D, draw_force, thkMin, thkMax, magn)
+function [] = draw_frame(N, T, S, Load, F, D, draw_force, thkMin, thkMax, magn)
 % Input
 %
 % N = node coordinates
@@ -9,9 +9,25 @@ function [] = draw_frame(N, T, S, F, D, draw_force, thkMin, thkMax, magn)
 % (number of elements)-by-2 matrix with T(e,1) and T(e,2) the indices of
 % the starting and ending nodes of element e
 %
+% S = fixities
+% (number of fixities)-by-(4 or 7) matrix.
+%
+% Load = load
+% (number of fixities)-by-(4 or 7) matrix.
+%
 % F = element forces
-% (number of elements)-by-1 matrix with F(e,1) the force in element e.
+% (number of elements)-by-(4 or 7) matrix with F(e,1) the force in element e.
 % May be empty.
+% In 2D, this includes element's axial force, shear force, and moment (3)
+% In 3D, this includes element's axial force, shear force (Vy, Vz),
+% moment (My, Mz), and torsion (Tx).
+%
+% D = node displacements
+% (number of nodes)-by-dim matrix with D(n,1) and D(n,2) the displacements of
+% node n in the X and Y directions.
+% May be empty.
+%
+% draw_force = flag to draw force or not.
 %
 % thkMin = line thickness used to draw elements with zero force.
 % May be empty.
@@ -19,15 +35,18 @@ function [] = draw_frame(N, T, S, F, D, draw_force, thkMin, thkMax, magn)
 % thkMax = line thickness used to draw elements with maximum force.
 % May be empty.
 %
-% D = node displacements
-% (number of nodes)-by-2 matrix with D(n,1) and D(n,2) the displacements of
-% node n in the X and Y directions.
-% May be empty.
-%
 % magn = displacement magnification factor.
 % May be empty.
 
 dim = size(N,2);
+if 2 == dim
+    assert(size(S,2) == (1+3));
+%     assert(isempty(F) || size(F,2) == (1+3));
+else
+    assert(size(S,2) == (1+6));
+%     assert(isempty(F) || size(F,2) == (1+6));
+end
+
 nNodes = size(N,1);
 nElements = size(T,1);
 
@@ -58,32 +77,63 @@ elseif thkMin > thkMax
 end
 
 % Determine line thicknesses and colors
-if isempty(draw_force) || 0 == draw_force || isempty(F)
-    thicknesses = zeros(1,nElements);
-    colors = zeros(nElements,3);
-    if isempty(F)
-        thk = 0.5*(thkMin+thkMax);
-        for e=1:1:nElements
-            thicknesses(1,e) = thk;
-            colors(e,:) = [0,0,0]; % black
-        end
-    else
-        sizeOfF = size(F);
-        if sizeOfF(1,1) ~= nElements || sizeOfF(1,2) ~= 1
-            error('Invalid element force input')
-        end
-        
-        thkFact = (thkMax-thkMin)/max(max(F), -min(F));
-        for e=1:1:nElements
-            thicknesses(1,e) = thkMin + thkFact*abs(F(e,1));
-            if (F(e,1) < 0)
-                colors(e,:) = [1,0,0]; % red
-            else
-                colors(e,:) = [0,0,1]; % green
-            end
+undeformed_color = [0.25, 0.25, 0.25];
+thicknesses = zeros(1,nElements);
+colors = zeros(nElements,3);
+if isempty(F)
+    thk = 0.5*(thkMin+thkMax);
+    for e=1:1:nElements
+        thicknesses(1,e) = thk;
+        colors(e,:) = undeformed_color; % black
+    end
+else
+    sizeOfF = size(F);
+    if sizeOfF(1,1) ~= nElements || sizeOfF(1,2) ~= 1
+        error('Invalid element force input')
+    end
+    
+    thkFact = (thkMax-thkMin)/max(max(F), -min(F));
+    for e=1:1:nElements
+        thicknesses(1,e) = thkMin + thkFact*abs(F(e,1));
+        if (F(e,1) < 0)
+            colors(e,:) = [1,0,0]; % red
+        else
+            colors(e,:) = [0,0,1]; % green
         end
     end
 end
+
+% Set axes
+minX = min(N(:,1));
+maxX = max(N(:,1));
+minY = min(N(:,2));
+maxY = max(N(:,2));
+
+if 3 == dim
+    minZ = min(N(:,3));
+    maxZ = max(N(:,3));
+    gap = 0.1*max([maxX-minX, maxY-minY, maxZ-minZ]);
+    
+    axis equal
+    axis([minX-gap, maxX+gap, minY-gap, maxY+gap, minZ-gap, maxZ+gap])
+    xlabel('x axis');
+    ylabel('y axis');
+    zlabel('z axis');
+    view(26,10.35);
+else
+    % dim = 2
+    gap = 0.1*max([maxX-minX, maxY-minY]);
+    axis equal
+    axis([minX-gap, maxX+gap, minY-gap, maxY+gap])
+    xlabel('x axis');
+    ylabel('y axis');
+end
+
+h = figure;
+hold on;
+alpha = 0.5;
+plot_frame(N,T,undeformed_color,dim);
+plot_fixities(N,S,dim,alpha);
 
 % Verify and complete node displacements input
 if isempty(D) == 0
@@ -106,63 +156,32 @@ if isempty(D) == 0
         N(n,2) = N(n,2)+magn*D(n,2);
     end
 end
-
-% Set axes
-h = figure(1);
-minX = min(N(:,1));
-maxX = max(N(:,1));
-minY = min(N(:,2));
-maxY = max(N(:,2));
-
-if 3 == dim
-    minZ = min(N(:,3));
-    maxZ = max(N(:,3));
-    gap = 0.1*max([maxX-minX, maxY-minY, maxZ-minZ]);
-    
-    axis equal
-    axis([minX-gap, maxX+gap, minY-gap, maxY+gap, minZ-gap, maxZ+gap])
-    xlabel('x axis');
-    ylabel('y axis');
-    zlabel('z axis');
-    view(26,10.35);
-else
-    % dim = 2
-    axis equal
-    axis([minX-gap, maxX+gap, minY-gap, maxY+gap])
-    xlabel('x axis');
-    ylabel('y axis');
-end
-
-hold on;
-alpha = 0.2;
-plot_undeformed_frame(N,T,dim);
-plot_fixities(N,S,dim,alpha);
-
-hold off;
+plot_frame(N,T,colors,dim);
 
 end
 
-function plot_undeformed_frame(N, T, dim)
+function plot_frame(N, T, colors, dim)
 nElements = size(T,1);
-undeformed_color = [0.25, 0.25, 0.25];
+if 1 == size(colors,1)
+    c = colors;
+    for e=1:1:size(T,1)
+        colors(e,:) = c;
+    end
+end
 for e=1:1:nElements
     if 3 == dim
         plot3(...
             [N(T(e,1),1);N(T(e,2),1)],...
             [N(T(e,1),2);N(T(e,2),2)],...
             [N(T(e,1),3);N(T(e,2),3)],...
-            'Color',undeformed_color,'LineWidth',1.2);
+            'Color',colors(e,:),'LineWidth',1.2);
     else
         line(...
             [N(T(e,1),1);N(T(e,2),1)],...
             [N(T(e,1),2);N(T(e,2),2)],...
-            'Color',undeformed_color,'LineWidth',1.2);
+            'Color',colors(e,:),'LineWidth',1.2);
     end
 end
-end
-
-function plot_deformed_frame()
-
 end
 
 function plot_fixities(N, S, dim, alpha)
@@ -201,13 +220,13 @@ if 3 == dim
         end
         
         if TR(4)
-            plot_circle(p-cir_a*alpha*[1,0,0], [1,0,0], alpha*c_alpha, 3, fix_color, lw);
+            plot_circle(p-cir_a*alpha*[1,0,0], [1,0,0], alpha*c_alpha, dim, fix_color, lw);
         end
         if TR(5)
-            plot_circle(p-cir_a*alpha*[0,1,0], [0,1,0], alpha*c_alpha, 3, fix_color, lw);
+            plot_circle(p-cir_a*alpha*[0,1,0], [0,1,0], alpha*c_alpha, dim, fix_color, lw);
         end
         if TR(6)
-            plot_circle(p-cir_a*alpha*[0,0,1], [0,0,1], alpha*c_alpha, 3, fix_color, lw);
+            plot_circle(p-cir_a*alpha*[0,0,1], [0,0,1], alpha*c_alpha, dim, fix_color, lw);
         end
     end
 else
@@ -215,7 +234,7 @@ else
     for s=1:1:n_Fix
         p = xp(s,:);
         scatter(p(1),p(2),'filled','k');
-        TR = S(s,2:7);
+        TR = S(s,2:4);
         
         if TR(1)
             line(...
@@ -229,8 +248,8 @@ else
                 [p(2)-(alpha); p(2)],'Color',fix_color,'LineWidth',lw);
         end
         
-        if TR(6)
-            plot_circle(p, [0,0,1], alpha*c_alpha, 2, fix_color, lw);
+        if TR(3)
+            plot_circle(p, [], alpha*c_alpha, dim, fix_color, lw);
         end
     end
 end
