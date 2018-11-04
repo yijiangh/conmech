@@ -1,4 +1,4 @@
-function [] = draw_frame(N, T, S, Load, F, D, draw_force, thkMin, thkMax, magn)
+function [] = draw_frame(N, T, S, Load, F, R, D, thkMin, thkMax, magn)
 % Input
 %
 % N = node coordinates
@@ -27,8 +27,6 @@ function [] = draw_frame(N, T, S, Load, F, D, draw_force, thkMin, thkMax, magn)
 % node n in the X and Y directions.
 % May be empty.
 %
-% draw_force = flag to draw force or not.
-%
 % thkMin = line thickness used to draw elements with zero force.
 % May be empty.
 %
@@ -41,10 +39,10 @@ function [] = draw_frame(N, T, S, Load, F, D, draw_force, thkMin, thkMax, magn)
 dim = size(N,2);
 if 2 == dim
     assert(size(S,2) == (1+3));
-%     assert(isempty(F) || size(F,2) == (1+3));
+    %     assert(isempty(F) || size(F,2) == (1+3));
 else
     assert(size(S,2) == (1+6));
-%     assert(isempty(F) || size(F,2) == (1+6));
+    %     assert(isempty(F) || size(F,2) == (1+6));
 end
 
 nNodes = size(N,1);
@@ -131,14 +129,21 @@ end
 
 h = figure;
 hold on;
-alpha = 0.5;
-plot_frame(N,T,undeformed_color,dim);
-plot_fixities(N,S,dim,alpha);
+alpha = 1;
+plot_frame(N,T,undeformed_color,[],dim);
+% plot_fixities(N,S,dim,alpha);
+
+if ~isempty(Load)
+    plot_load(N,Load,dim,alpha*0.005)
+end
+
+if ~isempty(R)
+    plot_reaction(N,R,dim,alpha*0.005)
+end
 
 % Verify and complete node displacements input
 if isempty(D) == 0
-    sizeOfD = size(D);
-    if sizeOfD(1,1) ~= nNodes || sizeOfD(1,2) ~= 2
+    if size(D,1) ~= nNodes && size(D,2) == size(N,2)
         error('Invalid node displacement input')
     end
     
@@ -152,15 +157,14 @@ if isempty(D) == 0
     end
     
     for n=1:1:nNodes
-        N(n,1) = N(n,1)+magn*D(n,1);
-        N(n,2) = N(n,2)+magn*D(n,2);
+        N(n,:) = N(n,:)+magn*D(n,:);
     end
 end
-plot_frame(N,T,colors,dim);
+plot_frame(N,T,colors,thicknesses,dim);
 
 end
 
-function plot_frame(N, T, colors, dim)
+function plot_frame(N, T, colors, thickness, dim)
 nElements = size(T,1);
 if 1 == size(colors,1)
     c = colors;
@@ -168,18 +172,22 @@ if 1 == size(colors,1)
         colors(e,:) = c;
     end
 end
+if isempty(thickness) || 1 == length(thickness)
+    thickness = ones(nElements)*1.2;
+end
+
 for e=1:1:nElements
     if 3 == dim
         plot3(...
             [N(T(e,1),1);N(T(e,2),1)],...
             [N(T(e,1),2);N(T(e,2),2)],...
             [N(T(e,1),3);N(T(e,2),3)],...
-            'Color',colors(e,:),'LineWidth',1.2);
+            'Color',colors(e,:),'LineWidth',thickness(e));
     else
         line(...
             [N(T(e,1),1);N(T(e,2),1)],...
             [N(T(e,1),2);N(T(e,2),2)],...
-            'Color',colors(e,:),'LineWidth',1.2);
+            'Color',colors(e,:),'LineWidth',thickness(e));
     end
 end
 end
@@ -256,6 +264,78 @@ end
 
 end
 
-function plot_load()
+function plot_load(N, Load, dim, alpha)
+assert(any(Load(:,1)) <= size(N,1));
+load_color = [0.3010, 0.7450, 0.9330];
+lw = 2;
+n_Load = size(Load, 1);
+
+for f=1:1:n_Load
+    switch dim
+        case 2
+            quiver(N(Load(f,1),1),N(Load(f,1),2),...
+                alpha*Load(f,2),alpha*Load(f,3),...
+                'Color', load_color, 'LineWidth', lw);
+            if size(Load,2)-1 == 3 && Load(f,4) ~= 0
+                plot_circle(N(Load(f,1),:), [], alpha*0.5, dim, load_color, lw);
+            end
+        case 3
+            quiver3(N(Load(f,1),1),N(Load(f,1),2),N(Load(f,1),3),...
+                alpha*Load(f,2),alpha*Load(f,3),alpha*Load(f,4),...
+                'Color', load_color, 'LineWidth', lw);
+            if size(Load,2)-1 == 6
+                E = eye(3);
+                for s=1:1:3
+                    if Load(f,4+s) ~= 0
+                        plot_circle(N(Load(f,1),:), E(s,:), alpha*0.5, dim, load_color, lw);
+                    end
+                end
+            end
+    end
+end
+
+end
+
+function plot_reaction(N, R, dim, alpha)
+assert(any(R(:,1)) <= size(N,1));
+r_color = [0.75, 0.75, 0];
+lw = 2;
+n_Fix = size(R, 1);
+
+for f=1:1:n_Fix
+    switch dim
+        case 2
+            quiver(N(R(f,1),1)-alpha*R(f,2),N(R(f,1),2),...
+                alpha*R(f,2),0,...
+                'Color', r_color, 'LineWidth', lw);
+            quiver(N(R(f,1),1),N(R(f,1),2)-alpha*R(f,3),...
+                0,alpha*R(f,3),...
+                'Color', r_color, 'LineWidth', lw);
+            
+            if size(R,2)-1 == 3 && R(f,4) ~= 0
+                plot_circle(N(R(f,1),:), [], alpha*0.5, dim, r_color, lw);
+            end
+        case 3
+            quiver3(N(R(f,1),1)-alpha*R(f,2),N(R(f,1),2),N(R(f,1),3),...
+                alpha*R(f,2),0,0,...
+                'Color', r_color, 'LineWidth', lw);
+            quiver3(N(R(f,1),1),N(R(f,1),2)-alpha*R(f,3),N(R(f,1),3),...
+                0,alpha*R(f,3),0,...
+                'Color', r_color, 'LineWidth', lw);
+            quiver3(N(R(f,1),1),N(R(f,1),2),N(R(f,1),3)-alpha*R(f,4),...
+                0,0,alpha*R(f,4),...
+                'Color', r_color, 'LineWidth', lw);
+            
+            if size(R,2)-1 == 6
+                E = eye(3);
+                for s=1:1:3
+                    if R(f,4+s) ~= 0
+                        plot_circle(N(R(f,1),:), E(s,:), ...
+                            alpha*0.5, dim, r_color, lw);
+                    end
+                end
+            end
+    end
+end
 
 end

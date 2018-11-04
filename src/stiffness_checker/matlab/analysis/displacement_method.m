@@ -129,10 +129,10 @@ for e=1:1:nElements
     K_loc = local_stiffness_matrix(norm(end_u-end_v), A(e),...
         Jx, Iy, Iz, dim, m_p);
     
-    R = zeros(node_dof*2, node_dof*2);
+    R = zeros(full_node_dof*2, full_node_dof*2);
     for k=1:1:(full_node_dof/3)*2
-        R(k*full_node_dof-full_node_dof+1:k*full_node_dof,...
-          k*full_node_dof-full_node_dof+1:k*full_node_dof) = R_b;
+        R(k*3-3+1:k*3,...
+          k*3-3+1:k*3) = R_b;
     end
     
     switch method
@@ -140,6 +140,14 @@ for e=1:1:nElements
             if 2 == dim
                 ex_id = [1,4];
                 xy_id = [1,2,4,5];
+                R = R(ex_id, xy_id);
+                
+                e_react_dof = size(R,1)/2;
+                K_loc = K_loc(ex_id, ex_id);
+            end
+            if 3 == dim
+                ex_id = [1,7];
+                xy_id = [1,2,3,7,8,9];
                 R = R(ex_id, xy_id);
                 
                 e_react_dof = size(R,1)/2;
@@ -230,11 +238,11 @@ U = Perm\U_perm;
 Rf_full = [zeros(nFree,1); Rf];
 Rf_full = Perm\Rf_full;
 
-for i=1:1:nFixities
-    Rf(i) = Rf_full(fixedList(i));
+R = S;
+for f=1:1:size(S,1)
+    n = S(f,1);
+    R(f,2:1+node_dof) = Rf_full(n*node_dof-node_dof+1 : n*node_dof);
 end
-% Store the support reactions in the output vector R
-R = Rf;
 
 % Reorganize the DOF displacements to form the output matrix D (see output
 % description above)

@@ -25,6 +25,8 @@ switch dim
         K_loc(5,5) = 12*DT*DS;
         K_loc(6,6) = DT*(4*L^2 + 12*DB);
         
+        K_loc = K_loc / L;
+        
     case 3
         K_loc = zeros(12,12);
         K_block = zeros(6,6);
