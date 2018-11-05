@@ -4,10 +4,10 @@ close all
 
 addpath('utility', 'analysis')
 
-D2_file_name = '2D_truss_ft.json';
+D2_file_name = 'sf-test_2D_truss.json';
 D3_file_name = 'sf-test_3-frame.json';
 
-ins_pth = fullfile(pwd, strcat('test\problem_instances\',D3_file_name));
+ins_pth = fullfile(pwd, strcat('test\problem_instances\',D2_file_name));
 
 % input unit:
 % nodal coordinates: meter
@@ -17,8 +17,8 @@ ins_pth = fullfile(pwd, strcat('test\problem_instances\',D3_file_name));
 
 % Define loads
 % L = [node,Qx,Qy,Qz,Mx,My,Mz; ...]
-%Load = [3,0,-100,0];
-Load = [4,0,0,-0.1,0,0,0]; %kN
+Load = [3,0,-0.1,0];
+%Load = [4,0,0,-0.1,0,0,0]; %kN
 
 magnif = 100;
 % draw_frame(N, T, S, [], [], [], 0, 1, 5, magnif);
