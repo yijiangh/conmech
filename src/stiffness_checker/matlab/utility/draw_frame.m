@@ -86,11 +86,11 @@ if isempty(F)
     end
 else
     sizeOfF = size(F);
-    if sizeOfF(1,1) ~= nElements || sizeOfF(1,2) ~= 1
+    if sizeOfF(1,1) ~= nElements
         error('Invalid element force input')
     end
     
-    thkFact = (thkMax-thkMin)/max(max(F), -min(F));
+    thkFact = (thkMax-thkMin)/max(max(F(:,1)), -min(F(:,1)));
     for e=1:1:nElements
         thicknesses(1,e) = thkMin + thkFact*abs(F(e,1));
         if (F(e,1) < 0)
@@ -127,7 +127,15 @@ else
     ylabel('y axis');
 end
 
-h = figure;
+if dim == 2
+    N = N(:,1:2);
+    D = D(:,1:2);
+else
+    N = N(:,1:3);
+    D = D(:,1:3);
+end
+
+h = figure(1);
 hold on;
 alpha = 1;
 plot_frame(N,T,undeformed_color,[],dim);
@@ -157,10 +165,12 @@ if isempty(D) == 0
     end
     
     for n=1:1:nNodes
-        N(n,:) = N(n,:)+magn*D(n,:);
+        N(n,:) = N(n,:) + magn*D(n,:);
     end
 end
 plot_frame(N,T,colors,thicknesses,dim);
+
+hold off;
 
 end
 
@@ -301,6 +311,7 @@ assert(any(R(:,1)) <= size(N,1));
 r_color = [0.75, 0.75, 0];
 lw = 2;
 n_Fix = size(R, 1);
+circle_r = 0.5;
 
 for f=1:1:n_Fix
     switch dim
@@ -313,7 +324,7 @@ for f=1:1:n_Fix
                 'Color', r_color, 'LineWidth', lw);
             
             if size(R,2)-1 == 3 && R(f,4) ~= 0
-                plot_circle(N(R(f,1),:), [], alpha*0.5, dim, r_color, lw);
+                plot_circle(N(R(f,1),:), [], alpha*circle_r, dim, r_color, lw);
             end
         case 3
             quiver3(N(R(f,1),1)-alpha*R(f,2),N(R(f,1),2),N(R(f,1),3),...
@@ -331,7 +342,7 @@ for f=1:1:n_Fix
                 for s=1:1:3
                     if R(f,4+s) ~= 0
                         plot_circle(N(R(f,1),:), E(s,:), ...
-                            alpha*0.5, dim, r_color, lw);
+                            alpha, dim, r_color, lw);
                     end
                 end
             end

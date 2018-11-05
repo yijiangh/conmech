@@ -8,9 +8,9 @@ function plot_circle(center,z_axis,r,dim,color,lw)
 %   lw: line width
 
 if 2 == dim
-    theta=0:0.1:2*pi;
-    x=r*cos(theta)+center(0);
-    y=r*sin(theta)+center(1);
+    theta=0:0.1:2*pi+0.1;
+    x=r*cos(theta)+center(1);
+    y=r*sin(theta)+center(2);
     
     plot(x,y,'Color',color,'LineWidth',lw);
 else

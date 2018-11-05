@@ -114,6 +114,8 @@ for e=1:1:nElements
     id_map(e, node_dof+1:2*node_dof) = v*node_dof*linspace(1,1,node_dof)-dof_lin;
 end
 
+id_map
+
 K_loc_list = {};
 R_list = {};
 for e=1:1:nElements
@@ -158,6 +160,7 @@ for e=1:1:nElements
                 K_loc = K_loc(ex_id, ex_id);
             end
         case 'frame'
+            e_react_dof = size(R,1)/2;
     end
     K_loc_list{end+1} = K_loc;
     R_list{end+1} = R;
@@ -197,6 +200,10 @@ end
 assert(sum(full_f(:)==1) == nFixities);
 fixedList = find(full_f==1);
 
+full_f
+dof
+nFixities
+
 nFree = dof - nFixities;
 free_tail=1;
 fix_tail=nFree+1;
@@ -212,6 +219,7 @@ for i=1:1:dof
     end
 end
 assert(size(perm_RO,2) == size(unique(perm_RO),2));
+perm_RO
 
 % create the matrices Kmm and Kfm and the vectors Qm and Qf
 % defined in the lecture notes. These matrices and vectors can be
@@ -241,13 +249,15 @@ U = Perm\U_perm;
 Rf_full = [zeros(nFree,1); Rf];
 Rf_full = Perm\Rf_full;
 
+S
+Rf_full
 R = S;
 for f=1:1:size(S,1)
     n = S(f,1);
     R(f,2:1+node_dof) = Rf_full(n*node_dof-node_dof+1 : n*node_dof);
 end
 
-% Reorganize the DOF displacements to form the output matrix D (see output
+% Reorganize the DOF displacements to form the output matrix D  (see output
 % description above)
 D = zeros(nNodes, node_dof);
 for i=1:1:nNodes
@@ -267,7 +277,9 @@ for e=1:1:nElements
     
     Ue = U(id_map(e,1:end));
     Fe = K_loc_list{e} * R_list{e} * Ue;
-    F(e,:) = Fe(2*e_react_dof-e_react_dof+1:2*e_react_dof);
+%     F(e,:) = Fe(1:e_react_dof);
+    F(e,:) = Fe(2*e_react_dof-e_react_dof+1:2*e_react_dof);    
+    Fe'
 end
 
 end

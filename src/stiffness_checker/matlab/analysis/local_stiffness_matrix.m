@@ -1,5 +1,5 @@
 function [K_loc] = local_stiffness_matrix(L, A, Jx, Iy, Iz, dim, m_p)
-% use centimeter
+% use kN and centimeter
 DA = m_p.E * A;
 mu = m_p.mu;
 L = L*100;
@@ -8,7 +8,7 @@ switch dim
     case 2
         DS = m_p.G * A;
         DB = m_p.E * Iy;
-        DT = DB / (L^2*DS + 12*DB);
+        DT = DB / ((L^2)*DS + 12*DB);
         
         K_loc = zeros(6,6);
         K_loc(1,4) = -DA;
@@ -16,16 +16,16 @@ switch dim
         K_loc(2,5) = -12*DT*DS;
         K_loc(2,6) = 6*L*DT*DS;
         K_loc(3,5) = -6*L*DT*DS;
-        K_loc(3,6) = DT*(2*L^2-12*DB);
+        K_loc(3,6) = DT*(2*(L^2)-12*DB);
         K_loc(5,6) = -6*L*DT*DS;
         
         K_loc = K_loc + K_loc';
         K_loc(1,1) = DA;
         K_loc(2,2) = 12*DT*DS;
-        K_loc(3,3) = DT*(4*L^2*DS + 12*DB);
+        K_loc(3,3) = DT*(4*(L^2)*DS + 12*DB);
         K_loc(4,4) = DA;
         K_loc(5,5) = 12*DT*DS;
-        K_loc(6,6) = DT*(4*L^2 + 12*DB);
+        K_loc(6,6) = DT*(4*(L^2) + 12*DB);
         
         K_loc = K_loc / L;
         

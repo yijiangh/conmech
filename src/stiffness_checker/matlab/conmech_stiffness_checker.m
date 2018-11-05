@@ -1,10 +1,12 @@
 clc
 clf
 close all
+format shortE
 
 addpath('utility', 'analysis')
 
-D2_file_name = 'sf-test_2D_truss.json';
+% D2_file_name = 'sf-test_2D_truss.json';
+D2_file_name = 'sf-test_2D_beam.json';
 D3_file_name = 'sf-test_3-frame.json';
 
 ins_pth = fullfile(pwd, strcat('test\problem_instances\',D2_file_name));
@@ -17,13 +19,13 @@ ins_pth = fullfile(pwd, strcat('test\problem_instances\',D2_file_name));
 
 % Define loads
 % L = [node,Qx,Qy,Qz,Mx,My,Mz; ...]
-Load = [3,0,-0.1,0];
+Load = [2,0,-0.1,0];
 %Load = [4,0,0,-0.1,0,0,0]; %kN
 
-magnif = 100;
+magnif = 10;
 % draw_frame(N, T, S, [], [], [], 0, 1, 5, magnif);
 
 % Output unit: force: kN, length: meter
-[F, R, D] = displacement_method(N, T, S, A, m_p, Load, 'Method', 'truss')
+[F, R, D] = displacement_method(N, T, S, A, m_p, Load, 'Method', 'frame')
 
-draw_frame(N, T, S, Load, F, R, D, 1, 5, magnif, 5);
+draw_frame(N, T, S, Load, F, R, D, 1, 5, magnif, 0.5);
