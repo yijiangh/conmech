@@ -96,7 +96,7 @@ else
         if (F(e,1) < 0)
             colors(e,:) = [1,0,0]; % red
         else
-            colors(e,:) = [0,0,1]; % green
+            colors(e,:) = [0,0,1]; % blue
         end
     end
 end
