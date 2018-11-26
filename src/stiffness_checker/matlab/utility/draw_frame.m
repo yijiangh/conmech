@@ -93,10 +93,18 @@ else
     thkFact = (thkMax-thkMin)/max(max(F(:,1)), -min(F(:,1)));
     for e=1:1:nElements
         thicknesses(1,e) = thkMin + thkFact*abs(F(e,1));
-        if (F(e,1) < 0)
-            colors(e,:) = [1,0,0]; % red
+        if dim == 2
+            if (F(e,1) < 0)
+                colors(e,:) = [1,0,0]; % red
+            else
+                colors(e,:) = [0,0,1]; % blue
+            end
         else
-            colors(e,:) = [0,0,1]; % blue
+            if (F(e,1) > 0)
+                colors(e,:) = [1,0,0]; % red
+            else
+                colors(e,:) = [0,0,1]; % blue
+            end
         end
     end
 end

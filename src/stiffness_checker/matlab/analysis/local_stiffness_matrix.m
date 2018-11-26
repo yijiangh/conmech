@@ -69,11 +69,11 @@ switch dim
         % block_00 and block_11
         K_block(2,6) = 6*Iz / L^2;
         K_block(3,5) = - 6*Iy / L^2;
-        K_block = K_block +  K_block';
+        K_block = K_block + K_block';
         K_loc(1:6,1:6) = K_block;
         K_loc(7:12,7:12) = -K_block;
         
-        d_v = zeros(6);
+        d_v = zeros(6,1);
         d_v(1) = A/L;
         d_v(2) = 12*Iz / L^3;
         d_v(3) = 12*Iy / L^3;
@@ -92,7 +92,7 @@ switch dim
         K_loc(1:6,7:12) = K_block;
         K_loc(7:12,1:6) = -K_block;
         
-        d_v = zeros(6);
+        d_v = zeros(6,1);
         d_v(1) = -A/L;
         d_v(2) = -12*Iz / L^3;
         d_v(3) = -12*Iy / L^3;
