@@ -8,6 +8,8 @@ function [R] = local_frame(u, v, rot_y2x)
 assert(length(u) == length(v) && size(u,2) == size(v,2));
 dim = size(u,2);
 
+assert(~all(u == v));
+
 if isempty(rot_y2x)
     rot_y2x = 0;
 end

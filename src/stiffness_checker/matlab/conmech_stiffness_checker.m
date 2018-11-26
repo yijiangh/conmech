@@ -19,11 +19,15 @@ ins_pth = fullfile(pwd, strcat('test\problem_instances\',D2_file_name));
 
 % Define loads
 % L = [node,Qx,Qy,Qz,Mx,My,Mz; ...]
+% 2D truss load case
+% Load = [3,0,-0.1,0];
+
+% 2D beam
 Load = [2,0,-0.1,0];
-%Load = [4,0,0,-0.1,0,0,0]; %kN
+
+% Load = [4,0,0,-0.1,0,0,0]; %kN
 
 magnif = 10;
-% draw_frame(N, T, S, [], [], [], 0, 1, 5, magnif);
 
 % Output unit: force: kN, length: meter
 [F, R, D] = displacement_method(N, T, S, A, m_p, Load, 'Method', 'frame')

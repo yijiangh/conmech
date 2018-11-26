@@ -129,7 +129,6 @@ end
 
 if dim == 2
     N = N(:,1:2);
-    D = D(:,1:2);
 else
     N = N(:,1:3);
     D = D(:,1:3);
@@ -138,7 +137,7 @@ end
 h = figure(1);
 hold on;
 alpha = 1;
-plot_frame(N,T,undeformed_color,[],dim);
+plot_frame(N,[],T,undeformed_color,[],dim);
 % plot_fixities(N,S,dim,alpha);
 
 if ~isempty(Load)
@@ -149,32 +148,13 @@ if ~isempty(R)
     plot_reaction(N,R,dim,alpha*r_scale)
 end
 
-% Verify and complete node displacements input
-if isempty(D) == 0
-    if size(D,1) ~= nNodes && size(D,2) == size(N,2)
-        error('Invalid node displacement input')
-    end
-    
-    if isempty(magn)
-        magn = 1;
-    else
-        sizeOfMagn = size(magn);
-        if sizeOfMagn(1,1) ~= 1 || sizeOfMagn(1,2) ~= 1
-            error('Displacement magnification input must be empty or a number')
-        end
-    end
-    
-    for n=1:1:nNodes
-        N(n,:) = N(n,:) + magn*D(n,:);
-    end
-end
-plot_frame(N,T,colors,thicknesses,dim);
+plot_frame(N,D,T,colors,thicknesses,dim,magn);
 
 hold off;
 
 end
 
-function plot_frame(N, T, colors, thickness, dim)
+function plot_frame(N, D, T, colors, thickness, dim,magn)
 nElements = size(T,1);
 if 1 == size(colors,1)
     c = colors;
@@ -185,6 +165,11 @@ end
 if isempty(thickness) || 1 == length(thickness)
     thickness = ones(nElements)*1.2;
 end
+if ~isempty(D)
+    if size(D,1)~=size(N,1)
+        error('Invalid node displacement input')
+    end
+end
 
 for e=1:1:nElements
     if 3 == dim
@@ -194,10 +179,37 @@ for e=1:1:nElements
             [N(T(e,1),3);N(T(e,2),3)],...
             'Color',colors(e,:),'LineWidth',thickness(e));
     else
-        line(...
-            [N(T(e,1),1);N(T(e,2),1)],...
-            [N(T(e,1),2);N(T(e,2),2)],...
-            'Color',colors(e,:),'LineWidth',thickness(e));
+        if ~isempty(D)
+            if size(D,2)>2
+                % contains rotation, beam or frame
+                D_beam = draw_cubic_bent_beam(N(T(e,1),:), N(T(e,2),:), ...
+                    D(T(e,1),:), D(T(e,2),:), magn);
+
+                for b_i=1:1:size(D_beam,1)-1
+                    line([D_beam(b_i,1); D_beam(b_i+1,1)],...
+                        [D_beam(b_i,2); D_beam(b_i+1,2)],...
+                        'Color',colors(e,:),'LineWidth',thickness(e));
+                end
+            else
+                % truss, only translation, no beam shape intepolation
+                if isempty(magn)
+                    magn = 1;
+                end
+                
+                for n=1:1:size(N,1)
+                    N(n,:) = N(n,:) + magn*D(n,:);
+                end
+                line(...
+                    [N(T(e,1),1);N(T(e,2),1)],...
+                    [N(T(e,1),2);N(T(e,2),2)],...
+                    'Color',colors(e,:),'LineWidth',thickness(e));
+            end
+        else
+            line(...
+                [N(T(e,1),1);N(T(e,2),1)],...
+                [N(T(e,1),2);N(T(e,2),2)],...
+                'Color',colors(e,:),'LineWidth',thickness(e));
+        end
     end
 end
 end
