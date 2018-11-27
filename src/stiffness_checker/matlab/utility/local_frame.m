@@ -22,15 +22,27 @@ if 3 == dim
     
     if abs(c(3))==1.0
         R(3,1) = 1.0;
-        R(1:2,2:3) = [cos(rot_y2x), -sin(rot_y2x); sin(rot_y2x), cos(rot_y2x)];
+        R(1:2,2:3) = [cos(rot_y2x), -sin(rot_y2x); ...
+                      sin(rot_y2x), cos(rot_y2x)];
     else
         new_x = c;
-        new_y = cross([0,0,1], new_x);
-        R = rot_axis(new_x, rot_y2x);
         
-        R(1,:) = new_x;
-        R(2,:) = new_y;
-        R(3,:) = cross(new_x, new_y);
+        new_y = cross([0,0,1], new_x);
+        new_y = new_y/norm(new_y);
+
+%         R = rot_axis(new_x, rot_y2x);
+        
+%         new_x
+%         new_y
+%         cross(new_x, new_y)
+        
+%         R(1,:) = new_x;
+%         R(2,:) = new_y;
+%         R(3,:) = cross(new_x, new_y);
+
+        R(:,1) = new_x';
+        R(:,2) = new_y';
+        R(:,3) = cross(new_x, new_y)';
     end
 else
     R = zeros(3,3);

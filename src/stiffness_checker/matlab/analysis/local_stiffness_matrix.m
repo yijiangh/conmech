@@ -102,7 +102,7 @@ switch dim
         K_loc(1:6,7:12) = K_loc(1:6,7:12) + diag(d_v);
         K_loc(7:12,1:6) = K_loc(7:12,1:6) + diag(d_v);
         
-        K_loc = K_loc * m_p.E;    
+        K_loc = K_loc * m_p.E;
 end
 
 end

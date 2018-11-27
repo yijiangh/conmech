@@ -114,6 +114,8 @@ for e=1:1:nElements
     id_map(e, node_dof+1:2*node_dof) = v*node_dof*linspace(1,1,node_dof)-dof_lin;
 end
 
+id_map
+
 K_loc_list = {};
 R_list = {};
 for e=1:1:nElements
@@ -132,6 +134,8 @@ for e=1:1:nElements
     R_b = local_frame(end_u, end_v, 0);
     K_loc = local_stiffness_matrix(norm(end_u-end_v), A(e),...
         Jx, Iy, Iz, dim, m_p);
+    
+    R_b
     
     R = zeros(full_node_dof*2, full_node_dof*2);
     for k=1:1:(full_node_dof/3)*2
@@ -168,10 +172,10 @@ for e=1:1:nElements
     % add the terms of the stiffness matrix of element e to the
     % stiffness matrix K of the structure
     for i=1:1:(2*node_dof)
-        l = id_map(e,i);
+        s = id_map(e,i);
         for j=1:1:(2*node_dof)
-            ll = id_map(e,j);
-            K(l,ll) = K(l,ll) + Ke(i,j);
+            t = id_map(e,j);
+            K(s,t) = K(s,t) + Ke(i,j);
         end
     end
 end
@@ -266,8 +270,8 @@ for e=1:1:nElements
     % determine the axial force in element e from the
     % displacements of its nodes, and store the results in the output
     % vector F
-    
     Ue = U(id_map(e,1:end));
+    
     Fe = K_loc_list{e} * R_list{e} * Ue;
     F(e,:) = Fe';
 %     F(e,:) = Fe(2*e_react_dof-e_react_dof+1:2*e_react_dof);

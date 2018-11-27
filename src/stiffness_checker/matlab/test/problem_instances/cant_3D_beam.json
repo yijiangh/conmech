@@ -12,7 +12,7 @@
     "density": 78.5,
     "density_unit": "kN/m3",
     "poisson_ratio": 0.300149,
-    "radius": 25.0,
+    "radius": 2.5,
     "radius_unit": "centimeter"
   },
   "node_list": [
@@ -35,9 +35,9 @@
     },
     {
       "point": {
-        "X": 1.0,
-        "Y": 0.0,
-        "Z": 0.0
+        "X": 0.67910782235084566,
+        "Y": 0.47551641646724258,
+        "Z": 0.5591929034707469
       },
       "node_id": 1,
       "is_grounded": 0,

@@ -12,7 +12,7 @@
     "density": 78.5,
     "density_unit": "kN/m3",
     "poisson_ratio": 0.300149,
-    "radius": 25.0,
+    "radius": 2.5,
     "radius_unit": "centimeter"
   },
   "node_list": [

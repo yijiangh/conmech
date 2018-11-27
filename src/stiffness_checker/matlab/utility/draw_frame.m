@@ -94,7 +94,7 @@ else
     for e=1:1:nElements
         thicknesses(1,e) = thkMin + thkFact*abs(F(e,1));
         if dim == 2
-            if (F(e,1) < 0)
+            if (F(e,1) > 0)
                 colors(e,:) = [1,0,0]; % red
             else
                 colors(e,:) = [0,0,1]; % blue
