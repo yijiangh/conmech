@@ -1,4 +1,4 @@
-function [N, T, S, A, m_p] = parse_frame_json(abs_file_path)
+function [N, T, S, m_p] = parse_frame_json(abs_file_path)
 % Inputs:
 %   abs_file_path: absolute file path.
 % Outputs:
@@ -58,13 +58,14 @@ end
 
 assert(0 == any(any(T > n_Nodes) ~= 0));
 
-m_p.E = data.material_properties.youngs_modulus;
-m_p.G = data.material_properties.shear_modulus;
-m_p.mu = data.material_properties.poisson_ratio;
-m_p.density = data.material_properties.density;
-m_p.r = data.material_properties.radius;
+% kN/cm^2 -> kN/m^2
+m_p.E = data.material_properties.youngs_modulus * 1e4;
+m_p.G = data.material_properties.shear_modulus * 1e4;
 
-% construct cross sections
-A = ones(n_Elements,1) * pi * m_p.r^2;
+m_p.mu = data.material_properties.poisson_ratio;
+m_p.density = data.material_properties.density; %kN/m^3
+
+% cm -> m
+m_p.r = data.material_properties.radius * 1e-2;
 
 end

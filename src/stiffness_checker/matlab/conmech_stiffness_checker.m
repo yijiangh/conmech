@@ -18,7 +18,7 @@ ins_pth = fullfile(pwd, strcat('test\problem_instances\',D3_file_name));
 % nodal coordinates: meter
 % pressure (E,G): kN/cm^2
 % cross section: cm
-[N, T, S, A, m_p] = parse_frame_json(ins_pth);
+[N, T, S, m_p] = parse_frame_json(ins_pth);
 
 % Define loads
 % L = [node,Qx,Qy,Qz,Mx,My,Mz; ...]
@@ -33,15 +33,18 @@ ins_pth = fullfile(pwd, strcat('test\problem_instances\',D3_file_name));
 % Load = [4,0,-1,0];
 
 % 3D cases
-Load = [2, -0.1, 0, 0, 0,0,0]; %kN
+% 3D beam
+% Load = [2, -0.1, 0, 0, 0,0,0]; %kN
+
+% 3D frame
 % Load = [3, 0,0,-0.1, 0,0,0]; %kN
 
-% Load = [];
-use_self_weight = 0;
+Load = [];
+use_self_weight = 1;
 
 magnif = 10;
 
 % Output unit: force: kN, length: meter
-[element_F, reaction_F, nodal_displ] = displacement_method(N, T, S, A, m_p, Load, use_self_weight, 'Method', 'frame')
+[element_F, reaction_F, nodal_displ] = displacement_method(N, T, S, m_p, Load, use_self_weight, 'Method', 'frame')
 
 % draw_frame(N, T, S, Load, element_F, reaction_F, nodal_displ, 1, 5, magnif, 0.5);

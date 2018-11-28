@@ -1,4 +1,4 @@
-function [F, R, D] = displacement_method(N, T, S, A, m_p, Load, self_weight, varargin)
+function [F, R, D] = displacement_method(N, T, S, m_p, Load, self_weight, varargin)
 % INPUT:
 %
 % N = node coordinates
@@ -116,9 +116,10 @@ end
 
 % assuming uniform cross sections now
 [Jx, Iy, Iz] = cross_sec_properties(m_p);
+A = ones(nElements,1) * pi * m_p.r^2;
 
 % roll anlgle for local frame
-roll_angle = pi;
+roll_angle = 0;
 
 switch method
     case 'truss'
@@ -196,24 +197,21 @@ if self_weight
         end_u = N(T(e,1), :);
         end_v = N(T(e,2), :);
         Le = norm(end_v-end_u);
-        q_sw = A(e)*1e-4*m_p.density;
-        
-%         R_eG = R_list{e};
-        R_eG = local_frame(end_u, end_v, roll_angle);
-        Q_sw_G = zeros(2*node_dof,1);
-        
-        % end gravity in global frame
-        Q_sw_G(dim) = -q_sw*Le/2;
-        Q_sw_G(node_dof+dim) = -q_sw*Le/2; 
-        
-        % force density in local frame
-%         Q_sw_e = R_eG*Q_sw_G;
-        
-        fixed_end_sw_load = zeros(node_dof,1);
-%         fixed_end_sw_load = Q_sw_e;
-        
+        q_sw = A(e)*m_p.density;
+                
         if method == 'frame'
             if dim == 2
+                R_eG = R_list{e};
+                
+                Q_sw_G = zeros(2*node_dof,1);
+        
+                % end gravity in global frame
+                Q_sw_G(dim) = -q_sw*Le/2;
+                Q_sw_G(node_dof+dim) = -q_sw*Le/2; 
+
+                % force density in local frame
+                Q_sw_e = R_eG*Q_sw_G;
+                fixed_end_sw_load = Q_sw_e;
                 fixed_end_sw_load(3) = Q_sw_e(2)/Le * Le^2 / 12;
                 fixed_end_sw_load(6) = -fixed_end_sw_load(3);
                 fixed_end_sw_load = R_eG' * fixed_end_sw_load;
@@ -225,6 +223,9 @@ if self_weight
 %                 fixed_end_sw_load = R_eG' * fixed_end_sw_load;
 
                 % https://github.mit.edu/yijiangh/frame3dd/blob/master/frame3dd_io.c#L905
+                R_eG = local_frame(end_u, end_v, roll_angle);
+                fixed_end_sw_load = zeros(2*node_dof,1);
+                
                 fixed_end_sw_load(3) = -q_sw * Le / 2.0;
                 fixed_end_sw_load(4) = q_sw * Le^2 / 12.0 *...
                     ((-R_eG(2,1)*R_eG(3,3)+R_eG(2,3)*R_eG(3,1))*(-1));
@@ -240,8 +241,6 @@ if self_weight
                 fixed_end_sw_load(12) = 0;
             end
         end
-        
-        fixed_end_sw_load
         
         Q_sw(id_map(e,1:end)) = Q_sw(id_map(e,1:end)) + fixed_end_sw_load;
     end
@@ -295,7 +294,7 @@ Q_perm = Perm*Q;
 Qm = Q_perm(1:nFree);
 Qf = Q_perm(nFree+1:dof);
 
-Um = Kmm\Qm;
+Um = Kmm\Qm; % in m
 Rf = Kfm*Um - Qf;
 
 Us = zeros(nFixities,1);
@@ -318,9 +317,6 @@ for i=1:1:nNodes
     D(i,1:node_dof)=U(i*node_dof-node_dof+1:i*node_dof);
 end
 
-% convert (translation, not rotation) from centimeter to meter
-D(:,1:dim) = D(:,1:dim) * 1e-2;
-
 % Initialize the output vector F, which must be filled with the
 % element forces
 F = zeros(nElements,e_react_dof*2);
@@ -333,7 +329,6 @@ for e=1:1:nElements
     
     Fe = K_loc_list{e} * R_list{e} * Ue;
     F(e,:) = Fe';
-%     F(e,:) = Fe(2*e_react_dof-e_react_dof+1:2*e_react_dof);
 end
 
 end
