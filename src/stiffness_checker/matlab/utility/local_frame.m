@@ -18,12 +18,12 @@ L = norm(v-u);
 c = (v-u) / L;
 Cx = c(1);
 Cy = c(2);
-Cz = c(3);
 
 Cp = cos(rot_y2x);
 Sp = sin(rot_y2x);
 
 if 3 == dim
+    Cz = c(3);
     R = zeros(3,3);
     
     if abs(Cz)==1.0        
@@ -48,10 +48,10 @@ if 3 == dim
     end
 else
     R = zeros(3,3);
-    R(1,1) = c(1);
-    R(1,2) = c(2);
-    R(2,1) = -c(2);
-    R(2,2) = c(1);
+    R(1,1) = Cx;
+    R(1,2) = Cy;
+    R(2,1) = -Cy;
+    R(2,2) = Cx;
     R(3,3) = 1;
 end
 

@@ -1,4 +1,4 @@
-function [F, R, D] = displacement_method(N, T, S, A, m_p, Load, varargin)
+function [F, R, D] = displacement_method(N, T, S, A, m_p, Load, self_weight, varargin)
 % INPUT:
 %
 % N = node coordinates
@@ -45,11 +45,11 @@ nNodes = size(N,1);
 dim = size(N,2);
 nElements = size(T,1);
 
-% check dimension of S,load
+% check dimension of S
 if dim == 2
-    assert(4 == size(S,2) && 4 == size(Load, 2));
+    assert(4 == size(S,2));
 else
-    assert(7 == size(S,2) && 7 == size(Load, 2));
+    assert(7 == size(S,2));
 end
 
 % default values
@@ -114,6 +114,28 @@ for e=1:1:nElements
     id_map(e, node_dof+1:2*node_dof) = v*node_dof*linspace(1,1,node_dof)-dof_lin;
 end
 
+% assuming uniform cross sections now
+[Jx, Iy, Iz] = cross_sec_properties(m_p);
+
+% roll anlgle for local frame
+roll_angle = pi;
+
+switch method
+    case 'truss'
+        if 2 == dim
+            ex_id = [1,4];
+            xy_id = [1,2,4,5];
+        end
+        if 3 == dim
+            ex_id = [1,7];
+            xy_id = [1,2,3,7,8,9];
+        end
+    case 'frame'
+        ex_id = linspace(1,node_dof*2,node_dof*2);
+        xy_id = linspace(1,node_dof*2,node_dof*2);
+end
+e_react_dof = size(ex_id,2)/2;
+
 K_loc_list = {};
 R_list = {};
 for e=1:1:nElements
@@ -124,12 +146,7 @@ for e=1:1:nElements
     end_u = N(T(e,1), :);
     end_v = N(T(e,2), :);
     
-    % r is in cm
-    Jx = 0.5 * pi * m_p.r^4;
-    Iy = pi * m_p.r^4 / 4;
-    Iz = Iy;
-    
-    R_b = local_frame(end_u, end_v, pi);
+    R_b = local_frame(end_u, end_v, roll_angle);
     K_loc = local_stiffness_matrix(norm(end_u-end_v), A(e),...
         Jx, Iy, Iz, dim, m_p);
     
@@ -139,27 +156,9 @@ for e=1:1:nElements
           k*3-3+1:k*3) = R_b;
     end
     
-    switch method
-        case 'truss'
-            if 2 == dim
-                ex_id = [1,4];
-                xy_id = [1,2,4,5];
-                R = R(ex_id, xy_id);
-                
-                e_react_dof = size(R,1)/2;
-                K_loc = K_loc(ex_id, ex_id);
-            end
-            if 3 == dim
-                ex_id = [1,7];
-                xy_id = [1,2,3,7,8,9];
-                R = R(ex_id, xy_id);
-                
-                e_react_dof = size(R,1)/2;
-                K_loc = K_loc(ex_id, ex_id);
-            end
-        case 'frame'
-            e_react_dof = size(R,1)/2;
-    end
+    R = R(ex_id, xy_id);
+    K_loc = K_loc(ex_id, ex_id);
+    
     K_loc_list{end+1} = K_loc;
     R_list{end+1} = R;
     
@@ -179,11 +178,75 @@ end
 % Assemble the load vector, a matrix of size (number of DOFs)-by-1
 Q = zeros(dof,1);
 nLoadedNodes = size(Load,1);
-for i=1:1:nLoadedNodes
-    n = Load(i,1);    
-    q_id = linspace(1,node_dof,node_dof);
-    Q_node = Load(i, 1 + q_id);
-    Q(node_dof*n-node_dof+1 : node_dof*n,1) = Q_node;
+if ~isempty(Load)
+    assert(size(Load,2)==1+node_dof);
+    for i=1:1:nLoadedNodes
+        n = Load(i,1);
+        q_id = linspace(1,node_dof,node_dof);
+        Q_node = Load(i, 1 + q_id);
+        Q(node_dof*n-node_dof+1 : node_dof*n,1) = Q_node;
+    end
+end
+
+if self_weight
+    Q_sw = zeros(dof,1);
+    
+    for e=1:1:nElements
+        % density is in kN/m3, radius in cm, length in m
+        end_u = N(T(e,1), :);
+        end_v = N(T(e,2), :);
+        Le = norm(end_v-end_u);
+        q_sw = A(e)*1e-4*m_p.density;
+        
+%         R_eG = R_list{e};
+        R_eG = local_frame(end_u, end_v, roll_angle);
+        Q_sw_G = zeros(2*node_dof,1);
+        
+        % end gravity in global frame
+        Q_sw_G(dim) = -q_sw*Le/2;
+        Q_sw_G(node_dof+dim) = -q_sw*Le/2; 
+        
+        % force density in local frame
+%         Q_sw_e = R_eG*Q_sw_G;
+        
+        fixed_end_sw_load = zeros(node_dof,1);
+%         fixed_end_sw_load = Q_sw_e;
+        
+        if method == 'frame'
+            if dim == 2
+                fixed_end_sw_load(3) = Q_sw_e(2)/Le * Le^2 / 12;
+                fixed_end_sw_load(6) = -fixed_end_sw_load(3);
+                fixed_end_sw_load = R_eG' * fixed_end_sw_load;
+            else
+%                 fixed_end_sw_load(5) = Q_sw_e(2)/Le * Le^2 / 12;
+%                 fixed_end_sw_load(6) = Q_sw_e(3)/Le * Le^2 / 12;
+%                 fixed_end_sw_load(11) = -fixed_end_sw_load(5);
+%                 fixed_end_sw_load(12) = -fixed_end_sw_load(6);
+%                 fixed_end_sw_load = R_eG' * fixed_end_sw_load;
+
+                % https://github.mit.edu/yijiangh/frame3dd/blob/master/frame3dd_io.c#L905
+                fixed_end_sw_load(3) = -q_sw * Le / 2.0;
+                fixed_end_sw_load(4) = q_sw * Le^2 / 12.0 *...
+                    ((-R_eG(2,1)*R_eG(3,3)+R_eG(2,3)*R_eG(3,1))*(-1));
+                fixed_end_sw_load(5) = q_sw * Le^2 / 12.0 *...
+                    ((-R_eG(2,2)*R_eG(3,3)+R_eG(2,3)*R_eG(3,2))*(-1));
+                fixed_end_sw_load(6) = 0;
+                
+                fixed_end_sw_load(9) = -q_sw * Le / 2.0;
+                fixed_end_sw_load(10) = -q_sw * Le^2 / 12.0 *...
+                    ((-R_eG(2,1)*R_eG(3,3)+R_eG(2,3)*R_eG(3,1))*(-1));
+                fixed_end_sw_load(11) = -q_sw * Le^2 / 12.0 *...
+                    ((-R_eG(2,2)*R_eG(3,3)+R_eG(2,3)*R_eG(3,2))*(-1));
+                fixed_end_sw_load(12) = 0;
+            end
+        end
+        
+        fixed_end_sw_load
+        
+        Q_sw(id_map(e,1:end)) = Q_sw(id_map(e,1:end)) + fixed_end_sw_load;
+    end
+    
+    Q = Q + Q_sw;
 end
 
 % Assemble the list of fixed DOFs fixedList, a matrix of size
