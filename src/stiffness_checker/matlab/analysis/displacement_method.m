@@ -53,11 +53,11 @@ else
 end
 
 % default values
-if 2 == dim
-    method = 'truss';
-else
-    method = 'frame';
-end
+% if 2 == dim
+%     method = 'truss';
+% else
+%     method = 'frame';
+% end
 
 % Map of parameter names to variable names
 params_to_variables = containers.Map({'Method'},{'method'});
@@ -114,8 +114,6 @@ for e=1:1:nElements
     id_map(e, node_dof+1:2*node_dof) = v*node_dof*linspace(1,1,node_dof)-dof_lin;
 end
 
-id_map
-
 K_loc_list = {};
 R_list = {};
 for e=1:1:nElements
@@ -131,11 +129,9 @@ for e=1:1:nElements
     Iy = pi * m_p.r^4 / 4;
     Iz = Iy;
     
-    R_b = local_frame(end_u, end_v, 0);
+    R_b = local_frame(end_u, end_v, pi);
     K_loc = local_stiffness_matrix(norm(end_u-end_v), A(e),...
         Jx, Iy, Iz, dim, m_p);
-    
-    R_b
     
     R = zeros(full_node_dof*2, full_node_dof*2);
     for k=1:1:(full_node_dof/3)*2
@@ -200,7 +196,7 @@ for f=1:1:size(S,1)
     full_f(n*node_dof-node_dof+1 : n*node_dof)=S(f,2:1+node_dof);
 end
 assert(sum(full_f(:)==1) == nFixities);
-fixedList = find(full_f==1);
+% fixedList = find(full_f==1);
 
 nFree = dof - nFixities;
 free_tail=1;

@@ -16,33 +16,35 @@ end
 
 L = norm(v-u);
 c = (v-u) / L;
+Cx = c(1);
+Cy = c(2);
+Cz = c(3);
+
+Cp = cos(rot_y2x);
+Sp = sin(rot_y2x);
 
 if 3 == dim
     R = zeros(3,3);
     
-    if abs(c(3))==1.0
-        R(3,1) = 1.0;
-        R(1:2,2:3) = [cos(rot_y2x), -sin(rot_y2x); ...
-                      sin(rot_y2x), cos(rot_y2x)];
+    if abs(Cz)==1.0        
+        R(1,3) = -Cz;
+        R(2,2) = 1;
+        R(3,1) = Cz;
+        
+        R = R * rot_axis([1,0,0], rot_y2x);
+        R = R';
     else
         new_x = c;
         
-        new_y = cross([0,0,1], new_x);
-        new_y = new_y/norm(new_y);
-
-%         R = rot_axis(new_x, rot_y2x);
+        new_y = cross(new_x, [0,0,1]);
+        new_y = -new_y/norm(new_y);
         
-%         new_x
-%         new_y
-%         cross(new_x, new_y)
-        
-%         R(1,:) = new_x;
-%         R(2,:) = new_y;
-%         R(3,:) = cross(new_x, new_y);
-
         R(:,1) = new_x';
         R(:,2) = new_y';
         R(:,3) = cross(new_x, new_y)';
+        
+        R = R * rot_axis([1,0,0], rot_y2x);
+        R = R';
     end
 else
     R = zeros(3,3);

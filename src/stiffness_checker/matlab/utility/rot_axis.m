@@ -10,7 +10,12 @@ r_v = r_v / norm(r_v);
 R = zeros(3,3);
 C = cos(theta);
 S = sin(theta);
-t = 1-cos(theta);
+if theta == pi
+    C=round(C);
+    S=round(S);
+end
+t = 1-C;
+
 ux = r_v(1);
 uy = r_v(2);
 uz = r_v(3);
