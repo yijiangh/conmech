@@ -5,20 +5,26 @@ format shortE
 
 addpath('utility', 'analysis')
 
-% D2_file_name = 'sf-test_2D_truss.json';
-D2_file_name = 'sf-test_2D_beam.json';
-% D2_file_name = '2D_frame.json';
-% D3_file_name = 'sf-test_3-frame.json';
-% D3_file_name = 'cant_2_3D_frame.json';
-D3_file_name = 'cant_3D_beam.json';
+% frame_file_name = 'sf-test_2D_truss.json';
+% frame_file_name = 'sf-test_2D_beam.json';
+% frame_file_name = '2D_frame.json';
+% frame_file_name = 'sf-test_3-frame.json';
+% frame_file_name = 'cant_2_3D_frame.json';
+% frame_file_name = 'cant_3D_beam.json';
+frame_file_name = 'topopt100_3D.json';
 
-ins_pth = fullfile(pwd, strcat('test\problem_instances\',D3_file_name));
+ins_pth = fullfile(pwd, strcat('test\problem_instances\',frame_file_name));
+
+load_file_name = 'topopt100_3D_load_case.json';
+
+load_pth = fullfile(pwd, strcat('test\problem_instances\',load_file_name));
 
 % input unit:
 % nodal coordinates: meter
-% pressure (E,G): kN/cm^2
-% cross section: cm
+% pressure (E,G): kN/m^2
+% cross section: m
 [N, T, S, m_p] = parse_frame_json(ins_pth);
+[Load, use_self_weight] = parse_load_json(load_pth);
 
 % Define loads
 % L = [node,Qx,Qy,Qz,Mx,My,Mz; ...]
@@ -37,14 +43,28 @@ ins_pth = fullfile(pwd, strcat('test\problem_instances\',D3_file_name));
 % Load = [2, -0.1, 0, 0, 0,0,0]; %kN
 
 % 3D frame
-% Load = [3, 0,0,-0.1, 0,0,0]; %kN
+% Load = [3, 0.2,0.2,-0.1, 0,0,0]; %kN
 
 Load = [];
-use_self_weight = 1;
+% use_self_weight = 0;
 
 magnif = 10;
 
 % Output unit: force: kN, length: meter
-[element_F, reaction_F, nodal_displ] = displacement_method(N, T, S, m_p, Load, use_self_weight, 'Method', 'frame')
+[element_F, reaction_F, nodal_displ] = displacement_method(N, T, S, m_p, Load, use_self_weight, 'Method', 'frame');
 
-% draw_frame(N, T, S, Load, element_F, reaction_F, nodal_displ, 1, 5, magnif, 0.5);
+reaction_F
+
+draw_frame(N, T, S, Load, element_F, reaction_F, nodal_displ, 1, 5, magnif, 0.1);
+
+% sort displacement
+s_D = zeros(size(nodal_displ,1),1+size(nodal_displ,2));
+for i=1:1:size(s_D,1)
+   S_D(i,1) = norm(nodal_displ(i,:));
+%    nodal_displ(i,:)
+   S_D(i,2:7) = nodal_displ(i,:);
+end
+
+s_D = sortrows(s_D);
+S_D(end-10:end-5, 2:7)
+

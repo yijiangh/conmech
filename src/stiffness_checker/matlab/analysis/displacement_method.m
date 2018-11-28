@@ -1,4 +1,4 @@
-function [F, R, D] = displacement_method(N, T, S, m_p, Load, self_weight, varargin)
+function [F, RF, D] = displacement_method(N, T, S, m_p, Load, self_weight, varargin)
 % INPUT:
 %
 % N = node coordinates
@@ -304,10 +304,10 @@ U = Perm\U_perm;
 Rf_full = [zeros(nFree,1); Rf];
 Rf_full = Perm\Rf_full;
 
-R = S;
+RF = S(:,2:end);
 for f=1:1:size(S,1)
-    n = S(f,1);
-    R(f,2:1+node_dof) = Rf_full(n*node_dof-node_dof+1 : n*node_dof);
+    fix_node_id = S(f,1);
+    RF(f,:) = Rf_full(fix_node_id*node_dof-node_dof+1 : fix_node_id*node_dof);
 end
 
 % Reorganize the DOF displacements to form the output matrix D  (see output
