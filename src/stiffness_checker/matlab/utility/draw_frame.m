@@ -153,7 +153,7 @@ if ~isempty(Load)
 end
 
 if ~isempty(R)
-    plot_reaction(N,R,dim,alpha*r_scale)
+%     plot_reaction(N,R,dim,alpha*r_scale)
 end
 
 plot_frame(N,D,T,colors,thicknesses,dim,magn);

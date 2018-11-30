@@ -57,10 +57,13 @@ disc = 10;
 D_global = zeros(disc+1, dim) ;
 
 for i=0:1:disc
-    s = D_local(1) + i*abs(L+D_local(4)-D_local(1))/disc;
-    if s > 1.01*abs(L+D_local(4))
-        break
-    end
+    D_0 = D_local(1);
+    D_e = D_local(1+full_node_dof);
+    
+    s = D_0 + i*(L+D_e-D_0)/disc;
+%     if s >= 1.01*abs(L+D_e)
+%         break
+%     end
     
     v = a_coeff'*[1;s;s^2;s^3];
     

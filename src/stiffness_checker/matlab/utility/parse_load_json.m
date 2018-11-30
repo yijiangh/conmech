@@ -17,7 +17,8 @@ end
 Load = zeros(n_Loaded_Nodes, 1+node_dof);
 
 for i=1:1:n_Loaded_Nodes
-    Load(i,1) = data.point_load_list{i}.applied_node_id;
+    % C# index starts with 0
+    Load(i,1) = data.point_load_list{i}.applied_node_id + 1;
     
     if 2 == dim
         Load(i,2) = data.point_load_list{i}.Fx;
