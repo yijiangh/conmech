@@ -6,9 +6,34 @@
 #include "stiffness_checker/Frame.h"
 #include "stiffness_checker/Util.h"
 #include "stiffness_checker/Stiffness.h"
+#include "stiffness_checker/StiffnessIO.h"
 
 namespace
 {
+void testGNUPlot()
+{
+  using namespace conmech::stiffness_checker;
+
+  std::string file_dir =
+    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/matlab/test/problem_instances/";
+
+  std::string file_name = "sf-test_3-frame.json";
+  std::string file_path = file_dir + file_name;
+
+  std::string save_path = "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test";
+
+  Frame f;
+
+  f.loadFromJson(file_path);
+  std::cout << "frame readed: vert size: " << f.sizeOfVertList() << ", element size: " << f.sizeOfElementList()
+            << std::endl;
+  std::cout << "fixed vert size: " << f.sizeOfFixedVert() << ", layer size: " << f.sizeOfLayer() << std::endl;
+
+  Eigen::MatrixXd nodal_d;
+
+  createGnuPltStaticShape(file_name, save_path, f, nodal_d, 1, 0);
+}
+
 void testLoadingFrame()
 {
   std::string file_path_1 =
@@ -92,7 +117,8 @@ int main(int argc, char** argv)
 {
 //  testLoadingFrame();
 //  testLocalGlobalTransf();
-  testStiffness();
-  
+//  testStiffness();
+  testGNUPlot();
+
   return 0;
 }

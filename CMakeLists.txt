@@ -1,13 +1,25 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.1)
 project(conmech)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
-find_package(Eigen REQUIRED)
+# Detects whether this is a top-level project
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(CONMECH_TOPLEVEL_PROJECT ON)
+else()
+    set(CONMECH_TOPLEVEL_PROJECT OFF)
+endif()
 
-set(RAPIDJSON_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/ext/rapidjson/include)
+# All dependencies that are downloaded as cmake projects and tested on the auto-builds are ON
+# (by default, all build options are off)
+option(CONMECH_WITH_OPENGL            "Use OpenGL"                   ON)
+option(CONMECH_WITH_OPENGL_GLFW       "Use GLFW"                     ON)
+option(CONMECH_WITH_OPENGL_GLFW_IMGUI "Use ImGui"                    ON)
+option(CONMECH_WITH_PYTHON            "Use Python"                   OFF)
+### End
 
-#set(BUILD_PYBINDINGS FALSE)
-set(BUILD_PYBINDINGS TRUE)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-add_subdirectory(ext)
-add_subdirectory(src)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+
+include(conmech)

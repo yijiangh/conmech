@@ -19,9 +19,6 @@ c = (v-u) / L;
 Cx = c(1);
 Cy = c(2);
 
-Cp = cos(rot_y2x);
-Sp = sin(rot_y2x);
-
 if 3 == dim
     Cz = c(3);
     R = zeros(3,3);

@@ -149,7 +149,7 @@ plot_frame(N,[],T,undeformed_color,[],dim);
 % plot_fixities(N,S,dim,alpha);
 
 if ~isempty(Load)
-    plot_load(N,Load,dim,alpha*r_scale)
+%     plot_load(N,Load,dim,alpha*r_scale)
 end
 
 if ~isempty(R)

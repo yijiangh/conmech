@@ -16,3 +16,7 @@ cmake-build-debug/
 # matlab temps
 *.asv
 
+*.DS_Store
+
+# GSA lock files
+*.gwb.lok

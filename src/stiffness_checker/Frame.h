@@ -37,7 +37,6 @@ class FrameVert
   int degree() const { return degree_; }
   const std::vector<FrameElementPtr> nghdElements() const { return p_nghd_element_list_; };
 
-  // TODO: this "Fixed" is ambiguous, use "grounded" instead
   bool isFixed() const { return b_fixed_; }
 
   void setFixed(bool b_fixed) { b_fixed_ = b_fixed; }
@@ -85,17 +84,10 @@ class FrameElement
 
   double getLength() const
   {
-    if (pvert_u && pvert_v)
-    {
-      auto u = pvert_u->position();
-      auto v = pvert_v->position();
-
-      return (u-v).norm();
-    }
-    else
-    {
-      return 0;
-    }
+    assert(pvert_u && pvert_v);
+    auto u = pvert_u->position();
+    auto v = pvert_v->position();
+    return (u-v).norm();
   }
 
   const FrameVertPtr endVertU() const
@@ -172,7 +164,7 @@ class Frame
   Eigen::Vector3d base_center_pos_;
 
   /**
-   * unit used inside Frame is millimeter.
+   * unit used inside Frame is METER.
    */
   double unit_scale_;
 };

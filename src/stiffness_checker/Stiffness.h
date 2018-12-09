@@ -11,12 +11,11 @@ namespace conmech
 {
 namespace stiffness_checker
 {
-
 class Stiffness
 {
  public:
-  Stiffness(Frame& frame, bool verbose=false);
-  Stiffness(const std::string& json_file_path, bool verbose=false);
+  Stiffness(Frame& frame, bool verbose=false, std::string model_type="frame");
+  Stiffness(const std::string& json_file_path, bool verbose=false, std::string model_type="frame");
 
   ~Stiffness() {}
 
@@ -187,7 +186,32 @@ class Stiffness
 
   bool verbose_;
 
+  /**
+   * dimension of the model, 2 or 3
+   */
+  int dim_;
+
+  /**
+   * node degrees of freedom
+   */
+  int node_dof_;
+
+  /**
+   * node full degree of freedom (aka. frame)
+   */
+  int full_node_dof_;
+
+  /**
+   * model type: truss or frame
+   */
+  std::string model_type_;
+
  private:
+  /**
+   * a (N_element x (2*node_dof)) map
+   */
+  Eigen::MatrixXi id_map_;
+
   /**
    * a list of element stiffness matrix in global frame
    * (N_all_element x (12x12)) list

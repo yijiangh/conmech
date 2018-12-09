@@ -10,16 +10,19 @@ namespace stiffness_checker
 {
 bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &frame_parm);
 
-void outputPath(const char *fname, char fullpath[], const int len, char *default_outdir, int verbose);
-
 /**
  * Create mesh data of deformed and undeformed mesh, use gnuplot
+ * GNUPlot references:
+ * http://svn.code.sourceforge.net/p/frame3dd/code/trunk/doc/Frame3DD-manual.html
+ * https://people.duke.edu/~hpgavin/gnuplot.html
+ *
 */
-void createGnuPltStaticMesh(
+void createGnuPltStaticShape(
+    const std::string& model_name,
     const std::string& file_path,
     const Frame& frame,
     const Eigen::MatrixXd& nodal_displ,
-    double exagg_static, float scale);
+    double exagg_static, bool draw_deform);
 
 /**
  * computes cubic deflection functions from end deflections
@@ -32,16 +35,6 @@ void createGnuPltCubicBentBeam(
     const Eigen::MatrixXd& nodal_displ,
     std::vector<Eigen::Vector3d>& beam,
     double exagg = 1.0);
-
-/**
- * write input data to a .3dd file
-*/
-void writeFrame3ddData(
-    const std::string &fpath,
-    const Frame &frame,
-    const StiffnessParm &parm,
-    int verbose
-);
 
 } // namespace stiffness_checker
 } // namespace conmech

@@ -8,29 +8,29 @@ namespace stiffness_checker
 class StiffnessParm
 {
  public:
-  StiffnessParm():g_(9.80665){}
+  StiffnessParm(){}
 
   ~StiffnessParm(){};
 
  public:
   // TODO: this radius should be associated with geometry
   /**
-   * raidus of the cross section, unit: millimeter
+   * raidus of the cross section, unit: centimeter
    */
   double radius_;
 
   /**
-   * material density, unit: kg/m^3
+   * material density, unit: kN/m^3
    */
   double density_;
 
   /**
-   * unit: MPa
+   * unit: kN/cm^2
    */
   double youngs_modulus_;
 
   /**
-   * unit: MPa
+   * unit: kN/cm^2
    */
   double shear_modulus_;
 
@@ -42,12 +42,12 @@ class StiffnessParm
    */
   double poisson_ratio_;
 
-  /**
-   * gravity on Earth, unit: m/s^2 = N/kg
-   * default value: 9.80665 m/s^2
-   * see: https://en.wikipedia.org/wiki/Gravity_of_Earth
-   */
-  double g_;
+//  /**
+//   * gravity on Earth, unit: m/s^2 = N/kg
+//   * default value: 9.80665 m/s^2
+//   * see: https://en.wikipedia.org/wiki/Gravity_of_Earth
+//   */
+//  double g_;
 };
 
 } // ns stiffness_checker

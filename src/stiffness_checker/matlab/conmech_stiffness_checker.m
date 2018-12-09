@@ -51,7 +51,7 @@ if(use_self_weight)
     Load = [];
 end
 
-magnif = 5;
+magnif = 2;
 
 % Output unit: force: kN, length: meter
 [element_F, reaction_F, nodal_displ] = displacement_method(N, T, S, m_p, Load, use_self_weight, 'Method', 'frame');

@@ -12,27 +12,18 @@ double convertUnitScale(const std::string& unit)
 {
   if("millimeter" == unit || "mm" == unit)
   {
-    return 1;
+    return 1e-3;
   }
   if("centimeter" == unit || "cm" == unit)
   {
-    return 10;
+    return 1e-2;
   }
   if("meter" == unit || "m" == unit)
   {
-    return 1000;
-  }
-  if("inch" == unit || "in" == unit)
-  {
-    return 25.4;
-  }
-  if("foot" == unit || "ft" == unit)
-  {
-    return 304.8;
+    return 1;
   }
 
-  // default millimeter
-  std::cout << "WARNING: unrecognized unit in the input json file. Using millimeter by default." << std::endl;
+  std::cout << "WARNING: unrecognized unit in the input json file. Using meter by default." << std::endl;
   return 1;
 }
 } // util anon ns
@@ -198,7 +189,7 @@ FrameVertPtr Frame::insertVertex(const Eigen::Vector3d& p)
 
   for (int i = 0; i < N; i++)
   {
-    assert((p-vert_list_[i]->position()).norm() > 1e-5 && "duplicate point detected.");
+    assert((p - vert_list_[i]->position()).norm() > 1e-5 && "duplicate point detected.");
   }
 
   FrameVertPtr pvert = FrameVertPtr(new FrameVert(p));
@@ -218,13 +209,13 @@ FrameElementPtr Frame::insertElement(FrameVertPtr u, FrameVertPtr v)
     auto u_prev = element_list_[i]->endVertU();
     auto v_prev = element_list_[i]->endVertV();
 
-    bool match_1 = ((u_prev->position() - u->position()).norm() < 1e-5)
-        && ((v_prev->position() - v->position()).norm() < 1e-5);
-
-    bool match_2 = ((u_prev->position() - v->position()).norm() < 1e-5)
+    bool match_u = ((u_prev->position() - u->position()).norm() < 1e-5)
         && ((v_prev->position() - u->position()).norm() < 1e-5);
 
-    assert((!match_1) && (!match_2) && "duplicate element detected.");
+    bool match_v = ((u_prev->position() - v->position()).norm() < 1e-5)
+        && ((v_prev->position() - v->position()).norm() < 1e-5);
+
+    assert(!(match_u && match_v) && "duplicate element detected.");
   }
 
   FrameElementPtr e = FrameElementPtr(new FrameElement());

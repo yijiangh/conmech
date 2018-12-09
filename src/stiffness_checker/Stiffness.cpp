@@ -15,7 +15,7 @@ namespace conmech
 namespace stiffness_checker
 {
 
-Stiffness::Stiffness(Frame& frame, bool verbose)
+Stiffness::Stiffness(Frame& frame, bool verbose, std::string model_type)
     : frame_(frame), verbose_(verbose), is_init_(false), transl_tol_(1.0), rot_tol_(5*(3.14/180))
 {
   // frame sanity check
@@ -24,10 +24,12 @@ Stiffness::Stiffness(Frame& frame, bool verbose)
   assert(N_vert>0 && N_element>0);
 
   stiff_solver_.timing_ = verbose;
+  model_type_ = model_type;
+
   init();
 }
 
-Stiffness::Stiffness(const std::string &json_file_path, bool verbose)
+Stiffness::Stiffness(const std::string &json_file_path, bool verbose, std::string model_type)
     : verbose_(verbose), is_init_(false), transl_tol_(1.0), rot_tol_(5*(3.14/180))
 {
   verbose_ = verbose;
@@ -39,11 +41,26 @@ Stiffness::Stiffness(const std::string &json_file_path, bool verbose)
   // parse material properties
   parseMaterialPropertiesJson(json_file_path, material_parm_);
 
+  model_type_ = model_type;
+
   init();
 }
 
 bool Stiffness::init()
 {
+  // set up dimension, node_dof
+  if (model_type_ == "frame")
+  {
+    node_dof_ = 6;
+  }
+  if (model_type_ == "truss")
+  {
+    node_dof_ = 3;
+  }
+
+  full_node_dof_ = 6;
+  dim_ = 3;
+
   createElementStiffnessMatrixList();
 
   if(verbose_)
@@ -72,9 +89,10 @@ void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd& self_weight_load_P)
   // assuming solid circular cross sec for now
   double Ax = M_PI * std::pow(material_parm_.radius_, 2);
 
+  // TODO: change here
   // gravitional acc unit: m/s^2
   // in global frame
-  double gz = material_parm_.g_;
+  double gz = 1;
 
   for (int i = 0; i < N_element; i++)
   {
@@ -197,21 +215,22 @@ void Stiffness::createElementStiffnessMatrixList()
 {
   // check the complete element stiffness matrix
   // in local frame: [MSA McGuire et al.] P73
-  // for unit used in this function, we conform with
-  // the unit convention used in [MSA]'s example:
 
   // for all cross section's geometrical properties
-  // cross section: mm^2
-  // Iz, Iy: mm^4
-  // J: mm^4
+  // cross section: m^2
+  // Iz, Iy: m^4
+  // J: m^4
 
   // element length L: mm
-  // E, G: MPa (1Pa = 1 N/m^2 = 1e-9 kN/mm^2)
-  // Force: N
-  // Moment: N m
+  // E, G: kN/m^2
+  // Force: kN
+  // Moment: kN m
 
+  // assuming all the elements have the same cross section
+  // and all of them are solid circular shape
   double pi = atan(1)*4;
-  // cross section area: assuming solid circular, unit: mm^2
+
+  // cross section area: assuming solid circular, unit: m^2
   double A = pi * std::pow(material_parm_.radius_,2);
 //  double Asy = Ax * (6 + 12 * material_parm_.poisson_ratio_ + 6 * std::pow(material_parm_.poisson_ratio_,2))
 //      / (7 + 12 * material_parm_.poisson_ratio_ + 4 * std::pow(material_parm_.poisson_ratio_,2));
@@ -224,7 +243,7 @@ void Stiffness::createElementStiffnessMatrixList()
 //  double Jx = (2.0/3.0) * pi * std::pow(material_parm_.radius_, 4);
 
   // area moment of inertia (bending about local y,z-axis)
-  // assuming solid circular area of radius r, unit: mm^4
+  // assuming solid circular area of radius r, unit: m^4
   // see: https://en.wikipedia.org/wiki/List_of_area_moments_of_inertia
   // note this is slender rod of length L and Mass M, spinning around end
   double Iy = pi * std::pow(material_parm_.radius_,4) / 4;
@@ -232,16 +251,15 @@ void Stiffness::createElementStiffnessMatrixList()
 
   // E,G: MPa; mu (poisson ratio): unitless
   double E = material_parm_.youngs_modulus_;
+  double G = material_parm_.shear_modulus_;
   double mu = material_parm_.poisson_ratio_;
-  double G = E/(2*(1+mu));
-  assert((G - material_parm_.shear_modulus_) < 1e-3
+  assert((G - E/(2*(1+mu))) < 1e-3
       && "input poisson ratio not compatible with shear and Young's modulus!");
 
   int N_element = frame_.sizeOfElementList();
   assert(N_element > 0);
 
   using namespace std;
-//  std::cout << "radius: " << material_parm_.radius_ << std::endl;
 
   element_K_list_.reserve(N_element);
   for (int i = 0; i < N_element; i++)
@@ -250,58 +268,16 @@ void Stiffness::createElementStiffnessMatrixList()
     const auto end_u = e->endVertU();
     const auto end_v = e->endVertV();
 
-    // element length, unit: mm
+    // element length, unit: m
     double L = (end_v->position() - end_u->position()).norm();
 //    cout << "eL: " << L << e ndl;
-
-    // element stiffness matrix in local frame
-    Eigen::MatrixXd K_eL(12, 12);
-    K_eL.setZero();
 
     Eigen::Matrix3d R_LG;
     getGlobal2LocalRotationMatrix(end_u->position(), end_v->position(), R_LG);
 
-    // see: [Matrix Structural Analysis, McGuire et al., 2rd edition]
-    // P73 - eq(4.34)
-    Eigen::MatrixXd K_block(6,6);
-    K_block.setZero();
-    Eigen::VectorXd diag(6);
-
-    // block_00 and block_11
-    K_block(1,5) = 6*Iz / std::pow(L,2);
-    K_block(2,4) = - 6*Iy / std::pow(L,2);
-    K_block = K_block.eval() +  K_block.transpose().eval();
-    K_eL.block<6,6>(0,0) = K_block;
-    K_eL.block<6,6>(6,6) = -K_block;
-
-    diag[0] = A/L;
-    diag[1] = 12*Iz / std::pow(L,3);
-    diag[2] = 12*Iy / std::pow(L,3);
-    diag[3] = Jx / (2*(1+mu)*L);
-    diag[4] = 4*Iy / L;
-    diag[5] = 4*Iz / L;
-    K_eL.block<6,6>(0,0) += diag.asDiagonal();
-    K_eL.block<6,6>(6,6) += diag.asDiagonal();
-
-    // block_01 and block_10
-    K_block.setZero();
-
-    K_block(1,5) = 6*Iz / std::pow(L,2);
-    K_block(2,4) = - 6*Iy / std::pow(L,2);
-    K_block = K_block.eval() - K_block.transpose().eval();
-    K_eL.block<6,6>(0,6) = K_block;
-    K_eL.block<6,6>(6,0) = -K_block;
-
-    diag[0] = -A/L;
-    diag[1] = -12*Iz / std::pow(L,3);
-    diag[2] = -12*Iy / std::pow(L,3);
-    diag[3] = -Jx / (2*(1+mu)*L);
-    diag[4] = 2*Iy / L;
-    diag[5] = 2*Iz / L;
-    K_eL.block<6,6>(0,6) += diag.asDiagonal();
-    K_eL.block<6,6>(6,0) += diag.asDiagonal();
-
-    K_eL *= E;
+    // element stiffness matrix in local frame
+    Eigen::MatrixXd K_eL;
+    createLocalStiffnessMatrix(L, A, dim_, Jx, Iy, Iz, E, G, mu, K_eL);
 
 //    std::cout << "K_eL#" << i << "before tf:\n"<< K_eL << std::endl << std::endl;
 

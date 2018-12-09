@@ -3,7 +3,7 @@
   "dimension": 3,
   "force_unit": "kN",
   "moment_unit": "kN-m",
-  "include_self_weight": true,
+  "include_self_weight": false,
   "point_load_list": [
     {
       "applied_node_id": 5,
