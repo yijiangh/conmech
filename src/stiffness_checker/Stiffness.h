@@ -13,13 +13,14 @@ namespace stiffness_checker
 {
 class Stiffness
 {
- public:
-  Stiffness(Frame& frame, bool verbose=false, std::string model_type="frame");
-  Stiffness(const std::string& json_file_path, bool verbose=false, std::string model_type="frame");
+public:
+  Stiffness(Frame &frame, bool verbose = false, std::string model_type = "frame");
+
+  Stiffness(const std::string &json_file_path, bool verbose = false, std::string model_type = "frame");
 
   ~Stiffness() {}
 
- public:
+public:
   /**
    * set maximal nodal translational and rotational tolerance
    * for stiffness checking criteria.
@@ -38,8 +39,8 @@ class Stiffness
    *    default to be false.
    * @return boolean success flag
    */
-  bool setNodalLoad(const Eigen::MatrixXd& nodal_forces,
-                    const bool& include_self_weight = false);
+  bool setLoad(const Eigen::MatrixXd &nodal_forces,
+               const bool &include_self_weight = false);
 
   bool setSelfWeightNodalLoad();
 
@@ -53,7 +54,7 @@ class Stiffness
    * @return boolean success flag
    */
   // TODO: not implemented yet
-  virtual bool setRigidFixities(const Eigen::MatrixXi& fixities) {}
+  virtual bool setRigidFixities(const Eigen::MatrixXi &fixities) {}
 
   /**
    * Compute nodal displacement given existing node's indices.
@@ -78,15 +79,15 @@ class Stiffness
    * @return boolean success flag
    */
   bool solve(
-      const std::vector<int>& exist_element_ids,
-      Eigen::MatrixXd& node_displ,
-      Eigen::MatrixXd& fixities_reaction,
-      Eigen::MatrixXd& element_reation,
-      const bool& cond_num = true);
+    const std::vector<int> &exist_element_ids,
+    Eigen::MatrixXd &node_displ,
+    Eigen::MatrixXd &fixities_reaction,
+    Eigen::MatrixXd &element_reation,
+    const bool &cond_num = true);
 
   bool solve(
-      const std::vector<int>& exist_element_ids,
-      const bool& cond_num = true);
+    const std::vector<int> &exist_element_ids,
+    const bool &cond_num = true);
 
   /**
    * Compute nodal displacement for the entire structure (assuming all elements exist).
@@ -107,13 +108,13 @@ class Stiffness
    * @return boolean success flag
    */
   bool solve(
-      Eigen::MatrixXd& node_displ,
-      Eigen::MatrixXd& fixities_reaction,
-      Eigen::MatrixXd& element_reation,
-      const bool& cond_num = true);
+    Eigen::MatrixXd &node_displ,
+    Eigen::MatrixXd &fixities_reaction,
+    Eigen::MatrixXd &element_reation,
+    const bool &cond_num = true);
 
   bool solve(
-      const bool& cond_num = true);
+    const bool &cond_num = true);
 
   /* Check condition number */
 //  bool CheckIllCondition(IllCondDetector &stiff_inspector);
@@ -124,30 +125,31 @@ class Stiffness
    */
   void printOutTimer();
 
- protected:
+protected:
 
   bool init();
 
-  virtual bool checkStiffnessCriteria(const Eigen::MatrixXd& node_displ,
-                                      const Eigen::MatrixXd& fixities_reaction,
-                                      const Eigen::MatrixXd& element_reation);
+  virtual bool checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
+                                      const Eigen::MatrixXd &fixities_reaction,
+                                      const Eigen::MatrixXd &element_reation);
 
- private:
+private:
   /**
    * create external nodal load to class var ext_load_P
    * @param nodal_forces
-   * (n_desire x 7) matrix,
-   * n_desire is the number of nodes that you wants to prescribe
-   *    nodal_forces[i, :] = [node_id, Fx, Fy, Fz, Mx, My, Mz]
+   * (n_loaded_nodes x (1+node_dof)) matrix,
+   * n_loaded_nodes is the number of prescribed loaded nodes
+   *    nodal_forces[i, :] = [node_id, Fx, Fy, Fz, Mx, My, Mz] (3D) or [node_id, Fx, Fy, Mz] (2D)
    *    described in global (world) frame. 0 <= node_id < N_vert.
+   * @param[out] ext_load (dof x 1)
    */
-  void createExternalNodalLoad(const Eigen::MatrixXd& nodal_forces, Eigen::VectorXd& ext_load);
+  void createExternalNodalLoad(const Eigen::MatrixXd &nodal_forces, Eigen::VectorXd &ext_load);
 
   /**
    * convert self-weight load (between nodal points) to nodal
    * loads and save it to the class var self_weight_load_P.
    */
-  void createSelfWeightNodalLoad(Eigen::VectorXd& self_weight_load);
+  void createSelfWeightNodalLoad(Eigen::VectorXd &self_weight_load);
 
   /**
    * set all grounded nodes in the input frame
@@ -171,9 +173,9 @@ class Stiffness
    * assemble global stiffness matrix from all elements,
    * i.e. (dof x dof) K_assembled, dof = n_Node*6
    */
-  void createCompleteGlobalStiffnessMatrix(const std::vector<int>& exist_e_ids);
+  void createCompleteGlobalStiffnessMatrix(const std::vector<int> &exist_e_ids);
 
- protected:
+protected:
   Frame frame_;
   StiffnessParm material_parm_;
   StiffnessSolver stiff_solver_;
@@ -202,11 +204,23 @@ class Stiffness
   int full_node_dof_;
 
   /**
+   * elemental reaction dof indices among (0, ..., node_dof-1, node_dof, ..., 2*node_dof-1)
+   * This is used for retrieving axial translational dof out the full dof that includes rotation.
+   */
+  Eigen::VectorXi e_react_dof_id_;
+
+  /**
+   * free dof indices among (0, ..., node_dof-1, node_dof, ..., 2*node_dof-1)
+   * This is in particular used for retrieving translational dof out of the full dof that includes rotation.
+   */
+  Eigen::VectorXi xyz_dof_id_;
+
+  /**
    * model type: truss or frame
    */
   std::string model_type_;
 
- private:
+private:
   /**
    * a (N_element x (2*node_dof)) map
    */
@@ -231,8 +245,8 @@ class Stiffness
 
   /**
    * external nodal load P
-   * (dof) double vector
-   * Note: length unit: mm, force unit: N
+   * (dof x 1) double vector
+   * Note: force unit: kN
    */
   Eigen::VectorXd nodal_load_P_;
 
@@ -242,6 +256,9 @@ class Stiffness
    */
   Eigen::MatrixXi fixities_;
 
+  /**
+   * boolean flag for if the model is inited (1) or not (0).
+   */
   bool is_init_;
 };
 

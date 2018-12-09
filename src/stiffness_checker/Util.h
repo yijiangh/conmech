@@ -27,10 +27,16 @@ void createLocalStiffnessMatrix(const double& L, const double& A, const int& dim
                             const double& E, const double& G, const double& mu,
                             Eigen::MatrixXd& K_loc);
 
-// Input: rot_y2x
+/**
+ * Compute global to local (3x3) rotation matrix
+ * @param end_vert_u
+ * @param end_vert_v
+ * @param[out] rot_m
+ * @param rot_y2x
+ */
 void getGlobal2LocalRotationMatrix(
-    const Eigen::Vector3d& end_vert_u,
-    const Eigen::Vector3d& end_vert_v,
+    const Eigen::VectorXd& end_vert_u,
+    const Eigen::VectorXd& end_vert_v,
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x=0.0);
 

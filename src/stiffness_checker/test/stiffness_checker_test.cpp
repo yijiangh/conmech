@@ -34,43 +34,6 @@ void testGNUPlot()
   createGnuPltStaticShape(file_name, save_path, f, nodal_d, 1, 0);
 }
 
-void testLoadingFrame()
-{
-  std::string file_path_1 =
-      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/sf-test_4-frame/sf-test_4-frameS1_10-13-2018.json";
-//  std::string file_path_2 =
-//      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/topopt-310/topopt-310_S1.0_09-17-2018.json";
-
-  using namespace conmech::stiffness_checker;
-
-  Frame f;
-
-//  f.loadFromJson(file_path_2);
-//  std::cout << "frame readed: vert size: " << f.sizeOfVertList() << ", element size: " << f.sizeOfElementList()
-//            << std::endl;
-//  std::cout << "fixed vert size: " << f.sizeOfFixedVert() << ", layer size: " << f.sizeOfLayer() << std::endl;
-
-  f.loadFromJson(file_path_1);
-  std::cout << "frame readed: vert size: " << f.sizeOfVertList() << ", element size: " << f.sizeOfElementList()
-            << std::endl;
-  std::cout << "fixed vert size: " << f.sizeOfFixedVert() << ", layer size: " << f.sizeOfLayer() << std::endl;
-
-
-  for(int i=0; i<f.sizeOfVertList(); i++)
-  {
-    auto v = f.getVert(i);
-    std::cout << "vert #" << i << " has degree" << v->degree() << ", ngbh elements:"
-              << "grounded: " << v->isFixed() << std::endl;
-    for(auto e : v->nghdElements())
-    {
-      std::cout << "E #" << e->id() << ", vert id: "
-                << e->endVertU()->id() << ", " <<  e->endVertV()->id() << std::endl;
-    }
-
-    std::cout << "===========" << std::endl;
-  }
-}
-
 void testLocalGlobalTransf()
 {
   auto end_u = Eigen::Vector3d(1,1,1);
@@ -88,23 +51,27 @@ void testLocalGlobalTransf()
 
 void testStiffness()
 {
-  std::string file_path_1 =
-      "/home/yijiangh/Documents/assembly-instances/assembly_models/spatial_extrusion/sf-test_4-frame/sf-test_3-frame.json";
   using namespace conmech::stiffness_checker;
 
-  Stiffness sf(file_path_1, true);
+  std::string file_dir =
+    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/matlab/test/problem_instances/";
 
-  Eigen::MatrixXd ext_P(1,7);
-  ext_P.setZero();
-  ext_P(0,0) = 3; // node_id
-  ext_P(0,3) = -500 * 1e3; // N
+  std::string file_name = "sf-test_3-frame.json";
+  std::string file_path = file_dir + file_name;
+
+  Stiffness sf(file_path, true);
+
+  std::string load_name = "sf-test_3-frame_load_case.json";
+  std::string load_file_path = file_dir + load_name;
+  bool include_sw = false;
+  Eigen::MatrixXd Load;
+  parseLoadCaseJson(load_file_path, Load, include_sw);
 
   std::vector<int> exist_e_ids;
   exist_e_ids.push_back(0);
 //  exist_e_ids.push_back(1);
 
-//  sf.setNodalLoad(ext_P, false);
-  sf.setSelfWeightNodalLoad();
+  sf.setLoad(Load, false);
   bool success = sf.solve();
 // bool success = sf.solve(exist_e_ids);
 
@@ -115,10 +82,9 @@ void testStiffness()
 
 int main(int argc, char** argv)
 {
-//  testLoadingFrame();
 //  testLocalGlobalTransf();
-//  testStiffness();
-  testGNUPlot();
+  testStiffness();
+//  testGNUPlot();
 
   return 0;
 }

@@ -18,7 +18,7 @@ function [N, T, S, m_p] = parse_frame_json(abs_file_path)
 %       gamma (poisson ratio): [unit_less]
 %       density: kg/m3
 
-addpath(fullfile(pwd, 'external/jsonlab-1.5'));
+addpath(fullfile(pwd, 'external',filesep,'jsonlab-1.5'));
 assert(exist(abs_file_path, 'file') == 2);
 
 data = loadjson(abs_file_path);

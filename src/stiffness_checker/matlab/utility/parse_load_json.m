@@ -1,6 +1,6 @@
 function [Load, include_self_weight] = parse_load_json(abs_file_path)
 
-addpath(fullfile(pwd, 'external\jsonlab-1.5'));
+addpath(fullfile(pwd, 'external',filesep,'jsonlab-1.5'));
 assert(exist(abs_file_path, 'file') == 2);
 
 data = loadjson(abs_file_path);

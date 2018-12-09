@@ -15,6 +15,7 @@ cmake-build-debug/
 
 # matlab temps
 *.asv
+*.m~
 
 *.DS_Store
 

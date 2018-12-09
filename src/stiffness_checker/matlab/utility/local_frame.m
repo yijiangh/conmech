@@ -41,6 +41,8 @@ if 3 == dim
         R(:,3) = cross(new_x, new_y)';
         
         R = R * rot_axis([1,0,0], rot_y2x);
+        
+        % THIS IS ESSENTIAL!!!
         R = R';
     end
 else

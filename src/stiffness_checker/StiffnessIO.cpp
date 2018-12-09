@@ -80,7 +80,6 @@ namespace conmech
 {
 namespace stiffness_checker
 {
-
 bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &frame_parm)
 {
   using namespace std;
@@ -136,6 +135,83 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
 //  unit_conversion = convertDensityScale(document["material_properties"]["radius_unit"].GetString());
   unit_conversion = 1e-2;
   frame_parm.radius_ = unit_conversion * document["material_properties"]["radius"].GetDouble();
+
+  return true;
+}
+
+bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool& include_sw)
+{
+  using namespace std;
+  using namespace rapidjson;
+
+  FILE *fp = fopen(file_path.c_str(), "r");
+
+  assert(fp);
+
+  char readBuffer[65536];
+  FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+
+  Document document;
+
+  if (document.ParseStream(is).HasParseError())
+  {
+    std::cout << "ERROR parsing the input json file!\n";
+    return false;
+  }
+
+  fclose(fp);
+
+  assert(document.HasMember("dimension"));
+  int dim = document["dimension"].GetInt();
+  int node_full_dof = 0;
+  if(3 == dim)
+  {
+    node_full_dof = 6;
+  }
+  else
+  {
+    node_full_dof = 3;
+  }
+
+  if(document.HasMember("include_self_weight"))
+  {
+    include_sw = document["include_self_weight"].GetBool();
+  }
+  else
+  {
+    include_sw = false;
+  }
+
+  // read point loads
+  assert((include_sw || document.HasMember("point_load_list"))
+  && "the load case must specify a load case, self-weight or point loads.");
+  assert(document["point_load_list"].Size() > 0);
+  int load_v_num  = document["point_load_list"].Size();
+  Load = Eigen::MatrixXd::Zero(load_v_num, node_full_dof + 1);
+
+  for(int i=0; i<load_v_num; i++)
+  {
+    const Value& p = document["point_load_list"][i];
+    Load(i,0) = p["applied_node_id"].GetInt();
+
+    if (3 == dim)
+    {
+      Load(i,1) = p["Fx"].GetDouble();
+      Load(i,2) = p["Fy"].GetDouble();
+      Load(i,3) = p["Fz"].GetDouble();
+      Load(i,4) = p["Mx"].GetDouble();
+      Load(i,5) = p["My"].GetDouble();
+      Load(i,6) = p["Mz"].GetDouble();
+    }
+    else
+    {
+      Load(i,1) = p["Fx"].GetDouble();
+      Load(i,2) = p["Fy"].GetDouble();
+      Load(i,3) = p["Mz"].GetDouble();
+    }
+  }
+
+  return true;
 }
 
 void createGnuPltStaticShape(
@@ -292,7 +368,7 @@ void createGnuPltStaticShape(
     exit(1);
   }
 
-  fprintf(fpm, "# CONMECH FRAME STRUCTURAL ANALYSIS RESULTS");
+  fprintf(fpm, "# CONMECH FRAME STRUCTURAL ANALYSIS RESULTS\n");
   fprintf(fpm, "# %s\n", title.c_str());
   fprintf(fpm, "# %s", ctime(&now));
   fprintf(fpm, "# U N D E F O R M E D   S H A P E   D A T A   (global coordinates)\n");
@@ -331,7 +407,7 @@ void createGnuPltStaticShape(
     exit(22);
   }
 
-  fprintf(fpm, "# CONMECH FRAME STRUCTURAL ANALYSIS RESULTS");
+  fprintf(fpm, "# CONMECH FRAME STRUCTURAL ANALYSIS RESULTS\nmac");
   fprintf(fpm, "# %s\n", title.c_str());
   fprintf(fpm, "# %s", ctime(&now));
   fprintf(fpm, "# DEFORMED FRAME SHAPE DATA");
@@ -346,7 +422,7 @@ void createGnuPltStaticShape(
     std::vector<Eigen::Vector3d> deformed_e_pts;
 //      GnuPltCubicBentBeam(deformed_e_pts, D, m, ptr_dualgraph, ptr_wf, exagg_static);
 
-    for (int i = 0; i < deformed_e_pts.size(); ++i)
+    for (int i = 0; i < deformed_e_pts.size(); i++)
     {
       fprintf(fpm, " %12.4e %12.4e %12.4e\n",
               deformed_e_pts[i][0],

@@ -48,20 +48,70 @@ Stiffness::Stiffness(const std::string &json_file_path, bool verbose, std::strin
 
 bool Stiffness::init()
 {
-  // set up dimension, node_dof
-  if (model_type_ == "frame")
-  {
-    node_dof_ = 6;
-  }
-  if (model_type_ == "truss")
-  {
-    node_dof_ = 3;
-  }
-
-  full_node_dof_ = 6;
+  // TODO: generalize to 2D
   dim_ = 3;
 
+  // set up dimension, node_dof
+  if (3 == dim_)
+  {
+    // 3D case, x, y, z, xx, yy, zz
+    full_node_dof_ = 6;
+    if (model_type_ == "frame")
+    {
+      node_dof_ = 6;
+      xyz_dof_id_ = Eigen::VectorXi::LinSpaced(node_dof_*2,0,node_dof_*2-1);
+      e_react_dof_id_ = Eigen::VectorXi::LinSpaced(node_dof_*2,0,node_dof_*2-1);
+    }
+    if (model_type_ == "truss")
+    {
+      node_dof_ = 3;
+      xyz_dof_id_ = Eigen::VectorXi(6);
+      xyz_dof_id_ << 0, 1, 2, 6, 7, 8;
+
+      e_react_dof_id_ = Eigen::VectorXi(2);
+      e_react_dof_id_ << 0, 6;
+    }
+  }
+  else
+  {
+    // 2D case, x, y, theta
+    full_node_dof_ = 3;
+    if (model_type_ == "frame")
+    {
+      node_dof_ = 3;
+      xyz_dof_id_ = Eigen::VectorXi::LinSpaced(node_dof_*2,0,node_dof_*2-1);
+      e_react_dof_id_ = Eigen::VectorXi::LinSpaced(node_dof_*2,0,node_dof_*2-1);
+    }
+    if (model_type_ == "truss")
+    {
+      node_dof_ = 2;
+      xyz_dof_id_ = Eigen::VectorXi(4);
+      xyz_dof_id_ << 0, 1, 3, 4;
+
+      e_react_dof_id_ = Eigen::VectorXi(2);
+      e_react_dof_id_ << 0, 3;
+    }
+  }
+
   createElementStiffnessMatrixList();
+
+  // create id_map_
+  int dof = frame_.sizeOfVertList() * node_dof_;
+  int N_element = frame_.sizeOfElementList();
+
+  id_map_.resize(N_element, node_dof_*2);
+  auto lin_sp_id = Eigen::VectorXi::LinSpaced(node_dof_,0,node_dof_-1); // 0,1,..,5
+
+  for(int i=0; i<N_element; i++)
+  {
+    const auto e = frame_.getElement(i);
+    const auto end_u = e->endVertU();
+    const auto end_v = e->endVertV();
+
+    id_map_.block<1,6>(i,0) = Eigen::VectorXi::Constant(node_dof_, node_dof_*end_u->id()) + lin_sp_id;
+    id_map_.block<1,6>(i,node_dof_) = Eigen::VectorXi::Constant(node_dof_, node_dof_*end_v->id()) + lin_sp_id;
+  }
+//  std::cout << id_map_ << std::endl;
 
   if(verbose_)
   {
@@ -73,13 +123,15 @@ bool Stiffness::init()
 
 void Stiffness::setNodalDisplacementTolerance(double transl_tol, double rot_tol)
 {
-  assert(transl_tol > 0 && rot_tol > 0 && "invalid tolerance!");
+  assert(transl_tol > 0 && rot_tol > 0 && "invalid tolerance: tolerance must be bigger than 0!");
   transl_tol_ = transl_tol;
   rot_tol_ = rot_tol;
 }
 
 void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd& self_weight_load_P)
 {
+  assert(is_init_);
+
   // refer [MSA McGuire et al.] P111
   // Loads between nodal points
   int N_vert = frame_.sizeOfVertList();
@@ -145,8 +197,11 @@ void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd& self_weight_load_P)
 void Stiffness::createExternalNodalLoad(
     const Eigen::MatrixXd& nodal_forces, Eigen::VectorXd& ext_load)
 {
-  int dof = 6*frame_.sizeOfVertList();
-  ext_load.resize(dof);
+  assert(is_init_);
+  assert(nodal_forces.cols() == node_dof_ + 1);
+
+  int full_dof = node_dof_*frame_.sizeOfVertList();
+  ext_load.resize(full_dof);
 
   for(int i=0; i < nodal_forces.rows(); i++)
   {
@@ -155,12 +210,16 @@ void Stiffness::createExternalNodalLoad(
 
     ext_load.segment(v_id*6,6) = nodal_forces.block<1,6>(i,1);
   }
+
+  std::cout << "nodal_load" << ext_load << std::endl;
 }
 
-bool Stiffness::setNodalLoad(const Eigen::MatrixXd& nodal_forces,
+bool Stiffness::setLoad(const Eigen::MatrixXd& nodal_forces,
                              const bool& include_self_weight)
 {
-  int dof = 6*frame_.sizeOfVertList();
+  assert(is_init_);
+
+  int dof = node_dof_ * frame_.sizeOfVertList();
   bool is_empty_ext = nodal_forces.isZero(0) || nodal_forces.rows() == 0;
 
   assert((!include_self_weight && !is_empty_ext) && "No load is assigned.");
@@ -221,7 +280,7 @@ void Stiffness::createElementStiffnessMatrixList()
   // Iz, Iy: m^4
   // J: m^4
 
-  // element length L: mm
+  // element length L: m
   // E, G: kN/m^2
   // Force: kN
   // Moment: kN m
@@ -253,7 +312,8 @@ void Stiffness::createElementStiffnessMatrixList()
   double E = material_parm_.youngs_modulus_;
   double G = material_parm_.shear_modulus_;
   double mu = material_parm_.poisson_ratio_;
-  assert((G - E/(2*(1+mu))) < 1e-3
+
+  assert(std::abs((G - E/(2*(1+mu)))/G) < 1e-3
       && "input poisson ratio not compatible with shear and Young's modulus!");
 
   int N_element = frame_.sizeOfElementList();
@@ -270,7 +330,6 @@ void Stiffness::createElementStiffnessMatrixList()
 
     // element length, unit: m
     double L = (end_v->position() - end_u->position()).norm();
-//    cout << "eL: " << L << e ndl;
 
     Eigen::Matrix3d R_LG;
     getGlobal2LocalRotationMatrix(end_u->position(), end_v->position(), R_LG);
@@ -279,17 +338,19 @@ void Stiffness::createElementStiffnessMatrixList()
     Eigen::MatrixXd K_eL;
     createLocalStiffnessMatrix(L, A, dim_, Jx, Iy, Iz, E, G, mu, K_eL);
 
-//    std::cout << "K_eL#" << i << "before tf:\n"<< K_eL << std::endl << std::endl;
-
     // transform to global frame
-    Eigen::MatrixXd R_LG_diag(12, 12);
-    R_LG_diag.setZero();
-    for(int j=0;j<4;j++)
+    Eigen::MatrixXd R_LG_diag = Eigen::MatrixXd::Zero(full_node_dof_*2, full_node_dof_*2);
+
+    // 4 block or 2 block
+    for(int j=0;j<(full_node_dof_/3)*2;j++)
     {
       R_LG_diag.block<3, 3>(j*3, j*3) = R_LG;
     }
 
-    auto K_eG = R_LG_diag.transpose() * K_eL * R_LG_diag;
+    // DO NOT combine transpose
+    //https://libigl.github.io/matlab-to-eigen.html
+    auto R_LG_diagT = R_LG_diag.transpose();
+    auto K_eG = R_LG_diagT * K_eL * R_LG_diag;
 
     element_K_list_.push_back(K_eG);
   }
@@ -299,40 +360,28 @@ void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int>& exis
 {
   assert(element_K_list_.size() > 0);
   assert(exist_e_ids.size()>0);
+  assert(id_map_.rows() >= exist_e_ids.size());
 
-  int dof = frame_.sizeOfVertList() * 6;
+  int total_dof = frame_.sizeOfVertList() * node_dof_;
   int N_element = frame_.sizeOfElementList();
 
-  Eigen::MatrixXi id_map(N_element, 12);
-  auto lin_sp_id = Eigen::VectorXi::LinSpaced(6,0,5); // 0,1,..,5
-
-  for(int i=0; i<N_element; i++)
-  {
-    const auto e = frame_.getElement(i);
-    const auto end_u = e->endVertU();
-    const auto end_v = e->endVertV();
-
-    id_map.block<1,6>(i,0) = Eigen::VectorXi::Constant(6, 6*end_u->id()) + lin_sp_id;
-    id_map.block<1,6>(i,6) = Eigen::VectorXi::Constant(6, 6*end_v->id()) + lin_sp_id;
-  }
-
-  K_assembled_full_.resize(dof, dof);
+  K_assembled_full_.resize(total_dof, total_dof);
   K_assembled_full_.setZero();
   for(const int e_id : exist_e_ids)
   {
     assert(e_id>=0 && e_id<frame_.sizeOfElementList());
 
     const auto K_e = element_K_list_[e_id];
-    assert(K_e.rows() == 12 && K_e.cols() == 12);
+    assert(K_e.rows() == 2*node_dof_ && K_e.cols() == 2*node_dof_);
 
-    for(int j=0; j < 12; j++)
+    for(int i=0; i < 2*node_dof_; i++)
     {
-      int row_id = id_map(e_id,j);
+      int row_id = id_map_(e_id,i);
 
-      for(int k=0; k < 12; k++)
+      for(int j=0; j < 2*node_dof_; j++)
       {
-        int col_id = id_map(e_id,k);
-        K_assembled_full_(row_id, col_id) += K_e(j,k);
+        int col_id = id_map_(e_id,j);
+        K_assembled_full_(row_id, col_id) += K_e(i,j);
       }
     }
   }

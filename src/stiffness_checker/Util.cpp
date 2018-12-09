@@ -1,3 +1,6 @@
+#include <math.h>
+#include <Eigen/Geometry>
+
 #include "stiffness_checker/Util.h"
 
 namespace conmech
@@ -67,45 +70,74 @@ void createLocalStiffnessMatrix(const double &L, const double &A, const int &dim
 }
 
 void getGlobal2LocalRotationMatrix(
-    const Eigen::Vector3d& end_vert_u,
-    const Eigen::Vector3d& end_vert_v,
+    const Eigen::VectorXd& end_vert_u,
+    const Eigen::VectorXd& end_vert_v,
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x)
 {
+  assert(end_vert_u.size() == end_vert_v.size() && "vert dimension not agree!");
+  assert(end_vert_u.size() == 2 || end_vert_u.size() == 3);
+  int dim = end_vert_u.size();
+
   // length of the element
   double L = (end_vert_v - end_vert_u).norm();
+  assert(L < 1e6 && "vertices too close, might be duplicated pts.");
 
   // by convention, the new x axis is along the element's direction
   // directional cosine of the new x axis in the global world frame
-  double c_x, c_y, c_z;
+  double c_x, c_y;
   c_x = (end_vert_v[0] - end_vert_u[0]) / L;
   c_y = (end_vert_v[1] - end_vert_u[1]) / L;
-  c_z = (end_vert_v[2] - end_vert_u[2]) / L;
 
-  rot_m = Eigen::Matrix3d::Zero();
+  Eigen::Matrix3d R = Eigen::Matrix3d::Zero();
 
-  if (abs(c_z) == 1.0)
+  if (3 == dim)
   {
-    // the element is parallel to global z axis
-    // cross product is not defined, in this case
-    // it's just a rotation about the global z axis
-    // in x-y plane
-    rot_m(2,0) = 1.0;
-    rot_m.block<2,2>(0,1) = Eigen::Rotation2Dd(rot_y2x).toRotationMatrix();
+    double c_z = (end_vert_v[2] - end_vert_u[2]) / L;
+    auto rot_axis = Eigen::AngleAxisd(rot_y2x, Eigen::Vector3d::UnitZ());
+
+    if (abs(c_z) == 1.0)
+    {
+      // the element is parallel to global z axis
+      // cross product is not defined, in this case
+      // it's just a rotation about the global z axis
+      // in x-y plane
+      R(0, 2) = -c_z;
+      R(1, 1) = 1;
+      R(2, 0) = c_z;
+    }
+    else
+    {
+      // local x_axis = element's vector
+      auto new_x = Eigen::Vector3d(c_x, c_y, c_z);
+
+      // local y axis = cross product with global z axis
+      Eigen::Vector3d new_y = -new_x.cross(Eigen::Vector3d::UnitZ());
+      new_y.normalize();
+
+      auto new_z = new_x.cross(new_y);
+
+      R.block<3, 1>(0, 0) = new_x;
+      R.block<3, 1>(0, 1) = new_y;
+      R.block<3, 1>(0, 2) = new_z;
+    }
+    // This is essential!
+    R = R * rot_axis;
+    rot_m = R.transpose();
   }
   else
   {
-    // local x_axis = element's vector
-    auto new_x = Eigen::Vector3d(c_x,c_y,c_z);
-    rot_m.block<1,3>(0,0) = new_x;
+    // 2D rotational matrix
+    R(0,0) = c_x;
+    R(0,1) = c_y;
+    R(1,0) = -c_y;
+    R(1,1) = c_x;
+    R(2,2) = 1;
 
-    // local y axis = cross product with global z axis
-    auto new_y = Eigen::Vector3d::UnitZ().cross(new_x);
-    Eigen::AngleAxisd aa(rot_y2x, new_x);
-    new_y = aa * new_y;
-    rot_m.block<1,3>(1,0) = new_y;
+    auto rot_axis = Eigen::AngleAxisd(rot_y2x, Eigen::Vector3d::UnitZ());
+    assert((R - rot_axis.toRotationMatrix()).norm() > 1e-3);
 
-    rot_m.block<1,3>(2,0) = new_x.cross(new_y);
+    rot_m = R;
   }
 }
 
