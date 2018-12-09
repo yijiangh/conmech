@@ -71,7 +71,8 @@ void testStiffness()
   exist_e_ids.push_back(0);
 //  exist_e_ids.push_back(1);
 
-  sf.setLoad(Load, false);
+//  sf.setLoad(Load, true);
+  sf.setSelfWeightNodalLoad();
   bool success = sf.solve();
 // bool success = sf.solve(exist_e_ids);
 

@@ -46,6 +46,7 @@ use_self_weight = 0;
 
 % 3D frame
 Load = [4, 0,0,-1, 0,0,0]; %kN
+use_self_weight = 1;
 
 if(use_self_weight)
     Load = [];

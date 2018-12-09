@@ -193,7 +193,7 @@ if self_weight
     Q_sw = zeros(dof,1);
     
     for e=1:1:nElements
-        % density is in kN/m3, radius in cm, length in m
+        % density is in kN/m3, radius in m, length in m
         end_u = N(T(e,1), :);
         end_v = N(T(e,2), :);
         Le = norm(end_v-end_u);
@@ -245,6 +245,7 @@ if self_weight
         Q_sw(id_map(e,1:end)) = Q_sw(id_map(e,1:end)) + fixed_end_sw_load;
     end
     
+    Q_sw
     Q = Q + Q_sw;
 end
 
