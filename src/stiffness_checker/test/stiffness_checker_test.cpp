@@ -67,14 +67,14 @@ void testStiffness()
   Eigen::MatrixXd Load;
   parseLoadCaseJson(load_file_path, Load, include_sw);
 
-//  std::vector<int> exist_e_ids;
-//  exist_e_ids.push_back(0);
-//  exist_e_ids.push_back(1);
+  std::vector<int> exist_e_ids;
+  exist_e_ids.push_back(0);
+  exist_e_ids.push_back(1);
 
 //  sf.setLoad(Load, false);
   sf.setSelfWeightNodalLoad();
-  bool success = sf.solve();
-// bool success = sf.solve(exist_e_ids);
+//  bool success = sf.solve();
+ bool success = sf.solve(exist_e_ids);
 
 //  std::cout << "stiffness check result: " << success << std::endl;
 }

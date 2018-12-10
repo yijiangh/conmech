@@ -92,6 +92,7 @@ bool Stiffness::init()
       e_react_dof_id_ << 0, 3;
     }
   }
+  assert(xyz_dof_id_.size() == node_dof_*2);
 
   createElementStiffnessMatrixList();
 
@@ -154,6 +155,7 @@ void Stiffness::setNodalDisplacementTolerance(double transl_tol, double rot_tol)
   rot_tol_ = rot_tol;
 }
 
+// TODO: self-weight depends on the existing elements too!
 void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd &self_weight_load_P)
 {
   assert(is_init_);
@@ -400,8 +402,8 @@ void Stiffness::createElementStiffnessMatrixList()
     {
       for (int kk = 0; kk < e_react_dof_id_.size(); kk++)
       {
-        assert(xyz_dof_id_(k) < K_loc.rows() && xyz_dof_id_(kk) < K_loc.cols());
-        K_loc_temp(k, kk) = K_loc(e_react_dof_id_(k), xyz_dof_id_(kk));
+        assert(e_react_dof_id_(k) < K_loc.rows() && e_react_dof_id_(kk) < K_loc.cols());
+        K_loc_temp(k, kk) = K_loc(e_react_dof_id_(k), e_react_dof_id_(kk));
       }
     }
     K_loc = K_loc_temp;
@@ -485,51 +487,50 @@ bool Stiffness::solve(
 
   int dof = node_dof_ * n_Node;
 
+  assert(exist_element_ids.size() > 0 && exist_element_ids.size() <= frame_.sizeOfElementList());
+  std::set<int> sub_nodes_set;
+  for (int e_id : exist_element_ids)
+  {
+    assert(e_id >= 0 && e_id < frame_.sizeOfElementList());
+    auto e = frame_.getElement(e_id);
+    sub_nodes_set.insert(e->endVertU()->id());
+    sub_nodes_set.insert(e->endVertV()->id());
+  }
+
   // Assemble the list of fixed DOFs fixedList, a matrix of size
   // 1-by-(number of fixities)
   Eigen::VectorXi full_f = Eigen::VectorXi::Zero(dof);
+  int n_SubFixedNode = 0;
 
+  int n_Fixities = 0;
   for (int i = 0; i < fixities_table_.rows(); i++)
   {
-    full_f.segment(node_dof_ * i, node_dof_) = (fixities_table_.block(i, 1, 1, node_dof_)).transpose();
-  }
-  int n_Fixities = full_f.sum();
+    int v_id = fixities_table_(i, 0);
 
-//  for (int e_id : exist_element_ids)
-//  {
-//    assert(e_id >= 0 && e_id < frame_.sizeOfElementList());
-//    auto e = frame_.getElement(e_id);
-//
-//    std::vector<int> end_ids;
-//    end_ids.push_back(e->endVertU()->id());
-//    end_ids.push_back(e->endVertV()->id());
-//
-//    for (auto id : end_ids)
-//    {
-//      if (frame_.getVert(id)->isFixed())
-//      {
-//        // TODO: assuming all dofs are fixed now
-//        for (int j = 0; j < 6; j++)
-//        {
-//          s[id * 6 + j] = 1;
-//        }
-//      }
-//      else
-//      {
-//        for (int j = 0; j < 6; j++)
-//        {
-//          s[id * 6 + j] = 0;
-//        }
-//      }
-//    }
-//  }
+    if (sub_nodes_set.end() != sub_nodes_set.find(v_id))
+    {
+      full_f.segment(node_dof_ * v_id, node_dof_) = (fixities_table_.block(i, 1, 1, node_dof_)).transpose();
+
+      n_Fixities += full_f.segment(node_dof_ * v_id, node_dof_).sum();
+      n_SubFixedNode++;
+    }
+    else
+    {
+      full_f.segment(node_dof_ * v_id, node_dof_) = (Eigen::VectorXi::Constant(node_dof_, -1)).transpose();
+    }
+  }
+
+  // TODO this should return false
+  assert(n_Fixities > 0 && "at least one node needs to be fixed in the considered substructure!");
 
   // count supp_dof and res_dof to init K_slice
-  int n_Free = dof - n_Fixities;
-  int free_tail = 0;
-  int fix_tail = n_Free;
+  int n_Nexist = node_dof_ * (frame_.sizeOfVertList() - sub_nodes_set.size());
+  int n_Free = dof - n_Fixities - n_Nexist;
 
   // generate permute id map
+  int free_tail = 0;
+  int fix_tail = n_Free;
+  int nexist_tail = n_Free + n_Fixities;
   Eigen::VectorXi id_map_RO = Eigen::VectorXi::LinSpaced(dof, 0, dof - 1);
   for (int i = 0; i < dof; i++)
   {
@@ -543,8 +544,13 @@ bool Stiffness::solve(
       id_map_RO[fix_tail] = i;
       fix_tail++;
     }
+    if (-1 == full_f[i])
+    {
+      id_map_RO[nexist_tail] = i;
+      nexist_tail++;
+    }
   }
-//  std::cout << id_map_RO << std::endl;
+  std::cout << "id_map_RO:\n" << id_map_RO << std::endl;
 
   Eigen::MatrixXd Perm(dof, dof);
   Perm.setZero();
@@ -554,6 +560,8 @@ bool Stiffness::solve(
   }
   auto Perm_inv = Perm.inverse();
 
+  std::cout << "Perm:\n" << Perm << std::endl;
+
   // permute the full stiffness matrix & carve the needed portion out
   createCompleteGlobalStiffnessMatrix(exist_element_ids);
   auto K_perm = Perm * K_assembled_full_ * Perm_inv;
@@ -561,13 +569,15 @@ bool Stiffness::solve(
   auto K_mm = K_perm.block(0, 0, n_Free, n_Free);
   auto K_fm = K_perm.block(n_Free, 0, n_Fixities, n_Free);
 
-//  std::cout << "K_mm\n" << K_mm << std::endl;
-//  std::cout << "K_fm\n" << K_fm << std::endl;
+  std::cout << "K_mm\n" << K_mm << std::endl;
+  std::cout << "K_fm\n" << K_fm << std::endl;
 
   Eigen::VectorXd Q_perm = Perm * nodal_load_P_;
 
   auto Q_m = Q_perm.segment(0, n_Free);
   auto Q_f = Q_perm.segment(n_Free, n_Fixities);
+
+  std::cout << "Q_m:\n" << Q_m << std::endl;
 
   if (verbose_)
   {
@@ -584,6 +594,8 @@ bool Stiffness::solve(
     return false;
   }
 
+  std::cout << "U_m:\n" << U_m << std::endl;
+
   // reaction force
   Eigen::VectorXd R(dof);
   R.setZero();
@@ -592,27 +604,31 @@ bool Stiffness::solve(
   R.segment(n_Free, n_Fixities) = R_f;
   R = Perm_inv * R.eval();
 
-//  std::cout << "R:\n" << R << std::endl;
+  std::cout << "R:\n" << R << std::endl;
 
+  // displacement
   Eigen::VectorXd U(dof);
   U.setZero();
   U.segment(0, n_Free) = U_m;
   U = Perm_inv * U.eval();
 
-//  std::cout << "U:\n" << U << std::endl;
+  std::cout << "U:\n" << U << std::endl;
 
   // start raw computattion results conversion
   // element internal reaction
-  element_reaction = Eigen::MatrixXd::Zero(n_Element, e_react_dof_id_.size());
-  for (int i = 0; i < n_Element; i++)
+  element_reaction = Eigen::MatrixXd::Zero(exist_element_ids.size(), 1 + e_react_dof_id_.size());
+  int cnt = 0;
+  for (const int e_id : exist_element_ids)
   {
     Eigen::VectorXd Ue(2 * node_dof_);
     for (int k = 0; k < 2 * node_dof_; k++)
     {
-      Ue[k] = U[id_map_(i, k)];
+      Ue[k] = U[id_map_(e_id, k)];
     }
 
-    element_reaction.block(i, 0, 1, node_dof_ * 2) = (rot_m_list_[i] * element_K_list_[i] * Ue).transpose();
+    element_reaction(cnt, 0) = e_id;
+    element_reaction.block(cnt, 1, 1, e_react_dof_id_.size()) = (rot_m_list_[e_id] * element_K_list_[e_id] * Ue).transpose();
+    cnt++;
   }
 
   if (verbose_)
@@ -622,11 +638,17 @@ bool Stiffness::solve(
   }
 
   // fixities reaction
-  fixities_reaction = Eigen::MatrixXd::Zero(fixities_table_.rows(), node_dof_);
+  fixities_reaction = Eigen::MatrixXd::Zero(n_SubFixedNode, 1 + node_dof_);
+  cnt = 0;
   for (int i = 0; i < fixities_table_.rows(); i++)
   {
     int fix_node_id = fixities_table_(i, 0);
-    fixities_reaction.block(i, 0, 1, node_dof_) = (R.segment(fix_node_id * node_dof_, node_dof_)).transpose();
+    if (sub_nodes_set.end() != sub_nodes_set.find(fix_node_id))
+    {
+      fixities_reaction(cnt, 0) = fix_node_id;
+      fixities_reaction.block(cnt, 1, 1, node_dof_) = (R.segment(fix_node_id * node_dof_, node_dof_)).transpose();
+      cnt++;
+    }
   }
 
   if (verbose_)
@@ -636,10 +658,14 @@ bool Stiffness::solve(
   }
 
   // node displacement
-  node_displ = Eigen::MatrixXd::Zero(n_Node, node_dof_);
-  for (int i = 0; i < n_Node; i++)
+  node_displ = Eigen::MatrixXd::Zero(sub_nodes_set.size(), 1 + node_dof_);
+  cnt = 0;
+  for (auto it = sub_nodes_set.begin(); it != sub_nodes_set.end(); ++it)
   {
-    node_displ.block(i, 0, 1, node_dof_) = (U.segment(i * node_dof_, node_dof_)).transpose();
+    int v_id = *it;
+    node_displ(cnt, 0) = v_id;
+    node_displ.block(cnt, 1, 1, node_dof_) = (U.segment(v_id * node_dof_, node_dof_)).transpose();
+    cnt++;
   }
 
   if (verbose_)
