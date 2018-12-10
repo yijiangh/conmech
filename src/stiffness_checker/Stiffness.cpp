@@ -15,19 +15,19 @@ namespace conmech
 namespace stiffness_checker
 {
 
-Stiffness::Stiffness(Frame &frame, bool verbose, std::string model_type)
-  : frame_(frame), verbose_(verbose), is_init_(false), transl_tol_(1.0), rot_tol_(5 * (3.14 / 180))
-{
-  // frame sanity check
-  int N_vert = frame_.sizeOfVertList();
-  int N_element = frame_.sizeOfElementList();
-  assert(N_vert > 0 && N_element > 0);
-
-  stiff_solver_.timing_ = verbose;
-  model_type_ = model_type;
-
-  init();
-}
+//Stiffness::Stiffness(Frame &frame, bool verbose, std::string model_type)
+//  : frame_(frame), verbose_(verbose), is_init_(false), transl_tol_(1.0), rot_tol_(5 * (3.14 / 180))
+//{
+//  // frame sanity check
+//  int N_vert = frame_.sizeOfVertList();
+//  int N_element = frame_.sizeOfElementList();
+//  assert(N_vert > 0 && N_element > 0);
+//
+//  stiff_solver_.timing_ = verbose;
+//  model_type_ = model_type;
+//
+//  init();
+//}
 
 Stiffness::Stiffness(const std::string &json_file_path, bool verbose, std::string model_type)
   : verbose_(verbose), is_init_(false), transl_tol_(1.0), rot_tol_(5 * (3.14 / 180))
@@ -108,10 +108,34 @@ bool Stiffness::init()
     const auto end_u = e->endVertU();
     const auto end_v = e->endVertV();
 
-    id_map_.block<1, 6>(i, 0) = Eigen::VectorXi::Constant(node_dof_, node_dof_ * end_u->id()) + lin_sp_id;
-    id_map_.block<1, 6>(i, node_dof_) = Eigen::VectorXi::Constant(node_dof_, node_dof_ * end_v->id()) + lin_sp_id;
+    id_map_.block(i, 0, 1, node_dof_) =
+      (Eigen::VectorXi::Constant(node_dof_, node_dof_ * end_u->id()) + lin_sp_id).transpose();
+    id_map_.block(i, node_dof_, 1, node_dof_) =
+      (Eigen::VectorXi::Constant(node_dof_, node_dof_ * end_v->id()) + lin_sp_id).transpose();
   }
 //  std::cout << id_map_ << std::endl;
+
+  // create fixities table
+  int N_node = frame_.sizeOfVertList();
+  assert(frame_.sizeOfFixedVert() && "at least one fixed vert in model");
+  fixities_table_ = Eigen::MatrixXi::Zero(frame_.sizeOfFixedVert(), 1 + node_dof_);
+
+  for (int i = 0; i < N_node; i++)
+  {
+    auto const v = frame_.getVert(i);
+    // this should be true ...
+    assert(v->id() == i);
+
+    if (v->isFixed())
+    {
+//      std::cout << v->fixities().size() << std::endl;
+      assert(v->fixities().size() == node_dof_);
+
+      fixities_table_(i, 0) = v->id();
+      fixities_table_.block(i, 1, 1, node_dof_) = (v->fixities()).transpose();
+    }
+  }
+//  std::cout << fixities_table_ << std::endl;
 
   if (verbose_)
   {
@@ -119,6 +143,8 @@ bool Stiffness::init()
   }
 
   is_init_ = true;
+
+  return true;
 }
 
 void Stiffness::setNodalDisplacementTolerance(double transl_tol, double rot_tol)
@@ -128,10 +154,10 @@ void Stiffness::setNodalDisplacementTolerance(double transl_tol, double rot_tol)
   rot_tol_ = rot_tol;
 }
 
-void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd& self_weight_load_P)
+void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd &self_weight_load_P)
 {
   assert(is_init_);
-  assert(id_map_.cols() == 2*node_dof_);
+  assert(id_map_.cols() == 2 * node_dof_);
 
   // refer [MSA McGuire et al.] P111
   // Loads between nodal points
@@ -165,24 +191,28 @@ void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd& self_weight_load_P)
         // gravity in local frame
         // https://github.mit.edu/yijiangh/frame3dd/blob/master/frame3dd_io.c#L905
 
-        Eigen::VectorXd fixed_end_sw_load = Eigen::VectorXd::Zero(2*node_dof_);
+        Eigen::VectorXd fixed_end_sw_load = Eigen::VectorXd::Zero(2 * node_dof_);
 
         // according to fixed-end force diagram
         // uniform load on a beam with both ends fixed ([MSA] p111.)
         // fixed-end fictitious reaction
-        fixed_end_sw_load[2] = - q_sw * Le / 2.0;
-        fixed_end_sw_load[3] = q_sw * std::pow(Le,2) / 12.0 * ((-R_eG(1,0)*R_eG(2,2)+R_eG(1,2)*R_eG(2,0))*(-1));
-        fixed_end_sw_load[4] = q_sw * std::pow(Le,2) / 12.0 * ((-R_eG(1,1)*R_eG(2,2)+R_eG(1,2)*R_eG(2,1))*(-1));
+        fixed_end_sw_load[2] = -q_sw * Le / 2.0;
+        fixed_end_sw_load[3] =
+          q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
+        fixed_end_sw_load[4] =
+          q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 1) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 1)) * (-1));
         fixed_end_sw_load[5] = 0;
 
-        fixed_end_sw_load[8] = - q_sw * Le / 2.0;
-        fixed_end_sw_load[9] = - q_sw * std::pow(Le,2) / 12.0 * ((-R_eG(1,0)*R_eG(2,2)+R_eG(1,2)*R_eG(2,0))*(-1));
-        fixed_end_sw_load[10] = - q_sw * std::pow(Le,2) / 12.0 * ((-R_eG(1,1)*R_eG(2,2)+R_eG(1,2)*R_eG(2,1))*(-1));
+        fixed_end_sw_load[8] = -q_sw * Le / 2.0;
+        fixed_end_sw_load[9] =
+          -q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
+        fixed_end_sw_load[10] =
+          -q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 1) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 1)) * (-1));
         fixed_end_sw_load[11] = 0;
 
-        for(int j=0; j<12; j++)
+        for (int j = 0; j < 12; j++)
         {
-          self_weight_load_P[id_map_(i,j)] += fixed_end_sw_load[j];
+          self_weight_load_P[id_map_(i, j)] += fixed_end_sw_load[j];
         }
       }
       else
@@ -262,6 +292,7 @@ bool Stiffness::setLoad(const Eigen::MatrixXd &nodal_forces,
   }
 
   nodal_load_P_ = sw_load + ext_load;
+  return true;
 }
 
 bool Stiffness::setSelfWeightNodalLoad()
@@ -271,6 +302,8 @@ bool Stiffness::setSelfWeightNodalLoad()
   Eigen::VectorXd sw_load;
   createSelfWeightNodalLoad(sw_load);
   nodal_load_P_ = sw_load;
+
+  return true;
 }
 
 void Stiffness::createElementStiffnessMatrixList()
@@ -290,10 +323,8 @@ void Stiffness::createElementStiffnessMatrixList()
 
   // assuming all the elements have the same cross section
   // and all of them are solid circular shape
-  double pi = atan(1) * 4;
-
   // cross section area: assuming solid circular, unit: m^2
-  double A = pi * std::pow(material_parm_.radius_, 2);
+  double A = M_PI * std::pow(material_parm_.radius_, 2);
 //  double Asy = Ax * (6 + 12 * material_parm_.poisson_ratio_ + 6 * std::pow(material_parm_.poisson_ratio_,2))
 //      / (7 + 12 * material_parm_.poisson_ratio_ + 4 * std::pow(material_parm_.poisson_ratio_,2));
 //  double Asz = Asy;
@@ -301,14 +332,14 @@ void Stiffness::createElementStiffnessMatrixList()
   // torsion constant (around local x axis)
   // for solid circle: (1/2)pi*r^4, unit: mm^4
   // see: https://en.wikipedia.org/wiki/Torsion_constant#Circle
-  double Jx = 0.5 * pi * std::pow(material_parm_.radius_, 4);
+  double Jx = 0.5 * M_PI * std::pow(material_parm_.radius_, 4);
 //  double Jx = (2.0/3.0) * pi * std::pow(material_parm_.radius_, 4);
 
   // area moment of inertia (bending about local y,z-axis)
   // assuming solid circular area of radius r, unit: m^4
   // see: https://en.wikipedia.org/wiki/List_of_area_moments_of_inertia
   // note this is slender rod of length L and Mass M, spinning around end
-  double Iy = pi * std::pow(material_parm_.radius_, 4) / 4;
+  double Iy = M_PI * std::pow(material_parm_.radius_, 4) / 4;
   double Iz = Iy;
 
   // E,G: MPa; mu (poisson ratio): unitless
@@ -325,6 +356,8 @@ void Stiffness::createElementStiffnessMatrixList()
   using namespace std;
 
   element_K_list_.reserve(N_element);
+  rot_m_list_.reserve(N_element);
+
   for (int i = 0; i < N_element; i++)
   {
     const auto e = frame_.getElement(i);
@@ -338,8 +371,8 @@ void Stiffness::createElementStiffnessMatrixList()
     getGlobal2LocalRotationMatrix(end_u->position(), end_v->position(), R_LG);
 
     // element stiffness matrix in local frame
-    Eigen::MatrixXd K_eL;
-    createLocalStiffnessMatrix(L, A, dim_, Jx, Iy, Iz, E, G, mu, K_eL);
+    Eigen::MatrixXd K_loc;
+    createLocalStiffnessMatrix(L, A, dim_, Jx, Iy, Iz, E, G, mu, K_loc);
 
     // transform to global frame
     Eigen::MatrixXd R_LG_diag = Eigen::MatrixXd::Zero(full_node_dof_ * 2, full_node_dof_ * 2);
@@ -350,12 +383,39 @@ void Stiffness::createElementStiffnessMatrixList()
       R_LG_diag.block<3, 3>(j * 3, j * 3) = R_LG;
     }
 
+    Eigen::MatrixXd R_temp = Eigen::MatrixXd::Zero(e_react_dof_id_.size(), xyz_dof_id_.size());
+    Eigen::MatrixXd K_loc_temp = Eigen::MatrixXd::Zero(e_react_dof_id_.size(), e_react_dof_id_.size());
+
+    for (int k = 0; k < e_react_dof_id_.size(); k++)
+    {
+      for (int kk = 0; kk < xyz_dof_id_.size(); kk++)
+      {
+        assert(e_react_dof_id_(k) < R_LG_diag.rows() && xyz_dof_id_(kk) < R_LG_diag.cols());
+        R_temp(k, kk) = R_LG_diag(e_react_dof_id_(k), xyz_dof_id_(kk));
+      }
+    }
+    R_LG_diag = R_temp;
+
+    for (int k = 0; k < e_react_dof_id_.size(); k++)
+    {
+      for (int kk = 0; kk < e_react_dof_id_.size(); kk++)
+      {
+        assert(xyz_dof_id_(k) < K_loc.rows() && xyz_dof_id_(kk) < K_loc.cols());
+        K_loc_temp(k, kk) = K_loc(e_react_dof_id_(k), xyz_dof_id_(kk));
+      }
+    }
+    K_loc = K_loc_temp;
+
     // DO NOT combine transpose
     //https://libigl.github.io/matlab-to-eigen.html
     auto R_LG_diagT = R_LG_diag.transpose();
-    auto K_eG = R_LG_diagT * K_eL * R_LG_diag;
+    K_loc = R_LG_diagT * K_loc * R_LG_diag;
 
-    element_K_list_.push_back(K_eG);
+//    std::cout <<  "K_loc:\n" << K_loc << std::endl;
+//    std::cout <<  "R_LG_diag:\n" << R_LG_diag << std::endl;
+
+    element_K_list_.push_back(K_loc);
+    rot_m_list_.push_back(R_LG_diag);
   }
 }
 
@@ -372,6 +432,8 @@ void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exis
   K_assembled_full_.setZero();
   for (const int e_id : exist_e_ids)
   {
+//    std::cout << "e_id" << e_id << std::endl;
+
     assert(e_id >= 0 && e_id < frame_.sizeOfElementList());
 
     const auto K_e = element_K_list_[e_id];
@@ -397,118 +459,123 @@ bool Stiffness::solve(
   Eigen::MatrixXd &element_reaction,
   const bool &cond_num)
 {
-  //todo
-  using namespace std;
-
   assert(is_init_);
 
-  int n_Element = exist_element_ids.size();
-  int n_Exist_element = exist_element_ids.size();
-  std::set<int> exist_node_ids;
-  assert(n_Element > 0 && n_Element <= frame_.sizeOfElementList());
-  for (const int e_id : exist_element_ids)
-  {
-    assert(e_id >= 0 && e_id < frame_.sizeOfElementList());
-    int u_id = frame_.getElement(e_id)->endVertU()->id();
-    int v_id = frame_.getElement(e_id)->endVertV()->id();
-    exist_node_ids.insert(u_id);
-    exist_node_ids.insert(v_id);
-  }
+  int n_Element = frame_.sizeOfElementList();
   int n_Node = frame_.sizeOfVertList();
+
+//  //exist_element_ids.size();
+//  int n_Exist_element = exist_element_ids.size();
+
+//  std::set<int> exist_node_ids;
+//  assert(n_Element > 0 && n_Element <= frame_.sizeOfElementList());
+//  for (const int e_id : exist_element_ids)
+//  {
+//    assert(e_id >= 0 && e_id < frame_.sizeOfElementList());
+//    int u_id = frame_.getElement(e_id)->endVertU()->id();
+//    int v_id = frame_.getElement(e_id)->endVertV()->id();
+//    exist_node_ids.insert(u_id);
+//    exist_node_ids.insert(v_id);
+//  }
 
   if (verbose_)
   {
     create_k_.Start();
   }
 
-  // turn exist_element_ids into a full dof free/fix/exist indicator
-  // s[i] = 0 free, = 1 fixed, = -1 not exist
-  std::vector<int> s(n_Node * 6, -1);
-  for (int e_id : exist_element_ids)
+  int dof = node_dof_ * n_Node;
+
+  // Assemble the list of fixed DOFs fixedList, a matrix of size
+  // 1-by-(number of fixities)
+  Eigen::VectorXi full_f = Eigen::VectorXi::Zero(dof);
+
+  for (int i = 0; i < fixities_table_.rows(); i++)
   {
-    assert(e_id >= 0 && e_id < frame_.sizeOfElementList());
-    auto e = frame_.getElement(e_id);
-
-    std::vector<int> end_ids;
-    end_ids.push_back(e->endVertU()->id());
-    end_ids.push_back(e->endVertV()->id());
-
-    for (auto id : end_ids)
-    {
-      if (frame_.getVert(id)->isFixed())
-      {
-        // TODO: assuming all dofs are fixed now
-        for (int j = 0; j < 6; j++)
-        {
-          s[id * 6 + j] = 1;
-        }
-      }
-      else
-      {
-        for (int j = 0; j < 6; j++)
-        {
-          s[id * 6 + j] = 0;
-        }
-      }
-    }
+    full_f.segment(node_dof_ * i, node_dof_) = (fixities_table_.block(i, 1, 1, node_dof_)).transpose();
   }
+  int n_Fixities = full_f.sum();
+
+//  for (int e_id : exist_element_ids)
+//  {
+//    assert(e_id >= 0 && e_id < frame_.sizeOfElementList());
+//    auto e = frame_.getElement(e_id);
+//
+//    std::vector<int> end_ids;
+//    end_ids.push_back(e->endVertU()->id());
+//    end_ids.push_back(e->endVertV()->id());
+//
+//    for (auto id : end_ids)
+//    {
+//      if (frame_.getVert(id)->isFixed())
+//      {
+//        // TODO: assuming all dofs are fixed now
+//        for (int j = 0; j < 6; j++)
+//        {
+//          s[id * 6 + j] = 1;
+//        }
+//      }
+//      else
+//      {
+//        for (int j = 0; j < 6; j++)
+//        {
+//          s[id * 6 + j] = 0;
+//        }
+//      }
+//    }
+//  }
 
   // count supp_dof and res_dof to init K_slice
-  int f_dof = std::count(s.begin(), s.end(), 0);
-  int s_dof = std::count(s.begin(), s.end(), 1);
-  int n_exist_dof = std::count(s.begin(), s.end(), -1);
-  int dof = 6 * n_Node;
-  assert(s_dof + f_dof + n_exist_dof == dof);
+  int n_Free = dof - n_Fixities;
+  int free_tail = 0;
+  int fix_tail = n_Free;
 
-  // mapping rearranged (R) dof_id into original (O) dof_id
-  Eigen::VectorXi id_map_RO(dof);
-  int f_tail = 0;
-  int s_tail = f_dof;
-  int n_exist_tail = f_dof + s_dof;
+  // generate permute id map
+  Eigen::VectorXi id_map_RO = Eigen::VectorXi::LinSpaced(dof, 0, dof - 1);
   for (int i = 0; i < dof; i++)
   {
-    if (-1 == s[i])
+    if (0 == full_f[i])
     {
-      id_map_RO(n_exist_tail) = i;
-      n_exist_tail++;
+      id_map_RO[free_tail] = i;
+      free_tail++;
     }
-    if (0 == s[i])
+    if (1 == full_f[i])
     {
-      id_map_RO(f_tail) = i;
-      f_tail++;
-    }
-    if (1 == s[i])
-    {
-      id_map_RO(s_tail) = i;
-      s_tail++;
+      id_map_RO[fix_tail] = i;
+      fix_tail++;
     }
   }
+//  std::cout << id_map_RO << std::endl;
 
   Eigen::MatrixXd Perm(dof, dof);
   Perm.setZero();
   for (int i = 0; i < dof; i++)
   {
-    Perm(i, id_map_RO(i)) = 1;
+    Perm(i, id_map_RO[i]) = 1;
   }
   auto Perm_inv = Perm.inverse();
 
   // permute the full stiffness matrix & carve the needed portion out
   createCompleteGlobalStiffnessMatrix(exist_element_ids);
   auto K_perm = Perm * K_assembled_full_ * Perm_inv;
-  auto K_ff = K_perm.block(0, 0, f_dof, f_dof);
-  auto K_sf = K_perm.block(f_dof, 0, s_dof, f_dof);
 
-  Eigen::VectorXd P_perm = Perm * nodal_load_P_;
+  auto K_mm = K_perm.block(0, 0, n_Free, n_Free);
+  auto K_fm = K_perm.block(n_Free, 0, n_Fixities, n_Free);
 
-  auto P_ff = P_perm.segment(0, f_dof);
+//  std::cout << "K_mm\n" << K_mm << std::endl;
+//  std::cout << "K_fm\n" << K_fm << std::endl;
+
+  Eigen::VectorXd Q_perm = Perm * nodal_load_P_;
+
+  auto Q_m = Q_perm.segment(0, n_Free);
+  auto Q_f = Q_perm.segment(n_Free, n_Fixities);
 
   if (verbose_)
   {
     create_k_.Stop();
   }
 
-  Eigen::VectorXd U_ff(f_dof);
-  if (!stiff_solver_.solveSystemLU(K_ff, P_ff, U_ff))
+  Eigen::VectorXd U_m(n_Free);
+  if (!stiff_solver_.solveSystemLU(K_mm, Q_m, U_m))
   {
     if (verbose_)
     {
@@ -521,175 +588,65 @@ bool Stiffness::solve(
   Eigen::VectorXd R(dof);
   R.setZero();
 
-  auto R_s = K_sf * U_ff;
-  R.segment(f_dof, s_dof) = R_s;
+  auto R_f = K_fm * U_m - Q_f;
+  R.segment(n_Free, n_Fixities) = R_f;
   R = Perm_inv * R.eval();
 
-  // assemble and permute the nodal displacement result back
+//  std::cout << "R:\n" << R << std::endl;
+
   Eigen::VectorXd U(dof);
   U.setZero();
-
-  U.segment(0, f_dof) = U_ff;
+  U.segment(0, n_Free) = U_m;
   U = Perm_inv * U.eval();
 
+//  std::cout << "U:\n" << U << std::endl;
+
+  // start raw computattion results conversion
   // element internal reaction
-  element_reaction.resize(n_Exist_element, 13);
-  int fill_cnt = 0;
-  for (const int e_id : exist_element_ids)
+  element_reaction = Eigen::MatrixXd::Zero(n_Element, e_react_dof_id_.size());
+  for (int i = 0; i < n_Element; i++)
   {
-    const auto e = frame_.getElement(e_id);
-    const auto end_u = e->endVertU();
-    const auto end_v = e->endVertV();
-    assert(e_id == e->id());
-
-    // transform to global frame
-    Eigen::Matrix3d R_LG;
-    getGlobal2LocalRotationMatrix(end_u->position(), end_v->position(), R_LG);
-
-    Eigen::MatrixXd R_LG_diag(12, 12);
-    R_LG_diag.setZero();
-    for (int j = 0; j < 4; j++)
+    Eigen::VectorXd Ue(2 * node_dof_);
+    for (int k = 0; k < 2 * node_dof_; k++)
     {
-      R_LG_diag.block<3, 3>(j * 3, j * 3) = R_LG;
+      Ue[k] = U[id_map_(i, k)];
     }
 
-    Eigen::VectorXd Ue(12);
-    Ue.segment(0, 6) = U.segment(end_u->id() * 6, 6);
-    Ue.segment(6, 6) = U.segment(end_v->id() * 6, 6);
-
-    element_reaction(fill_cnt, 0) = e_id;
-    element_reaction.block<1, 12>(fill_cnt, 1) = R_LG_diag * element_K_list_[e->id()] * Ue;
-
-    fill_cnt++;
-  }
-
-  // assemble result into output formats
-  // node displacement
-  node_displ.resize(f_dof, 3);
-  fill_cnt = 0;
-  for (int i = 0; i < n_Node; i++)
-  {
-    for (int j = 0; j < 6; j++)
-    {
-      if (0 == s[6 * i + j])
-      {
-        assert(fill_cnt < f_dof);
-        node_displ(fill_cnt, 0) = i;
-        node_displ(fill_cnt, 1) = j;
-        node_displ(fill_cnt, 2) = U(6 * i + j);
-
-        fill_cnt++;
-      }
-    }
+    element_reaction.block(i, 0, 1, node_dof_ * 2) = (rot_m_list_[i] * element_K_list_[i] * Ue).transpose();
   }
 
   if (verbose_)
   {
-    std::cout << "nodal disp (mm/rad):" << std::endl;
-    std::cout << "node_id\tdof\tval" << std::endl;
-    for (int i = 0; i < node_displ.rows(); i++)
-    {
-      std::string dof_name;
-      switch ((int) node_displ(i, 1))
-      {
-        case 0:
-          dof_name = "Tx";
-          break;
-        case 1:
-          dof_name = "Ty";
-          break;
-        case 2:
-          dof_name = "Tz";
-          break;
-        case 3:
-          dof_name = "Rx";
-          break;
-        case 4:
-          dof_name = "Ry";
-          break;
-        case 5:
-          dof_name = "Rz";
-          break;
-      }
-      std::cout << node_displ(i, 0) << "\t"
-                << node_displ(i, 1) << "(" << dof_name << ")" << "\t"
-                << node_displ(i, 2) << std::endl;
-    }
-    std:
-    cout << std::endl;
+    std::cout << "element reaction (kN, kN-m):" << std::endl;
+    std::cout << element_reaction << "\n" << std::endl;
   }
 
   // fixities reaction
-  fixities_reaction.resize(s_dof, 3);
-  fill_cnt = 0;
+  fixities_reaction = Eigen::MatrixXd::Zero(fixities_table_.rows(), node_dof_);
+  for (int i = 0; i < fixities_table_.rows(); i++)
+  {
+    int fix_node_id = fixities_table_(i, 0);
+    fixities_reaction.block(i, 0, 1, node_dof_) = (R.segment(fix_node_id * node_dof_, node_dof_)).transpose();
+  }
+
+  if (verbose_)
+  {
+    std::cout << "fixities reaction (kN, kN-m):" << std::endl;
+    std::cout << fixities_reaction << "\n" << std::endl;
+  }
+
+  // node displacement
+  node_displ = Eigen::MatrixXd::Zero(n_Node, node_dof_);
   for (int i = 0; i < n_Node; i++)
   {
-    for (int j = 0; j < 6; j++)
-    {
-      if (1 == s[6 * i + j])
-      {
-        assert(fill_cnt < s_dof);
-        fixities_reaction(fill_cnt, 0) = i;
-        fixities_reaction(fill_cnt, 1) = j;
-        fixities_reaction(fill_cnt, 2) = R(6 * i + j);
-
-        fill_cnt++;
-      }
-    }
+    node_displ.block(i, 0, 1, node_dof_) = (U.segment(i * node_dof_, node_dof_)).transpose();
   }
 
   if (verbose_)
   {
-    std::cout << "fixities reaction (N, N-mm):" << std::endl;
-    std::cout << "node_id\tdof\tval" << std::endl;
-    for (int i = 0; i < fixities_reaction.rows(); i++)
-    {
-      std::string dof_name;
-      switch ((int) fixities_reaction(i, 1))
-      {
-        case 0:
-          dof_name = "Fx";
-          break;
-        case 1:
-          dof_name = "Fy";
-          break;
-        case 2:
-          dof_name = "Fz";
-          break;
-        case 3:
-          dof_name = "Mx";
-          break;
-        case 4:
-          dof_name = "My";
-          break;
-        case 5:
-          dof_name = "Mz";
-          break;
-      }
-      std::cout << fixities_reaction(i, 0) << "\t"
-                << fixities_reaction(i, 1) << "(" << dof_name << ")" << "\t"
-                << fixities_reaction(i, 2) << std::endl;
-    }
-    std::cout << std::endl;
-  }
-
-  if (verbose_)
-  {
-    std::cout << "element reaction (N, N-mm):" << std::endl;
-    std::cout << "e_id\tv_id\t" << std::endl;
-    for (int i = 0; i < element_reaction.rows(); i++)
-    {
-      std::cout << element_reaction(i, 0) << "\t"
-                << frame_.getElement(element_reaction(i, 0))->endVertU()->id() << " ";
-
-      std::cout << element_reaction.block<1, 6>(i, 1) << std::endl;
-
-      std::cout << " " << "\t"
-                << frame_.getElement(element_reaction(i, 0))->endVertV()->id() << " ";
-
-      std::cout << element_reaction.block<1, 6>(i, 7) << std::endl;
-    }
-    std::cout << std::endl;
+    std::cout << "nodal disp (m/rad):" << std::endl;
+    std:
+    cout << node_displ << "\n" << std::endl;
   }
 
   if (verbose_)

@@ -14,7 +14,7 @@ namespace stiffness_checker
 class Stiffness
 {
 public:
-  Stiffness(Frame &frame, bool verbose = false, std::string model_type = "frame");
+//  Stiffness(Frame &frame, bool verbose = false, std::string model_type = "frame");
 
   Stiffness(const std::string &json_file_path, bool verbose = false, std::string model_type = "frame");
 
@@ -43,18 +43,6 @@ public:
                const bool &include_self_weight = false);
 
   bool setSelfWeightNodalLoad();
-
-  /**
-   * Construct infinitely rigid fixities on nodes.
-   * @param fixities
-   * (n_desire x 7) matrix,
-   * n_desire is the number of nodes that you wants to prescribe
-   *    fixities[i, :] = [node_id, is_Fx, is_Fy, is_Fz, is_Mx, is_My, is_Mz]
-   *    where is_X is a boolean flag.
-   * @return boolean success flag
-   */
-  // TODO: not implemented yet
-  virtual bool setRigidFixities(const Eigen::MatrixXi &fixities) {}
 
   /**
    * Compute nodal displacement given existing node's indices.
@@ -227,6 +215,11 @@ private:
   Eigen::MatrixXi id_map_;
 
   /**
+   * a ((num_fix_node) x node_dof_) eigen int matrix
+   */
+  Eigen::MatrixXi fixities_table_;
+
+  /**
    * a list of element stiffness matrix in global frame
    * (N_all_element x (12x12)) list
    * Ne * 1 std::vector, Ne is number of elements
@@ -234,6 +227,8 @@ private:
    * Note: length unit: mm, force unit: N
    */
   std::vector<Eigen::MatrixXd> element_K_list_;
+
+  std::vector<Eigen::MatrixXd> rot_m_list_;
 
   /**
    * Global assembled stiffness matrix for the entire structure

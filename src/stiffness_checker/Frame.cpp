@@ -113,9 +113,23 @@ bool Frame::loadFromJson(const std::string &file_path)
     unit_scale_ = convertUnitScale(document["unit"].GetString());
   }
 
+  assert(document.HasMember("dimension"));
+  int dim = document["dimension"].GetInt();
+  assert(dim == 2 || dim == 3);
+
   // read vertices
   assert(document.HasMember("node_list"));
   assert(document["node_list"].Size() > 0);
+
+  int full_node_dof = 0;
+  if(dim == 3)
+  {
+    full_node_dof = 6;
+  }
+  else
+  {
+    full_node_dof = 3;
+  }
 
   for(int i=0; i<document["node_list"].Size(); i++)
   {
@@ -128,9 +142,29 @@ bool Frame::loadFromJson(const std::string &file_path)
     if(document["node_list"][i]["is_grounded"].GetInt())
     {
       vert->setFixed(true);
+
+      Eigen::VectorXi fixities = Eigen::VectorXi::Zero(full_node_dof);
+      if(document["node_list"][i].HasMember("fixities"))
+      {
+        assert(document["node_list"][i]["fixities"].Size() == full_node_dof);
+
+        for (int j = 0; j < full_node_dof; j++)
+        {
+          fixities[j] = document["node_list"][i]["fixities"][j].GetInt();
+        }
+      }
+      else
+      {
+        // default to be all fixed
+        fixities = Eigen::VectorXi::Constant(full_node_dof, 1);
+      }
+
+      vert->setFixities(fixities);
       fixed_vert_size_++;
     }
   }
+
+  assert(fixed_vert_size_ > 0 && "there needs to be at least one support (fixed) vertex in the model!");
 
   // read edges (beams)
   assert(document.HasMember("element_list"));
@@ -141,7 +175,6 @@ bool Frame::loadFromJson(const std::string &file_path)
     int u = document["element_list"][i]["end_node_ids"][0].GetInt();
     int v = document["element_list"][i]["end_node_ids"][1].GetInt();
     int layer = document["element_list"][i]["layer_id"].GetInt();
-
 
     assert(0 <= u && u < vert_list_.size());
     assert(0 <= v && v < vert_list_.size());

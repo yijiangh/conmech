@@ -18,8 +18,8 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
 
 /**
  *
- * @param file_path target json file path
- * @param[out] Load a ((#loaded_node) x (full_node_dof + 1)) Eigen double matrix
+ * @param file_path target load case json file path
+ * @param[out] Load a ((num_loaded_node) x (full_node_dof + 1)) Eigen double matrix
  * Here full_node_dof = 3 (dim 2) or 6 (dim 3)
  * @param[out] include_sw boolean flag for whether include self-weight or not
  * @return boolean flag of success

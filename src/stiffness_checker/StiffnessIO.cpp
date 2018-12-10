@@ -82,7 +82,6 @@ namespace stiffness_checker
 {
 bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &frame_parm)
 {
-  using namespace std;
   using namespace rapidjson;
 
   FILE *fp = fopen(file_path.c_str(), "r");
@@ -141,7 +140,6 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
 
 bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool& include_sw)
 {
-  using namespace std;
   using namespace rapidjson;
 
   FILE *fp = fopen(file_path.c_str(), "r");

@@ -245,7 +245,6 @@ if self_weight
         Q_sw(id_map(e,1:end)) = Q_sw(id_map(e,1:end)) + fixed_end_sw_load;
     end
     
-    Q_sw
     Q = Q + Q_sw;
 end
 
@@ -304,6 +303,9 @@ U = Perm\U_perm;
 
 Rf_full = [zeros(nFree,1); Rf];
 Rf_full = Perm\Rf_full;
+
+% Rf_full
+% U
 
 RF = S(:,2:end);
 for f=1:1:size(S,1)

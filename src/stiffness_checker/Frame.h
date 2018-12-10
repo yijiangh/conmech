@@ -38,8 +38,10 @@ class FrameVert
   const std::vector<FrameElementPtr> nghdElements() const { return p_nghd_element_list_; };
 
   bool isFixed() const { return b_fixed_; }
+  Eigen::VectorXi fixities() const { return fixities_; }
 
   void setFixed(bool b_fixed) { b_fixed_ = b_fixed; }
+  void setFixities(const Eigen::VectorXi& fixities) { fixities_ = fixities; }
   void setPosition(Eigen::Vector3d p) { position_ = p; }
   void setPosition(double x, double y, double z) { position_ = Eigen::Vector3d(x, y, z); }
   void setID(int id) { id_ = id; }
@@ -59,6 +61,12 @@ class FrameVert
  private:
   std::vector<FrameElementPtr> p_nghd_element_list_;
   Eigen::Vector3d position_;
+
+  /**
+   * (node_dof_ x 1) Eigen int vector
+   * [x,y,z,xx,yy,zz], = 1: the corresponding dof is fixed, 0: free
+   */
+  Eigen::VectorXi fixities_;
 
   int id_;
   int degree_;
