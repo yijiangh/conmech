@@ -289,20 +289,13 @@ K_perm = Perm * K * inv(Perm);
 Kmm = K_perm(1:nFree,1:nFree);
 Kfm = K_perm(nFree+1:dof,1:nFree);
 
-Kmm
-Kfm
-
 % FILL IN: calculate the vectors Um and Rf defined in the lecture notes.
 Q_perm = Perm*Q;
 Qm = Q_perm(1:nFree);
 Qf = Q_perm(nFree+1:dof);
 
-Qm
-
 Um = Kmm\Qm; % in m
 Rf = Kfm*Um - Qf;
-
-Um
 
 Us = zeros(nFixities,1);
 U_perm = [Um;Us];
@@ -310,9 +303,6 @@ U = Perm\U_perm;
 
 Rf_full = [zeros(nFree,1); Rf];
 Rf_full = Perm\Rf_full;
-
-Rf_full
-U
 
 RF = S(:,2:end);
 for f=1:1:size(S,1)

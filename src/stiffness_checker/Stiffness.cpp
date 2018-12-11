@@ -30,7 +30,8 @@ namespace stiffness_checker
 //}
 
 Stiffness::Stiffness(const std::string &json_file_path, bool verbose, std::string model_type)
-  : verbose_(verbose), is_init_(false), transl_tol_(1.0), rot_tol_(5 * (3.14 / 180))
+  : verbose_(verbose), is_init_(false), include_self_weight_load_(false),
+    transl_tol_(1e-3), rot_tol_(1 * (3.14 / 180))
 {
   verbose_ = verbose;
   stiff_solver_.timing_ = verbose;
@@ -92,9 +93,10 @@ bool Stiffness::init()
       e_react_dof_id_ << 0, 3;
     }
   }
-  assert(xyz_dof_id_.size() == node_dof_*2);
+  assert(xyz_dof_id_.size() == node_dof_ * 2);
 
   createElementStiffnessMatrixList();
+  createElementSelfWeightNodalLoad();
 
   // create id_map_
   int dof = frame_.sizeOfVertList() * node_dof_;
@@ -138,6 +140,9 @@ bool Stiffness::init()
   }
 //  std::cout << fixities_table_ << std::endl;
 
+  // create zero load
+  nodal_load_P_ = Eigen::VectorXd::Zero(dof);
+
   if (verbose_)
   {
     std::cout << "Initialization done" << std::endl;
@@ -156,77 +161,27 @@ void Stiffness::setNodalDisplacementTolerance(double transl_tol, double rot_tol)
 }
 
 // TODO: self-weight depends on the existing elements too!
-void Stiffness::createSelfWeightNodalLoad(Eigen::VectorXd &self_weight_load_P)
+void Stiffness::createSelfWeightNodalLoad(const std::vector<int> &exist_e_ids, Eigen::VectorXd &self_weight_load_P)
 {
   assert(is_init_);
   assert(id_map_.cols() == 2 * node_dof_);
 
-  // refer [MSA McGuire et al.] P111
-  // Loads between nodal points
   int N_vert = frame_.sizeOfVertList();
-  int N_element = frame_.sizeOfElementList();
   self_weight_load_P = Eigen::VectorXd::Zero(N_vert * node_dof_);
 
   // assuming solid circular cross sec for now
   double Ax = M_PI * std::pow(material_parm_.radius_, 2);
 
-  for (int i = 0; i < N_element; i++)
+  for (const int e_id : exist_e_ids)
   {
-    const auto e = frame_.getElement(i);
-    const auto end_u = e->endVertU();
-    const auto end_v = e->endVertV();
+    assert(0 <= e_id && e_id < element_gravity_nload_list_.size());
+    auto Qe = element_gravity_nload_list_[e_id];
 
-    double Le = e->getLength();
+    assert(Qe.size() == id_map_.cols());
 
-    // uniform force density along the element
-    // due to gravity
-    double q_sw = material_parm_.density_ * Ax;
-
-    if (model_type_ == "frame")
+    for (int j = 0; j < id_map_.cols(); j++)
     {
-      if (3 == dim_)
-      {
-        Eigen::Matrix3d R_eG;
-        getGlobal2LocalRotationMatrix(
-          e->endVertU()->position(),
-          e->endVertV()->position(), R_eG);
-        // gravity in local frame
-        // https://github.mit.edu/yijiangh/frame3dd/blob/master/frame3dd_io.c#L905
-
-        Eigen::VectorXd fixed_end_sw_load = Eigen::VectorXd::Zero(2 * node_dof_);
-
-        // according to fixed-end force diagram
-        // uniform load on a beam with both ends fixed ([MSA] p111.)
-        // fixed-end fictitious reaction
-        fixed_end_sw_load[2] = -q_sw * Le / 2.0;
-        fixed_end_sw_load[3] =
-          q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
-        fixed_end_sw_load[4] =
-          q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 1) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 1)) * (-1));
-        fixed_end_sw_load[5] = 0;
-
-        fixed_end_sw_load[8] = -q_sw * Le / 2.0;
-        fixed_end_sw_load[9] =
-          -q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
-        fixed_end_sw_load[10] =
-          -q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 1) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 1)) * (-1));
-        fixed_end_sw_load[11] = 0;
-
-        for (int j = 0; j < 12; j++)
-        {
-          self_weight_load_P[id_map_(i, j)] += fixed_end_sw_load[j];
-        }
-      }
-      else
-      {
-        // TODO
-        assert(false && "2D truss gravity not implemented yet.");
-      }
-    }
-    else
-    {
-      // TODO
-      assert(false && "truss gravity not implemented yet.");
+      self_weight_load_P[id_map_(e_id, j)] += Qe[j];
     }
   }
 
@@ -253,59 +208,19 @@ void Stiffness::createExternalNodalLoad(
 //  std::cout << "nodal_load" << ext_load << std::endl;
 }
 
-bool Stiffness::setLoad(const Eigen::MatrixXd &nodal_forces,
-                        const bool &include_self_weight)
+void Stiffness::setLoad(const Eigen::MatrixXd &nodal_forces)
 {
   assert(is_init_);
 
   int dof = node_dof_ * frame_.sizeOfVertList();
   bool is_empty_ext = nodal_forces.isZero(0) || nodal_forces.rows() == 0;
 
-  assert(!(!include_self_weight && is_empty_ext) && "No load is assigned.");
-
-  Eigen::VectorXd sw_load(dof);
-  sw_load.setZero();
-
-  Eigen::VectorXd ext_load(dof);
-  ext_load.setZero();
-
-  nodal_load_P_.resize(dof);
-
-  if (include_self_weight)
-  {
-    if (verbose_)
-    {
-      std::cout << "self-weight turned on." << std::endl;
-    }
-
-    createSelfWeightNodalLoad(sw_load);
-  }
+  assert(!is_empty_ext && "No load is assigned.");
 
   if (!is_empty_ext)
   {
-    createExternalNodalLoad(nodal_forces, ext_load);
+    createExternalNodalLoad(nodal_forces, nodal_load_P_);
   }
-  else
-  {
-    if (verbose_)
-    {
-      std::cout << "no external load is assigned." << std::endl;
-    }
-  }
-
-  nodal_load_P_ = sw_load + ext_load;
-  return true;
-}
-
-bool Stiffness::setSelfWeightNodalLoad()
-{
-  assert(is_init_);
-
-  Eigen::VectorXd sw_load;
-  createSelfWeightNodalLoad(sw_load);
-  nodal_load_P_ = sw_load;
-
-  return true;
 }
 
 void Stiffness::createElementStiffnessMatrixList()
@@ -421,6 +336,77 @@ void Stiffness::createElementStiffnessMatrixList()
   }
 }
 
+void Stiffness::createElementSelfWeightNodalLoad()
+{
+  // refer [MSA McGuire et al.] P111
+  // Loads between nodal points
+  int N_vert = frame_.sizeOfVertList();
+  int N_element = frame_.sizeOfElementList();
+
+  // assuming solid circular cross sec for now
+  double Ax = M_PI * std::pow(material_parm_.radius_, 2);
+
+  element_gravity_nload_list_.clear();
+  element_gravity_nload_list_.reserve(N_element);
+
+  for (int i = 0; i < N_element; i++)
+  {
+    const auto e = frame_.getElement(i);
+    const auto end_u = e->endVertU();
+    const auto end_v = e->endVertV();
+
+    double Le = e->getLength();
+
+    // uniform force density along the element
+    // due to gravity
+    double q_sw = material_parm_.density_ * Ax;
+
+    if (model_type_ == "frame")
+    {
+      if (3 == dim_)
+      {
+        Eigen::Matrix3d R_eG;
+        getGlobal2LocalRotationMatrix(
+          e->endVertU()->position(),
+          e->endVertV()->position(), R_eG);
+        // gravity in local frame
+        // https://github.mit.edu/yijiangh/frame3dd/blob/master/frame3dd_io.c#L905
+
+        Eigen::VectorXd fixed_end_sw_load = Eigen::VectorXd::Zero(2 * node_dof_);
+
+        // according to fixed-end force diagram
+        // uniform load on a beam with both ends fixed ([MSA] p111.)
+        // fixed-end fictitious reaction
+        fixed_end_sw_load[2] = -q_sw * Le / 2.0;
+        fixed_end_sw_load[3] =
+          q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
+        fixed_end_sw_load[4] =
+          q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 1) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 1)) * (-1));
+        fixed_end_sw_load[5] = 0;
+
+        fixed_end_sw_load[8] = -q_sw * Le / 2.0;
+        fixed_end_sw_load[9] =
+          -q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
+        fixed_end_sw_load[10] =
+          -q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 1) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 1)) * (-1));
+        fixed_end_sw_load[11] = 0;
+
+        element_gravity_nload_list_.push_back(fixed_end_sw_load);
+      }
+      else
+      {
+        // TODO
+        assert(false && "2D truss gravity not implemented yet.");
+      }
+    }
+    else
+    {
+      // TODO
+      assert(false && "truss gravity not implemented yet.");
+    }
+  }
+}
+
 void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exist_e_ids)
 {
   assert(element_K_list_.size() > 0);
@@ -466,20 +452,6 @@ bool Stiffness::solve(
   int n_Element = frame_.sizeOfElementList();
   int n_Node = frame_.sizeOfVertList();
 
-//  //exist_element_ids.size();
-//  int n_Exist_element = exist_element_ids.size();
-
-//  std::set<int> exist_node_ids;
-//  assert(n_Element > 0 && n_Element <= frame_.sizeOfElementList());
-//  for (const int e_id : exist_element_ids)
-//  {
-//    assert(e_id >= 0 && e_id < frame_.sizeOfElementList());
-//    int u_id = frame_.getElement(e_id)->endVertU()->id();
-//    int v_id = frame_.getElement(e_id)->endVertV()->id();
-//    exist_node_ids.insert(u_id);
-//    exist_node_ids.insert(v_id);
-//  }
-
   if (verbose_)
   {
     create_k_.Start();
@@ -520,8 +492,14 @@ bool Stiffness::solve(
     }
   }
 
-  // TODO this should return false
-  assert(n_Fixities > 0 && "at least one node needs to be fixed in the considered substructure!");
+  if (0 == n_Fixities)
+  {
+    if (verbose_)
+    {
+      std::cout << "Not stable: At least one node needs to be fixed in the considered substructure!" << std::endl;
+    }
+    return false;
+  }
 
   // count supp_dof and res_dof to init K_slice
   int n_Nexist = node_dof_ * (frame_.sizeOfVertList() - sub_nodes_set.size());
@@ -550,7 +528,7 @@ bool Stiffness::solve(
       nexist_tail++;
     }
   }
-  std::cout << "id_map_RO:\n" << id_map_RO << std::endl;
+//  std::cout << "id_map_RO:\n" << id_map_RO << std::endl;
 
   Eigen::MatrixXd Perm(dof, dof);
   Perm.setZero();
@@ -560,7 +538,7 @@ bool Stiffness::solve(
   }
   auto Perm_inv = Perm.inverse();
 
-  std::cout << "Perm:\n" << Perm << std::endl;
+//  std::cout << "Perm:\n" << Perm << std::endl;
 
   // permute the full stiffness matrix & carve the needed portion out
   createCompleteGlobalStiffnessMatrix(exist_element_ids);
@@ -569,15 +547,22 @@ bool Stiffness::solve(
   auto K_mm = K_perm.block(0, 0, n_Free, n_Free);
   auto K_fm = K_perm.block(n_Free, 0, n_Fixities, n_Free);
 
-  std::cout << "K_mm\n" << K_mm << std::endl;
-  std::cout << "K_fm\n" << K_fm << std::endl;
+//  std::cout << "K_mm\n" << K_mm << std::endl;
+//  std::cout << "K_fm\n" << K_fm << std::endl;
+
+  if (include_self_weight_load_)
+  {
+    Eigen::VectorXd load_sw;
+    createSelfWeightNodalLoad(exist_element_ids, load_sw);
+    nodal_load_P_ += load_sw;
+  }
 
   Eigen::VectorXd Q_perm = Perm * nodal_load_P_;
 
   auto Q_m = Q_perm.segment(0, n_Free);
   auto Q_f = Q_perm.segment(n_Free, n_Fixities);
 
-  std::cout << "Q_m:\n" << Q_m << std::endl;
+//  std::cout << "Q_m:\n" << Q_m << std::endl;
 
   if (verbose_)
   {
@@ -594,7 +579,7 @@ bool Stiffness::solve(
     return false;
   }
 
-  std::cout << "U_m:\n" << U_m << std::endl;
+//  std::cout << "U_m:\n" << U_m << std::endl;
 
   // reaction force
   Eigen::VectorXd R(dof);
@@ -604,7 +589,7 @@ bool Stiffness::solve(
   R.segment(n_Free, n_Fixities) = R_f;
   R = Perm_inv * R.eval();
 
-  std::cout << "R:\n" << R << std::endl;
+//  std::cout << "R:\n" << R << std::endl;
 
   // displacement
   Eigen::VectorXd U(dof);
@@ -612,7 +597,7 @@ bool Stiffness::solve(
   U.segment(0, n_Free) = U_m;
   U = Perm_inv * U.eval();
 
-  std::cout << "U:\n" << U << std::endl;
+//  std::cout << "U:\n" << U << std::endl;
 
   // start raw computattion results conversion
   // element internal reaction
@@ -627,7 +612,8 @@ bool Stiffness::solve(
     }
 
     element_reaction(cnt, 0) = e_id;
-    element_reaction.block(cnt, 1, 1, e_react_dof_id_.size()) = (rot_m_list_[e_id] * element_K_list_[e_id] * Ue).transpose();
+    element_reaction.block(cnt, 1, 1, e_react_dof_id_.size()) = (rot_m_list_[e_id] * element_K_list_[e_id] *
+                                                                 Ue).transpose();
     cnt++;
   }
 
@@ -788,27 +774,27 @@ bool Stiffness::checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
   // stability check
   // element reaction check
   // grounded element shouldn't be in tension
-  for (int i = 0; i < element_reation.rows(); i++)
-  {
-    int e_id = (int) element_reation(i, 0);
-    const auto e = frame_.getElement(e_id);
-    if (e->endVertU()->isFixed() || e->endVertV()->isFixed())
-    {
-      // check tension
-      if (element_reation(i, 1) < 0)
-      {
-        assert(element_reation(i, 7) > 0 && "element axial reaction sign not consistent!");
-
-        if (verbose_)
-        {
-          std::cout << "grounded element #" << e_id
-                    << " is in tension, the structure is not stable." << std::endl;
-        }
-
-        return false;
-      }
-    }
-  }
+//  for (int i = 0; i < element_reation.rows(); i++)
+//  {
+//    int e_id = (int) element_reation(i, 0);
+//    const auto e = frame_.getElement(e_id);
+//    if (e->endVertU()->isFixed() || e->endVertV()->isFixed())
+//    {
+//      // check tension
+//      if (element_reation(i, 1) < 0)
+//      {
+//        assert(element_reation(i, 7) > 0 && "element axial reaction sign not consistent!");
+//
+//        if (verbose_)
+//        {
+//          std::cout << "grounded element #" << e_id
+//                    << " is in tension, the structure is not stable." << std::endl;
+//        }
+//
+//        return false;
+//      }
+//    }
+//  }
 
   return true;
 }

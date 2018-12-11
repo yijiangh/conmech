@@ -37,12 +37,10 @@ public:
    * @param include_self_weight
    *    boolean flag for include element's self weight.
    *    default to be false.
-   * @return boolean success flag
    */
-  bool setLoad(const Eigen::MatrixXd &nodal_forces,
-               const bool &include_self_weight = false);
+  void setLoad(const Eigen::MatrixXd &nodal_forces);
 
-  bool setSelfWeightNodalLoad();
+  void setSelfWeightNodalLoad(bool include_sw) { include_self_weight_load_ = include_sw; }
 
   /**
    * Compute nodal displacement given existing node's indices.
@@ -101,8 +99,7 @@ public:
     Eigen::MatrixXd &element_reation,
     const bool &cond_num = true);
 
-  bool solve(
-    const bool &cond_num = true);
+  bool solve(const bool &cond_num = true);
 
   /* Check condition number */
 //  bool CheckIllCondition(IllCondDetector &stiff_inspector);
@@ -134,34 +131,24 @@ private:
   void createExternalNodalLoad(const Eigen::MatrixXd &nodal_forces, Eigen::VectorXd &ext_load);
 
   /**
-   * convert self-weight load (between nodal points) to nodal
-   * loads and save it to the class var self_weight_load_P.
-   */
-  void createSelfWeightNodalLoad(Eigen::VectorXd &self_weight_load);
-
-  /**
-   * set all grounded nodes in the input frame
-   * to the same type of fixities
-   * @param Tx flag for fixities restrain
-   * @param Ty
-   * @param Tz
-   * @param Rx
-   * @param Ry
-   * @param Rz
-   */
-//  void setGroundedNodesUniformFixities(bool Tx, bool Ty, bool Tz, bool Rx, bool Ry, bool Rz);
-
-  /**
    * create a list of element stiffness matrix (in global frame),
    * and store it to the class var local_K_list_.
    */
   void createElementStiffnessMatrixList();
+
+  void createElementSelfWeightNodalLoad();
 
   /**
    * assemble global stiffness matrix from all elements,
    * i.e. (dof x dof) K_assembled, dof = n_Node*6
    */
   void createCompleteGlobalStiffnessMatrix(const std::vector<int> &exist_e_ids);
+
+  /**
+   * convert self-weight load (between nodal points) to nodal
+   * loads and save it to the class var self_weight_load_P.
+   */
+  void createSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load);
 
 protected:
   Frame frame_;
@@ -230,6 +217,8 @@ private:
 
   std::vector<Eigen::MatrixXd> rot_m_list_;
 
+  std::vector<Eigen::VectorXd> element_gravity_nload_list_;
+
   /**
    * Global assembled stiffness matrix for the entire structure
    * the matrix will be sliced to solve for partial-structure
@@ -255,6 +244,8 @@ private:
    * boolean flag for if the model is inited (1) or not (0).
    */
   bool is_init_;
+
+  bool include_self_weight_load_;
 };
 
 } // namespace stiffness_checker

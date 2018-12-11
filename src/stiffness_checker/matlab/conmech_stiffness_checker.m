@@ -10,7 +10,7 @@ addpath('utility', 'analysis')
 % frame_file_name = '2D_frame.json';
 
 % frame_file_name = 'sf-test_3-frame.json';
-frame_file_name = 'sf-test_3-frame_0_1.json';
+frame_file_name = 'sf-test_3-frame_0.json';
 
 % frame_file_name = 'cant_2_3D_frame.json';
 % frame_file_name = 'cant_3D_beam.json';
@@ -48,7 +48,7 @@ use_self_weight = 0;
 % Load = [2, -0.1, 0, 0, 0,0,0]; %kN
 
 % 3D frame
-Load = [3, 0,0,-1, 0,0,0]; %kN
+Load = [1, 0,0,-1, 0,0,0]; %kN
 use_self_weight = 1;
 
 if(use_self_weight)

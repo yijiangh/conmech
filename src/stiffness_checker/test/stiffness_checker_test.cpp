@@ -69,10 +69,10 @@ void testStiffness()
 
   std::vector<int> exist_e_ids;
   exist_e_ids.push_back(0);
-  exist_e_ids.push_back(1);
+//  exist_e_ids.push_back(1);
 
 //  sf.setLoad(Load, false);
-  sf.setSelfWeightNodalLoad();
+  sf.setSelfWeightNodalLoad(true);
 //  bool success = sf.solve();
  bool success = sf.solve(exist_e_ids);
 
