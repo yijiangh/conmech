@@ -29,7 +29,7 @@ namespace stiffness_checker
 //  init();
 //}
 
-Stiffness::Stiffness(const std::string &json_file_path, bool verbose, std::string model_type)
+Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std::string& model_type)
   : verbose_(verbose), is_init_(false), include_self_weight_load_(false),
     transl_tol_(1e-3), rot_tol_(1 * (3.14 / 180))
 {
@@ -489,7 +489,7 @@ bool Stiffness::solve(
     if (sub_nodes_set.end() != sub_nodes_set.find(v_id))
     {
       full_f.segment(node_dof_ * v_id, node_dof_) = (fixities_table_.block(i, 1, 1, node_dof_)).transpose();
-      
+
       n_Fixities += full_f.segment(node_dof_ * v_id, node_dof_).sum();
       n_SubFixedNode++;
     }

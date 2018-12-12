@@ -16,7 +16,7 @@ class Stiffness
 public:
 //  Stiffness(Frame &frame, bool verbose = false, std::string model_type = "frame");
 
-  Stiffness(const std::string &json_file_path, bool verbose = false, std::string model_type = "frame");
+  Stiffness(const std::string& json_file_path, bool verbose = false, const std::string& model_type = "frame");
 
   ~Stiffness() {}
 

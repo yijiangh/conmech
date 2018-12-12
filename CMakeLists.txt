@@ -13,12 +13,13 @@ endif()
 option(CONMECH_WITH_OPENGL            "Use OpenGL"                   ON)
 option(CONMECH_WITH_OPENGL_GLFW       "Use GLFW"                     ON)
 option(CONMECH_WITH_OPENGL_GLFW_IMGUI "Use ImGui"                    ON)
-option(CONMECH_WITH_PYTHON            "Use Python"                   OFF)
+option(CONMECH_WITH_PYTHON            "Use Python"                   ON)
 ### End
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+# This must be commented out to make pybind to link modules
+#set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+#set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+#set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 

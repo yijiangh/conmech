@@ -1,7 +1,6 @@
 include_directories(
-  ${CMAKE_SOURCE_DIR}/ext
-  ${CMAKE_SOURCE_DIR}/src
-)
+		${CONMECH_EXTERNAL}
+		${CONMECH_SOURCE_DIR})
 
 #add_subdirectory(eigen_demo)
 add_subdirectory(stiffness_checker)

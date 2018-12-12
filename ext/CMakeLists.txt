@@ -1,3 +1,3 @@
-if(BUILD_PYBINDINGS)
+if(CONMECH_WITH_PYTHON)
 	add_subdirectory(pybind11)
-endif(BUILD_PYBINDINGS)
+endif(CONMECH_WITH_PYTHON)

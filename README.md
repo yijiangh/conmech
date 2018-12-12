@@ -36,21 +36,24 @@ import conmech_py as cm
 json_path = <path_to_json/frame.json>
 sc = cm.stiffness_checker(json_file_path = json_path, verbose = True)
 
+sc.set_self_weight_load(True)
+sc.set_nodal_displacement_tol(transl_tol = 1e-3, rot_tol = 3*(3.14/360))
+
 # each row represents a nodal load
 # entry 0 = node's id (specifed in the json fle),
 # entry 1 - 7 = [Fx, Fy, Fz, Mx, My, Mz] (N, N-mm) in global coordinates.
-ext_load = np.zeros([1,7])
-ext_load[0,0] = 3
-ext_load[0,3] = -500 * 1e3
+# ext_load = np.zeros([1,7])
+# ext_load[0,0] = 3
+# ext_load[0,3] = -500 * 1e3
+# sc.set_load(ext_load)
 
-sc.set_nodal_load(nodal_forces = ext_load, include_self_weight = False)
-check_success = sc.solve()
-print(check_success)
+# solve for the whole structure
+# sc.solve()
 
-## partial structure check, the element ids here are compatible
-## to the ones specified in the input json file
-# existing_element_ids = [0,1]
-# sc.solve(existing_element_ids)
+# solve for the partial structure
+# the element ids here are compatible to the ones specified in the input json file
+existing_ids = [0, 24, 25, 26, 27]
+sc.solve(existing_ids)
 ```
 
 [pybind11]: https://github.com/pybind/pybind11
