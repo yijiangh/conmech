@@ -427,6 +427,8 @@ void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exis
     const auto K_e = element_K_list_[e_id];
     assert(K_e.rows() == 2 * node_dof_ && K_e.cols() == 2 * node_dof_);
 
+//    std::cout << "K_e:\n" << K_e << std::endl;
+
     for (int i = 0; i < 2 * node_dof_; i++)
     {
       int row_id = id_map_(e_id, i);
@@ -457,7 +459,9 @@ bool Stiffness::solve(
     create_k_.Start();
   }
 
+  // start with assuming all dof does not exist (-1)
   int dof = node_dof_ * n_Node;
+  Eigen::VectorXi full_f = Eigen::VectorXi::Constant(dof, -1);
 
   assert(exist_element_ids.size() > 0 && exist_element_ids.size() <= frame_.sizeOfElementList());
   std::set<int> sub_nodes_set;
@@ -467,11 +471,14 @@ bool Stiffness::solve(
     auto e = frame_.getElement(e_id);
     sub_nodes_set.insert(e->endVertU()->id());
     sub_nodes_set.insert(e->endVertV()->id());
+
+    // turn the existing node's dofs to free(0)
+    full_f.segment(node_dof_ * e->endVertU()->id(), node_dof_) = Eigen::VectorXi::Constant(node_dof_, 0);
+    full_f.segment(node_dof_ * e->endVertV()->id(), node_dof_) = Eigen::VectorXi::Constant(node_dof_, 0);
   }
 
   // Assemble the list of fixed DOFs fixedList, a matrix of size
   // 1-by-(number of fixities)
-  Eigen::VectorXi full_f = Eigen::VectorXi::Zero(dof);
   int n_SubFixedNode = 0;
 
   int n_Fixities = 0;
@@ -482,15 +489,13 @@ bool Stiffness::solve(
     if (sub_nodes_set.end() != sub_nodes_set.find(v_id))
     {
       full_f.segment(node_dof_ * v_id, node_dof_) = (fixities_table_.block(i, 1, 1, node_dof_)).transpose();
-
+      
       n_Fixities += full_f.segment(node_dof_ * v_id, node_dof_).sum();
       n_SubFixedNode++;
     }
-    else
-    {
-      full_f.segment(node_dof_ * v_id, node_dof_) = (Eigen::VectorXi::Constant(node_dof_, -1)).transpose();
-    }
   }
+
+//  std::cout << "full_f: " << full_f << std::endl;
 
   if (0 == n_Fixities)
   {
@@ -536,9 +541,12 @@ bool Stiffness::solve(
   {
     Perm(i, id_map_RO[i]) = 1;
   }
-  auto Perm_inv = Perm.inverse();
+  // perm operator on the right (column) = inverse of perm operation on the left (row)
+  Eigen::MatrixXd Perm_inv = Perm.transpose();
 
-//  std::cout << "Perm:\n" << Perm << std::endl;
+//  std::cout << "Perm:\n" << Perm << std::endl;std
+//  std::cout << "mul:\n" << Perm_inv * Perm << std::endl;
+  assert(Perm_inv * Perm == Eigen::MatrixXd::Identity(dof, dof));
 
   // permute the full stiffness matrix & carve the needed portion out
   createCompleteGlobalStiffnessMatrix(exist_element_ids);
@@ -574,7 +582,7 @@ bool Stiffness::solve(
   {
     if (verbose_)
     {
-      std::cout << "ERROR: Stiffness Solver fail!\n" << std::endl;
+      std::cout << "ERROR: Stiffness Solver fail! The sub-structure contains mechanism.\n" << std::endl;
     }
     return false;
   }

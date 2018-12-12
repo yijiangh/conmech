@@ -104,6 +104,7 @@ bool StiffnessSolver::solveSystemLU(
   }
   else
   {
+//    std::cout << "A is invertible? - " << A.fullPivLu().isInvertible() << std::endl;
     return false;
   }
 }

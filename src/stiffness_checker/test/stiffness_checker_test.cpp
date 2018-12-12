@@ -56,19 +56,20 @@ void testStiffness()
   std::string file_dir =
     "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/matlab/test/problem_instances/";
 
-  std::string file_name = "sf-test_3-frame.json";
+  std::string file_name = "tower_3D_wpillar.json";
   std::string file_path = file_dir + file_name;
 
   Stiffness sf(file_path, true);
 
-  std::string load_name = "sf-test_3-frame_load_case.json";
-  std::string load_file_path = file_dir + load_name;
-  bool include_sw = false;
-  Eigen::MatrixXd Load;
-  parseLoadCaseJson(load_file_path, Load, include_sw);
+//  std::string load_name = "sf-test_3-frame_load_case.json";
+//  std::string load_file_path = file_dir + load_name;
 
-  std::vector<int> exist_e_ids;
-  exist_e_ids.push_back(0);
+//  bool include_sw = false;
+//  Eigen::MatrixXd Load;
+//  parseLoadCaseJson(load_file_path, Load, include_sw);
+
+  std::vector<int> exist_e_ids{0, 24, 25, 26, 27};
+//  exist_e_ids.push_back(0);
 //  exist_e_ids.push_back(1);
 
 //  sf.setLoad(Load, false);
