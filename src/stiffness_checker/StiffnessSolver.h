@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
 #include "stiffness_checker/Timer.h"
 
 using namespace std;
@@ -17,16 +18,13 @@ class StiffnessSolver
   ~StiffnessSolver() {}
 
  public:
+  bool solveSystemLU(
+    const Eigen::MatrixXd& A, const Eigen::VectorXd& b,
+    Eigen::VectorXd& x);
 
-  bool solveSystemLU(const Eigen::MatrixXd& A, const Eigen::VectorXd& b, Eigen::VectorXd& x);
-
-  //  bool SolveSystem(
-//      SpMat &K,
-//      VX &D,
-//      VX &F,
-//      int verbose,
-//      int& info
-//  );
+  bool solveSparseSimplicialLDLT(
+    const Eigen::SparseMatrix<double>& A, const Eigen::VectorXd& b,
+    Eigen::VectorXd& x);
 
  public:
   Timer solve_timer_;

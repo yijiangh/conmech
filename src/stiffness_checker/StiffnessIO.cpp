@@ -6,6 +6,8 @@
 
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
+#include <rapidjson/filewritestream.h>
+#include <rapidjson/prettywriter.h>
 
 #include "stiffness_checker/Frame.h"
 #include "stiffness_checker/StiffnessParm.h"
@@ -209,6 +211,114 @@ bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool
     }
   }
 
+  return true;
+}
+
+bool write_output_json(const Frame& frame,
+    const Eigen::MatrixXd &node_displ,
+    const Eigen::MatrixXd &fixities_reaction,
+    const Eigen::MatrixXd &element_reaction,
+    const std::string& file_path)
+{
+  using namespace rapidjson;
+  // document is the root of a json message
+  rapidjson::Document document;
+
+  // define the document as an object rather than an array
+  document.SetObject();
+
+  // must pass an allocator when the object may need to allocate memory
+  rapidjson::Document::AllocatorType& allocator = document.GetAllocator();
+
+  int n_node = node_displ.rows();
+  int n_element = element_reaction.rows();
+
+  Value nodal_disp_container(rapidjson::kArrayType);
+  for(int i=0; i<n_node; i++)
+  {
+    rapidjson::Value node_container(rapidjson::kObjectType);
+    node_container.AddMember("node_id", int(node_displ(i,0)), allocator);
+
+    auto pt = frame.getVertPosition(node_displ(i,0));
+    rapidjson::Value node_pose(rapidjson::kArrayType);
+    node_pose.PushBack(Value().SetDouble(pt[0]), allocator);
+    node_pose.PushBack(Value().SetDouble(pt[1]), allocator);
+    node_pose.PushBack(Value().SetDouble(pt[2]), allocator);
+
+    rapidjson::Value node_dp(rapidjson::kArrayType);
+    for(int j=1; j < node_displ.cols(); j++)
+    {
+      node_dp.PushBack(Value().SetDouble(node_displ(i,j)), allocator);
+    }
+
+    node_container.AddMember("node_pose", node_pose, allocator);
+    node_container.AddMember("displacement", node_dp, allocator);
+    nodal_disp_container.PushBack(node_container, allocator);
+  }
+  document.AddMember("node_displacement", nodal_disp_container, allocator);
+
+  Value element_reaction_container(rapidjson::kArrayType);
+  for(int i=0; i<n_element; i++)
+  {
+    rapidjson::Value element_container(rapidjson::kObjectType);
+    auto e_id = element_reaction(i,0);
+    element_container.AddMember("element_id", int(e_id), allocator);
+    element_container.AddMember("node_u_id", frame.getElementEndVertU(e_id)->id(), allocator);
+    element_container.AddMember("node_v_id", frame.getElementEndVertV(e_id)->id(), allocator);
+
+    rapidjson::Value e_react(rapidjson::kArrayType);
+    for(int j=1; j < element_reaction.cols(); j++)
+    {
+      e_react.PushBack(Value().SetDouble(element_reaction(i,j)), allocator);
+    }
+    element_container.AddMember("reaction", e_react, allocator);
+    element_reaction_container.PushBack(element_container, allocator);
+  }
+  document.AddMember("element_reaction", element_reaction_container, allocator);
+
+  int n_fix = fixities_reaction.rows();
+  Value fixity_reaction_container(rapidjson::kArrayType);
+  for(int i=0; i<n_fix; i++)
+  {
+    rapidjson::Value fix_container(rapidjson::kObjectType);
+    fix_container.AddMember("node_id", int(fixities_reaction(i,0)), allocator);
+
+    auto pt = frame.getVertPosition(fixities_reaction(i,0));
+    rapidjson::Value node_pose(rapidjson::kArrayType);
+    node_pose.PushBack(Value().SetDouble(pt[0]), allocator);
+    node_pose.PushBack(Value().SetDouble(pt[1]), allocator);
+    node_pose.PushBack(Value().SetDouble(pt[2]), allocator);
+
+    rapidjson::Value node_reaction(rapidjson::kArrayType);
+    for(int j=1; j < fixities_reaction.cols(); j++)
+    {
+      node_reaction.PushBack(Value().SetDouble(fixities_reaction(i,j)), allocator);
+    }
+
+    fix_container.AddMember("node_pose", node_pose, allocator);
+    fix_container.AddMember("reaction", node_reaction, allocator);
+
+    fixity_reaction_container.PushBack(fix_container, allocator);
+  }
+  document.AddMember("fixity_reaction", fixity_reaction_container, allocator);
+
+  // output file to path
+  std::string json_path = file_path;
+  FILE *js_file = fopen(json_path.c_str(), "w+");
+  if(NULL == js_file)
+  {
+    std::cout << "ERROR: invalid output file path!!!" << std::endl;
+    return false;
+  }
+
+  char writeBuffer[65536];
+  rapidjson::FileWriteStream os(js_file, writeBuffer, sizeof(writeBuffer));
+
+  rapidjson::PrettyWriter<FileWriteStream> p_writer(os);
+  document.Accept(p_writer);
+
+  std::fclose(js_file);
+  std::cout << "path file saved successfully!" << std::endl;
   return true;
 }
 

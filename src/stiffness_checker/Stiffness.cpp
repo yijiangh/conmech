@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
 
 #include "stiffness_checker/Util.h"
 #include "stiffness_checker/StiffnessSolver.h"
@@ -29,9 +30,9 @@ namespace stiffness_checker
 //  init();
 //}
 
-Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std::string& model_type)
+Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std::string& model_type, bool output_json)
   : verbose_(verbose), is_init_(false), include_self_weight_load_(false),
-    transl_tol_(1e-3), rot_tol_(1 * (3.14 / 180))
+    transl_tol_(1e-3), rot_tol_(1 * (3.14 / 180)), write_result_(output_json)
 {
   verbose_ = verbose;
   stiff_solver_.timing_ = verbose;
@@ -43,6 +44,9 @@ Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std:
   parseMaterialPropertiesJson(json_file_path, material_parm_);
 
   model_type_ = model_type;
+
+  output_json_file_name_ = "";
+  output_json_file_path_ = "";
 
   init();
 }
@@ -417,17 +421,14 @@ void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exis
   int N_element = frame_.sizeOfElementList();
 
   K_assembled_full_.resize(total_dof, total_dof);
-  K_assembled_full_.setZero();
+  std::vector<Eigen::Triplet<double>> K_triplets;
+
   for (const int e_id : exist_e_ids)
   {
-//    std::cout << "e_id" << e_id << std::endl;
-
     assert(e_id >= 0 && e_id < frame_.sizeOfElementList());
 
     const auto K_e = element_K_list_[e_id];
     assert(K_e.rows() == 2 * node_dof_ && K_e.cols() == 2 * node_dof_);
-
-//    std::cout << "K_e:\n" << K_e << std::endl;
 
     for (int i = 0; i < 2 * node_dof_; i++)
     {
@@ -436,10 +437,11 @@ void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exis
       for (int j = 0; j < 2 * node_dof_; j++)
       {
         int col_id = id_map_(e_id, j);
-        K_assembled_full_(row_id, col_id) += K_e(i, j);
+        K_triplets.push_back(Eigen::Triplet<double>(row_id, col_id, K_e(i, j)));
       }
     }
-  }
+  } // end e_id
+  K_assembled_full_.setFromTriplets(K_triplets.begin(), K_triplets.end());
 }
 
 bool Stiffness::solve(
@@ -535,28 +537,23 @@ bool Stiffness::solve(
   }
 //  std::cout << "id_map_RO:\n" << id_map_RO << std::endl;
 
-  Eigen::MatrixXd Perm(dof, dof);
-  Perm.setZero();
+  // a row permuatation matrix (multiply left)
+  Eigen::SparseMatrix<double> Perm(dof, dof);
+  std::vector<Eigen::Triplet<double>> perm_triplets;
   for (int i = 0; i < dof; i++)
   {
-    Perm(i, id_map_RO[i]) = 1;
+    perm_triplets.push_back(Eigen::Triplet<double>(i, id_map_RO[i], 1));
   }
+  Perm.setFromTriplets(perm_triplets.begin(), perm_triplets.end());
   // perm operator on the right (column) = inverse of perm operation on the left (row)
-  Eigen::MatrixXd Perm_inv = Perm.transpose();
-
-//  std::cout << "Perm:\n" << Perm << std::endl;std
-//  std::cout << "mul:\n" << Perm_inv * Perm << std::endl;
-  assert(Perm_inv * Perm == Eigen::MatrixXd::Identity(dof, dof));
+  auto Perm_T = Perm.transpose();
 
   // permute the full stiffness matrix & carve the needed portion out
   createCompleteGlobalStiffnessMatrix(exist_element_ids);
-  auto K_perm = Perm * K_assembled_full_ * Perm_inv;
+  auto K_perm = Perm * K_assembled_full_ * Perm_T;
 
   auto K_mm = K_perm.block(0, 0, n_Free, n_Free);
   auto K_fm = K_perm.block(n_Free, 0, n_Fixities, n_Free);
-
-//  std::cout << "K_mm\n" << K_mm << std::endl;
-//  std::cout << "K_fm\n" << K_fm << std::endl;
 
   if (include_self_weight_load_)
   {
@@ -578,7 +575,7 @@ bool Stiffness::solve(
   }
 
   Eigen::VectorXd U_m(n_Free);
-  if (!stiff_solver_.solveSystemLU(K_mm, Q_m, U_m))
+  if (!stiff_solver_.solveSparseSimplicialLDLT(K_mm, Q_m, U_m))
   {
     if (verbose_)
     {
@@ -595,7 +592,7 @@ bool Stiffness::solve(
 
   auto R_f = K_fm * U_m - Q_f;
   R.segment(n_Free, n_Fixities) = R_f;
-  R = Perm_inv * R.eval();
+  R = Perm_T * R.eval();
 
 //  std::cout << "R:\n" << R << std::endl;
 
@@ -603,7 +600,7 @@ bool Stiffness::solve(
   Eigen::VectorXd U(dof);
   U.setZero();
   U.segment(0, n_Free) = U_m;
-  U = Perm_inv * U.eval();
+  U = Perm_T * U.eval();
 
 //  std::cout << "U:\n" << U << std::endl;
 
@@ -665,13 +662,18 @@ bool Stiffness::solve(
   if (verbose_)
   {
     std::cout << "nodal disp (m/rad):" << std::endl;
-    std:
-    cout << node_displ << "\n" << std::endl;
+    std::cout << node_displ << "\n" << std::endl;
   }
 
   if (verbose_)
   {
     printOutTimer();
+  }
+
+  if (write_result_)
+  {
+    write_output_json(frame_, node_displ, fixities_reaction, element_reaction,
+    output_json_file_path_ + output_json_file_name_);
   }
 
   // stiffness criteria check

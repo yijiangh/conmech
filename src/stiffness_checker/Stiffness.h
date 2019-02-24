@@ -16,7 +16,7 @@ class Stiffness
 public:
 //  Stiffness(Frame &frame, bool verbose = false, std::string model_type = "frame");
 
-  Stiffness(const std::string& json_file_path, bool verbose = false, const std::string& model_type = "frame");
+  Stiffness(const std::string& json_file_path, bool verbose = false, const std::string& model_type = "frame", bool output_json = false);
 
   ~Stiffness() {}
 
@@ -41,6 +41,13 @@ public:
   void setLoad(const Eigen::MatrixXd &nodal_forces);
 
   void setSelfWeightNodalLoad(bool include_sw) { include_self_weight_load_ = include_sw; }
+
+  void setOutputJsonPath(const std::string& file_path, const std::string& file_name)
+  {
+    output_json_file_name_ = file_name;
+    output_json_file_path_ = file_path;
+  }
+  void setOutputJson(const bool output_json) { write_result_ = output_json; }
 
   /**
    * Compute nodal displacement given existing node's indices.
@@ -162,6 +169,10 @@ protected:
   double rot_tol_;
 
   bool verbose_;
+  bool write_result_;
+
+  std::string output_json_file_path_;
+  std::string output_json_file_name_;
 
   /**
    * dimension of the model, 2 or 3
@@ -198,6 +209,7 @@ protected:
 private:
   /**
    * a (N_element x (2*node_dof)) map
+   * element id -> dof id map
    */
   Eigen::MatrixXi id_map_;
 
@@ -225,7 +237,7 @@ private:
    * by the getSlicesGlobalStiffnessMatrix method.
    * Note: length unit: mm, force unit: N
    */
-  Eigen::MatrixXd K_assembled_full_;
+  Eigen::SparseMatrix<double> K_assembled_full_;
 
   /**
    * external nodal load P

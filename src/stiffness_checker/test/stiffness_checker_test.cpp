@@ -55,11 +55,16 @@ void testStiffness()
 
   std::string file_dir =
     "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/matlab/test/problem_instances/";
+  std::string result_file_dir =
+    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/matlab/test/cm_results/";
 
   std::string file_name = "tower_3D_wpillar.json";
   std::string file_path = file_dir + file_name;
+  std::string result_file_name = "tower_3D_wpillar_result.json";
 
   Stiffness sf(file_path, true);
+  sf.setOutputJsonPath(result_file_dir, result_file_name);
+  sf.setOutputJson(true);
 
 //  std::string load_name = "sf-test_3-frame_load_case.json";
 //  std::string load_file_path = file_dir + load_name;
@@ -74,8 +79,8 @@ void testStiffness()
 
 //  sf.setLoad(Load, false);
   sf.setSelfWeightNodalLoad(true);
-//  bool success = sf.solve();
- bool success = sf.solve(exist_e_ids);
+  bool success = sf.solve();
+ // bool success = sf.solve(exist_e_ids);
 
 //  std::cout << "stiffness check result: " << success << std::endl;
 }

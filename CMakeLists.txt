@@ -10,10 +10,7 @@ endif()
 
 # All dependencies that are downloaded as cmake projects and tested on the auto-builds are ON
 # (by default, all build options are off)
-option(CONMECH_WITH_OPENGL            "Use OpenGL"                   ON)
-option(CONMECH_WITH_OPENGL_GLFW       "Use GLFW"                     ON)
-option(CONMECH_WITH_OPENGL_GLFW_IMGUI "Use ImGui"                    ON)
-option(CONMECH_WITH_PYTHON            "Use Python"                   ON)
+option(CONMECH_WITH_PYTHON            "Use Python"                   OFF)
 ### End
 
 # This must be commented out to make pybind to link modules

@@ -26,6 +26,13 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
  */
 bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool& include_sw);
 
+
+bool write_output_json(const Frame& frame,
+    const Eigen::MatrixXd &node_displ,
+    const Eigen::MatrixXd &fixities_reaction,
+    const Eigen::MatrixXd &element_reaction,
+    const std::string& file_path);
+
 /**
  * Create mesh data of deformed and undeformed mesh, use gnuplot
  * GNUPlot references:
