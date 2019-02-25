@@ -284,7 +284,7 @@ assert(size(perm_RO,2) == size(unique(perm_RO),2));
 Perm = eye(dof);
 Perm = Perm(perm_RO,:);
 
-K_perm = Perm * K * inv(Perm);
+K_perm = Perm * K * Perm';
 
 Kmm = K_perm(1:nFree,1:nFree);
 Kfm = K_perm(nFree+1:dof,1:nFree);
@@ -299,10 +299,10 @@ Rf = Kfm*Um - Qf;
 
 Us = zeros(nFixities,1);
 U_perm = [Um;Us];
-U = Perm\U_perm;
+U = Perm' * U_perm;
 
 Rf_full = [zeros(nFree,1); Rf];
-Rf_full = Perm\Rf_full;
+Rf_full = Perm' * Rf_full;
 
 RF = S(:,2:end);
 for f=1:1:size(S,1)
