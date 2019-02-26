@@ -21,3 +21,6 @@ cmake-build-debug/
 
 # GSA lock files
 *.gwb.lok
+
+# in master branch, ignore validation files
+src/stiffness_checker/test/validation/*
