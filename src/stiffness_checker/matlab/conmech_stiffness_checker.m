@@ -10,12 +10,12 @@ addpath('utility', 'analysis')
 % frame_file_name = '2D_frame.json';
 
 % frame_file_name = 'sf-test_3-frame.json';
-frame_file_name = 'sf-test_3-frame_0.json';
+% frame_file_name = 'sf-test_3-frame_0.json';
 
 % frame_file_name = 'cant_2_3D_frame.json';
 % frame_file_name = 'cant_3D_beam.json';
 % frame_file_name = 'topopt100_3D.json';
-% frame_file_name = 'tower_3D.json';
+frame_file_name = 'tower_3D.json';
 
 ins_pth = fullfile(pwd, strcat('test', filesep, 'problem_instances', filesep, frame_file_name));
 
@@ -27,7 +27,7 @@ load_pth = fullfile(pwd, strcat('test',filesep,'problem_instances',filesep,load_
 % nodal coordinates: meter
 % pressure (E,G): kN/m^2
 % cross section: m
-use_self_weight = 0;
+use_self_weight = 1;
 [N, T, S, m_p] = parse_frame_json(ins_pth);
 % [Load, use_self_weight] = parse_load_json(load_pth);
 

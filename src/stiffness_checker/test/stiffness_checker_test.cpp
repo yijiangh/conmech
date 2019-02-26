@@ -54,31 +54,33 @@ void testStiffness()
   using namespace conmech::stiffness_checker;
 
   std::string file_dir =
-    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/matlab/test/problem_instances/";
+    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test/validation/problem_instances/";
   std::string result_file_dir =
-    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/matlab/test/cm_results/";
+    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test/validation/cm_results/";
 
-  std::string file_name = "tower_3D_wpillar.json";
+  std::string file_name = "bending_4.json"; //"tower_3D.json";
   std::string file_path = file_dir + file_name;
-  std::string result_file_name = "tower_3D_wpillar_result.json";
+  std::string result_file_name =  "bending_4_result.json"; // "tower_3D_result.json";
 
   Stiffness sf(file_path, true);
   sf.setOutputJsonPath(result_file_dir, result_file_name);
   sf.setOutputJson(true);
 
-//  std::string load_name = "sf-test_3-frame_load_case.json";
-//  std::string load_file_path = file_dir + load_name;
+ std::string load_name = "bending_4_load_case.json"; // "sf-test_3-frame_load_case.json";
+ std::string load_file_path = file_dir + load_name;
 
-//  bool include_sw = false;
-//  Eigen::MatrixXd Load;
-//  parseLoadCaseJson(load_file_path, Load, include_sw);
+ bool include_sw = false;
+ Eigen::MatrixXd Load;
+ parseLoadCaseJson(load_file_path, Load, include_sw);
 
-  std::vector<int> exist_e_ids{0, 24, 25, 26, 27};
+ std::cout << "load parsed: \n" << Load << std::endl;
+
+  // std::vector<int> exist_e_ids{0, 24, 25, 26, 27};
 //  exist_e_ids.push_back(0);
 //  exist_e_ids.push_back(1);
 
-//  sf.setLoad(Load, false);
-  sf.setSelfWeightNodalLoad(true);
+  // sf.setLoad(Load);
+  sf.setSelfWeightNodalLoad(include_sw);
   bool success = sf.solve();
  // bool success = sf.solve(exist_e_ids);
 
