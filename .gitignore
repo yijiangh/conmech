@@ -24,3 +24,7 @@ cmake-build-debug/
 
 # in master branch, ignore validation files
 src/stiffness_checker/test/validation/*
+
+# ctags
+.tags
+.tags1

@@ -26,7 +26,6 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
  */
 bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool& include_sw);
 
-
 bool write_output_json(const Frame& frame,
     const Eigen::MatrixXd &node_displ,
     const Eigen::MatrixXd &fixities_reaction,
@@ -34,31 +33,10 @@ bool write_output_json(const Frame& frame,
     const std::string& file_path);
 
 /**
- * Create mesh data of deformed and undeformed mesh, use gnuplot
- * GNUPlot references:
- * http://svn.code.sourceforge.net/p/frame3dd/code/trunk/doc/Frame3DD-manual.html
- * https://people.duke.edu/~hpgavin/gnuplot.html
- * @param model_name model name (usually I simply use *.json), for naming the generated .plt and .dat files
- * @param file_path dir path for plt and dat files
- * @param frame
- * @param nodal_displ
- * @param exagg_static
- * @param draw_deform boolean flag for drawing deformed shape
- */
-void createGnuPltStaticShape(
-    const std::string& model_name,
-    const std::string& file_path,
-    const Frame& frame,
-    const Eigen::MatrixXd& nodal_displ,
-    double exagg_static, bool draw_deform);
-
-/**
  * computes cubic deflection functions from end deflections
- * and end rotations.  Saves deflected shapes to a file.
- * These bent shapes are exact for mode-shapes, and for frames
- * loaded at their nodes.
-*/
-void createGnuPltCubicBentBeam(
+ * and end rotations.
+ */
+void computeCubicDeformedBeam(
     const Frame& frame,
     const Eigen::MatrixXd& nodal_displ,
     std::vector<Eigen::Vector3d>& beam,

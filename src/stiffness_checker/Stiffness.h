@@ -47,6 +47,7 @@ public:
     output_json_file_name_ = file_name;
     output_json_file_path_ = file_path;
   }
+
   void setOutputJson(const bool output_json) { write_result_ = output_json; }
 
   /**
@@ -107,6 +108,12 @@ public:
     const bool &cond_num = true);
 
   bool solve(const bool &cond_num = true);
+
+  /** compute the cubic interpolated deformed shape
+   * @return (nElement x 6) Eigen::MatrixXd DB
+   *  DB[i,:] = (x_i, y_i, z_i, x_i, y_i, z_i)
+   */
+  Eigen::MatrixXd getDeformedShape();
 
   /* Check condition number */
 //  bool CheckIllCondition(IllCondDetector &stiff_inspector);

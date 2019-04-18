@@ -64,12 +64,12 @@ class CMakeBuild(build_ext):
 
 setup(
     name='conmech',
-    version='0.0.1',
+    version='0.1',
     author='Yijiang Huang',
     author_email='yijiangh@mit.edu',
-    description='A test project using pybind11, CMake, and a simple eigen demo inside.',
+    description='py bindings for conmech C++ code.',
     long_description='',
-    ext_modules=[CMakeExtension('conmech_py')],
+    ext_modules=[CMakeExtension('pyconmech')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
 )

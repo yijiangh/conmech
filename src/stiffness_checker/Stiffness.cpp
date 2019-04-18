@@ -678,6 +678,7 @@
 
     if (write_result_)
     {
+      // TODO: use os-dependent file separator here
       write_output_json(frame_, node_displ, fixities_reaction, element_reaction,
       output_json_file_path_ + output_json_file_name_);
     }

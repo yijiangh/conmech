@@ -47,7 +47,7 @@ if 2 == dim
 else
     a_RHS = D_local([2,8,6,12],:);
     a_coeff = A_m\a_RHS;
-    
+
     b_RHS = D_local([3,9,5,11],:);
     b_RHS(3:4) = -b_RHS(3:4);
     b_coeff = A_m\b_RHS;
@@ -59,21 +59,21 @@ D_global = zeros(disc+1, dim) ;
 for i=0:1:disc
     D_0 = D_local(1);
     D_e = D_local(1+full_node_dof);
-    
+
     s = D_0 + i*(L+D_e-D_0)/disc;
 %     if s >= 1.01*abs(L+D_e)
 %         break
 %     end
-    
+
     v = a_coeff'*[1;s;s^2;s^3];
-    
+
     if 3 == dim
         w = b_coeff'*[1;s;s^2;s^3];
         dD_global = R(1:3,1:3)\[s;v;w];
     else
         dD_global = R(1:2,1:2)\[s;v];
     end
-    
+
     D_global(i+1,:) = end_u + dD_global';
 end
 

@@ -89,7 +89,7 @@ else
     if sizeOfF(1,1) ~= nElements
         error('Invalid element force input')
     end
-    
+
     thkFact = (thkMax-thkMin)/max(max(F(:,1)), -min(F(:,1)));
     for e=1:1:nElements
         thicknesses(1,e) = thkMin + thkFact*abs(F(e,1));
@@ -119,7 +119,7 @@ if 3 == dim
     minZ = min(N(:,3));
     maxZ = max(N(:,3));
     gap = 0.1*max([maxX-minX, maxY-minY, maxZ-minZ]);
-    
+
     axis equal
     axis([minX-gap, maxX+gap, minY-gap, maxY+gap, minZ-gap, maxZ+gap])
     xlabel('x axis');
@@ -135,12 +135,12 @@ else
     ylabel('y axis');
 end
 
-if dim == 2
-    N = N(:,1:2);
-else
-    N = N(:,1:3);
-    D = D(:,1:3);
-end
+% if dim == 2
+%     N = N(:,1:2);
+% else
+%     N = N(:,1:3);
+%     D = D(:,1:3);
+% end
 
 h = figure(1);
 hold on;
@@ -149,11 +149,11 @@ plot_frame(N,[],T,undeformed_color,[],dim);
 % plot_fixities(N,S,dim,alpha);
 
 if ~isempty(Load)
-%     plot_load(N,Load,dim,alpha*r_scale)
+    plot_load(N,Load,dim,alpha*r_scale)
 end
 
 if ~isempty(R)
-%     plot_reaction(N,R,dim,alpha*r_scale)
+    plot_reaction(N,R,dim,alpha*r_scale)
 end
 
 plot_frame(N,D,T,colors,thicknesses,dim,magn);
@@ -161,6 +161,7 @@ plot_frame(N,D,T,colors,thicknesses,dim,magn);
 hold off;
 
 end
+% end main function
 
 function plot_frame(N, D, T, colors, thickness, dim,magn)
 nElements = size(T,1);
@@ -182,33 +183,35 @@ end
 for e=1:1:nElements
     if 3 == dim
         if ~isempty(D)
-            if size(D,2)>3
-                % contains rotation, frame
-                D_beam = draw_cubic_bent_beam(N(T(e,1),:), N(T(e,2),:), ...
-                    D(T(e,1),:), D(T(e,2),:), magn);
-                
-                for b_i=1:1:size(D_beam,1)-1
-                    plot3(...
-                        [D_beam(b_i,1);D_beam(b_i+1,1)],...
-                        [D_beam(b_i,2);D_beam(b_i+1,2)],...
-                        [D_beam(b_i,3);D_beam(b_i+1,3)],...
-                        'Color',colors(e,:),'LineWidth',thickness(e));
-                end
-            else
-                % truss, only translation, no beam shape intepolation
-                if isempty(magn)
-                    magn = 1;
-                end
-                
-                for n=1:1:size(N,1)
-                    N(n,:) = N(n,:) + magn*D(n,:);
-                end
+%             if size(D,2)>3
+            
+            % contains rotation, frame
+            D_beam = draw_cubic_bent_beam(N(T(e,1),:), N(T(e,2),:), ...
+                D(T(e,1),:), D(T(e,2),:), magn);
+
+            for b_i=1:1:size(D_beam,1)-1
                 plot3(...
-                    [N(T(e,1),1);N(T(e,2),1)],...
-                    [N(T(e,1),2);N(T(e,2),2)],...
-                    [N(T(e,1),3);N(T(e,2),3)],...
-                    'Color',colors(e,:),'LineWidth',thickness(e));
+                    [D_beam(b_i,1);D_beam(b_i+1,1)],...
+                    [D_beam(b_i,2);D_beam(b_i+1,2)],...
+                    [D_beam(b_i,3);D_beam(b_i+1,3)],...
+                    'Color',colors(e,:),'LineWidth',1); %thickness(e)
             end
+%             else
+%                 disp(['dim 3 truss draw']);
+%                 % truss, only translation, no beam shape intepolation
+%                 if isempty(magn)
+%                     magn = 1;
+%                 end
+% 
+%                 for n=1:1:size(N,1)
+%                     N(n,:) = N(n,:) + magn*D(n,:);
+%                 end
+%                 plot3(...
+%                     [N(T(e,1),1);N(T(e,2),1)],...
+%                     [N(T(e,1),2);N(T(e,2),2)],...
+%                     [N(T(e,1),3);N(T(e,2),3)],...
+%                     'Color',colors(e,:),'LineWidth',1);%thickness(e)
+%             end
         else
             % original shape
             plot3(...
@@ -234,7 +237,7 @@ for e=1:1:nElements
                 if isempty(magn)
                     magn = 1;
                 end
-                
+
                 for n=1:1:size(N,1)
                     N(n,:) = N(n,:) + magn*D(n,:);
                 end
@@ -267,28 +270,28 @@ if 3 == dim
         p = xp(s,:);
         scatter3(p(1),p(2),p(3),'filled','k');
         TR = S(s,2:7);
-        
+
         if TR(1)
             plot3(...
                 [p(1)-(alpha); p(1)],...
                 [p(2); p(2)],...
                 [p(3); p(3)],'Color',fix_color,'LineWidth',lw);
         end
-        
+
         if TR(2)
             plot3(...
                 [p(1); p(1)],...
                 [p(2)-(alpha); p(2)],...
                 [p(3); p(3)],'Color',fix_color,'LineWidth',lw);
         end
-        
+
         if TR(3)
             plot3(...
                 [p(1); p(1)],...
                 [p(2); p(2)],...
                 [p(3)-(alpha); p(3)],'Color',fix_color,'LineWidth',lw);
         end
-        
+
         if TR(4)
             plot_circle(p-cir_a*alpha*[1,0,0], [1,0,0], alpha*c_alpha, dim, fix_color, lw);
         end
@@ -305,19 +308,19 @@ else
         p = xp(s,:);
         scatter(p(1),p(2),'filled','k');
         TR = S(s,2:4);
-        
+
         if TR(1)
             line(...
                 [p(1)-(alpha); p(1)],...
                 [p(2); p(2)],'Color',fix_color,'LineWidth',lw);
         end
-        
+
         if TR(2)
             line(...
                 [p(1); p(1)],...
                 [p(2)-(alpha); p(2)],'Color',fix_color,'LineWidth',lw);
         end
-        
+
         if TR(3)
             plot_circle(p, [], alpha*c_alpha, dim, fix_color, lw);
         end
@@ -374,7 +377,7 @@ for f=1:1:n_Fix
             quiver(N(f,1),N(f,2)-alpha*R(f,3),...
                 0,alpha*R(f,3),...
                 'Color', r_color, 'LineWidth', lw);
-            
+
             if size(R,2)-1 == 3 && R(f,4) ~= 0
                 plot_circle(N(f,:), [], alpha*circle_r, dim, r_color, lw);
             end
@@ -388,7 +391,7 @@ for f=1:1:n_Fix
             quiver3(N(f,1),N(f,2),N(f,3)-alpha*R(f,4),...
                 0,0,alpha*R(f,4),...
                 'Color', r_color, 'LineWidth', lw);
-            
+
             if size(R,2)-1 == 6
                 E = eye(3);
                 for s=1:1:3

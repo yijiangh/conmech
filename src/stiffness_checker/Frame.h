@@ -13,6 +13,7 @@ namespace stiffness_checker
 {
 
 class FrameVert;
+
 class FrameElement;
 
 typedef std::shared_ptr<FrameVert> FrameVertPtr;

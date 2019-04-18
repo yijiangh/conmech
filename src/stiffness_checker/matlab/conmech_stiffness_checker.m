@@ -27,9 +27,9 @@ load_pth = fullfile(pwd, strcat('test',filesep,'problem_instances',filesep,load_
 % nodal coordinates: meter
 % pressure (E,G): kN/m^2
 % cross section: m
-use_self_weight = 1;
+use_self_weight = 0;
 [N, T, S, m_p] = parse_frame_json(ins_pth);
-% [Load, use_self_weight] = parse_load_json(load_pth);
+[Load, use_self_weight] = parse_load_json(load_pth);
 
 % Define loads
 % L = [node,Qx,Qy,Qz,Mx,My,Mz; ...]
@@ -44,23 +44,23 @@ use_self_weight = 1;
 % Load = [4,0,-1,0];
 
 % 3D cases
-% 3D beam
-% Load = [2, -0.1, 0, 0, 0,0,0]; %kN
+% 3D beam, node 1 or 2
+% Load = [2, 0, 0, -1, 0,0,0]; %kN
 
 % 3D frame
-Load = [1, 0,0,-1, 0,0,0]; %kN
-use_self_weight = 1;
+% Load = [1, 0,0,-1, 0,0,0]; %kN
+% use_self_weight = 1;
 
-if(use_self_weight)
-    Load = [];
-end
+% if(use_self_weight)
+%     Load = [];
+% end
 
-magnif = 2;
+magnif = 100;
 
 % Output unit: force: kN, length: meter
 [element_F, reaction_F, nodal_displ] = displacement_method(N, T, S, m_p, Load, use_self_weight, 'Method', 'frame')
 
-% draw_frame(N, T, S, Load, element_F, reaction_F, nodal_displ, 1, 5, magnif, 1);
+draw_frame(N, T, S, Load, element_F, reaction_F, nodal_displ, 1, 5, magnif, 0.1);
 
 % result_file_name = 'tower_3D_result.json';
 % result_save_path = fullfile(pwd, strcat('test',filesep,'cm_results',filesep,result_file_name));
