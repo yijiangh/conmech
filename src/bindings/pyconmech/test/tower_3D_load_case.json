@@ -1,0 +1,45 @@
+{
+  "applied_shape_file": "tower_3D.json",
+  "dimension": 3,
+  "force_unit": "kN",
+  "moment_unit": "kN-m",
+  "include_self_weight": false,
+  "point_load_list": [
+    {
+      "applied_node_id": 5,
+      "Fx": 0.0,
+      "Fy": 11.125,
+      "Fz": 0.0,
+      "Mx": 0.0,
+      "My": 0.0,
+      "Mz": 0.0
+    },
+    {
+      "applied_node_id": 7,
+      "Fx": 0.0,
+      "Fy": 11.125,
+      "Fz": 0.0,
+      "Mx": 0.0,
+      "My": 0.0,
+      "Mz": 0.0
+    },
+    {
+      "applied_node_id": 8,
+      "Fx": 222.5,
+      "Fy": 22.25,
+      "Fz": -111.25,
+      "Mx": 0.0,
+      "My": 0.0,
+      "Mz": 0.0
+    },
+    {
+      "applied_node_id": 9,
+      "Fx": 222.5,
+      "Fy": 0.0,
+      "Fz": -111.25,
+      "Mx": 0.0,
+      "My": 0.0,
+      "Mz": 0.0
+    }
+  ]
+}

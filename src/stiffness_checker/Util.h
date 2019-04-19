@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Eigen/Core>
 #include <Eigen/Dense>
 
 namespace conmech
@@ -39,6 +40,24 @@ void getGlobal2LocalRotationMatrix(
     const Eigen::VectorXd& end_vert_v,
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x=0.0);
+
+// Eigen utils
+
+// TODO: convert a 1-x or x-1 matrix block to a segment or vector
+// https://eigen.tuxfamily.org/dox/classEigen_1_1VectorBlock.html
+template<typename Derived>
+Eigen::VectorBlock<Derived>
+segmentFromRange(Eigen::MatrixBase<Derived>& v, int start, int end)
+{
+  return Eigen::VectorBlock<Derived>(v.derived(), start, end-start);
+}
+
+template<typename Derived>
+const Eigen::VectorBlock<const Derived>
+segmentFromRange(const Eigen::MatrixBase<Derived>& v, int start, int end)
+{
+  return Eigen::VectorBlock<const Derived>(v.derived(), start, end-start);
+}
 
 } // namespace stiffness_checker
 } // namespace conmech

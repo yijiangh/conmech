@@ -109,11 +109,20 @@ public:
 
   bool solve(const bool &cond_num = true);
 
+  Eigen::MatrixXd getOriginalShape(const int& disc=1, const bool& draw_full_shape=true);
+
   /** compute the cubic interpolated deformed shape
-   * @return (nElement x 6) Eigen::MatrixXd DB
+   * @param[in] deformation exaggeration ratio
+   * @param[out] (nElement x 6) Eigen::MatrixXd DB
    *  DB[i,:] = (x_i, y_i, z_i, x_i, y_i, z_i)
+   * @return success
    */
-  Eigen::MatrixXd getDeformedShape();
+  Eigen::MatrixXd getDeformedShape(const double& exagg_ratio, const int& disc);
+
+  bool computeCubicDeformedBeam(const Eigen::VectorXd& end_u, const Eigen::VectorXd& end_v,
+                                const Eigen::VectorXd& d_end_u, const Eigen::VectorXd& d_end_v,
+                                const double& exagg, const int& disc,
+                                Eigen::MatrixXd& BeamPolygon);
 
   /* Check condition number */
 //  bool CheckIllCondition(IllCondDetector &stiff_inspector);
@@ -260,11 +269,20 @@ private:
   Eigen::MatrixXi fixities_;
 
   /**
+   * stored computation results
+   */
+  std::vector<int> stored_existing_ids_;
+
+  Eigen::MatrixXd stored_nodal_deformation_;
+
+  /**
    * boolean flag for if the model is inited (1) or not (0).
    */
   bool is_init_;
 
   bool include_self_weight_load_;
+
+  bool has_stored_deformation_;
 };
 
 } // namespace stiffness_checker

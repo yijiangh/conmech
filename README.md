@@ -9,7 +9,7 @@
 * A compiler with C++11 support
 * CMake >= 2.8.12
 * Dependencies: [Eigen]
-    
+
     ```bash
     sudo apt-get install libeigen3-dev
     ```
@@ -29,32 +29,11 @@ pip install ./conmech --user
 
 With the `setup.py` file included in the base folder, the pip install command will invoke CMake and build the pybind11 module as specified in CMakeLists.txt.
 
-## Test call
+## Demo
 
-```python
-import conmech_py as cm
-json_path = <path_to_json/frame.json>
-sc = cm.stiffness_checker(json_file_path = json_path, verbose = True)
+(A cool gif should come here :satisfied:)
 
-sc.set_self_weight_load(True)
-sc.set_nodal_displacement_tol(transl_tol = 1e-3, rot_tol = 3*(3.14/360))
-
-# each row represents a nodal load
-# entry 0 = node's id (specifed in the json fle),
-# entry 1 - 7 = [Fx, Fy, Fz, Mx, My, Mz] (N, N-mm) in global coordinates.
-# ext_load = np.zeros([1,7])
-# ext_load[0,0] = 3
-# ext_load[0,3] = -500 * 1e3
-# sc.set_load(ext_load)
-
-# solve for the whole structure
-# sc.solve()
-
-# solve for the partial structure
-# the element ids here are compatible to the ones specified in the input json file
-existing_ids = [0, 24, 25, 26, 27]
-sc.solve(existing_ids)
-```
+For examples of interactive usage in python (analysis for complete or partial structure in a construction sequence), see [stiffness_checker_test.ipynb](src/bindings/pyconmech/test/stiffness_checker_test.ipynb).
 
 [pybind11]: https://github.com/pybind/pybind11
 [eigen]: http://eigen.tuxfamily.org/index.php?title=Main_Page

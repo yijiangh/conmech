@@ -4,6 +4,7 @@
 #include <pybind11/iostream.h>
 
 #include <stiffness_checker/Stiffness.h>
+#include <stiffness_checker/StiffnessIO.h>
 #include <eigen_demo/eigen_demo.h>
 
 namespace py = pybind11;
@@ -48,10 +49,24 @@ PYBIND11_MODULE(pyconmech, m)
     .def("solve", py::overload_cast<const bool&>(&conmech::stiffness_checker::Stiffness::solve),
     py::arg("if_cond_num") = true)
 
+    // return the original, undeformed beam
+    .def("get_original_shape", &conmech::stiffness_checker::Stiffness::getOriginalShape,
+    py::arg("disc") = 1, py::arg("draw_full_shape") = true)
+
     // return the cubic interpolated deform beam
-    .def("get_deformed_shape", &conmech::stiffness_checker::Stiffness::getDeformedShape)
+    .def("get_deformed_shape", &conmech::stiffness_checker::Stiffness::getDeformedShape,
+    py::arg("exagg_ratio") = 1.0, py::arg("disc") = 10)
+    // py::return_value_policy::reference_internal)
 
   ; // end stiffness checker
+
+m.def("parse_load_case_from_json", [](std::string file_path)
+{
+    Eigen::MatrixXd Load;
+    bool include_sw;
+    conmech::stiffness_checker::parseLoadCaseJson(file_path, Load, include_sw);
+    return std::make_tuple(Load, include_sw);
+});
 
 py::class_<EigenSolveDemo>(m,"eigen_solve_demo")
   .def(py::init<>())

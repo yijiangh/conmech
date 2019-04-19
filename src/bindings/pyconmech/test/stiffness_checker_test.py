@@ -1,5 +1,5 @@
 import numpy as np
-import conmech_py as cm
+import pyconmech as cm
 import os
 cwd = os.getcwd()
 
@@ -14,7 +14,7 @@ sc = cm.stiffness_checker(json_file_path = file_path, verbose = True)
 sc.set_self_weight_load(True)
 sc.set_nodal_displacement_tol(transl_tol = 1e-3, rot_tol = 3*(3.14/360))
 
-# sc.solve()
+sc.solve()
 
-existing_ids = [0, 24, 25, 26, 27]
-sc.solve(existing_ids)
+# existing_ids = [0, 24, 25, 26, 27]
+# sc.solve(existing_ids)

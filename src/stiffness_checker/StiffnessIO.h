@@ -32,15 +32,5 @@ bool write_output_json(const Frame& frame,
     const Eigen::MatrixXd &element_reaction,
     const std::string& file_path);
 
-/**
- * computes cubic deflection functions from end deflections
- * and end rotations.
- */
-void computeCubicDeformedBeam(
-    const Frame& frame,
-    const Eigen::MatrixXd& nodal_displ,
-    std::vector<Eigen::Vector3d>& beam,
-    double exagg = 1.0);
-
 } // namespace stiffness_checker
 } // namespace conmech

@@ -15,6 +15,7 @@
 
 namespace
 {
+
 double convertLengthScale(const std::string &unit)
 {
   if ("millimeter" == unit || "mm" == unit)
@@ -188,7 +189,7 @@ bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool
   assert(document["point_load_list"].Size() > 0);
   int load_v_num  = document["point_load_list"].Size();
   Load = Eigen::MatrixXd::Zero(load_v_num, node_full_dof + 1);
-  std::cout << Load << std::endl;
+  // std::cout << Load << std::endl;
 
   for(int i=0; i<load_v_num; i++)
   {
@@ -319,20 +320,8 @@ bool write_output_json(const Frame& frame,
   document.Accept(p_writer);
 
   std::fclose(js_file);
-  std::cout << "path file saved successfully!" << std::endl;
+  std::cout << "computed result file saved successfully!" << std::endl;
   return true;
-}
-
-/**
- * computeCubicDeformedBeam  -  computes cubic deflection functions from end deflections
- * and end rotations.
-*/
-void computeCubicDeformedBeam(
-  const Frame &frame,
-  const Eigen::MatrixXd &nodal_displ,
-  double exagg)
-{
-  // pass
 }
 
 } // ns stiffness_checker

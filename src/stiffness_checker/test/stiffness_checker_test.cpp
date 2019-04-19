@@ -56,7 +56,7 @@ void testStiffness()
   std::string file_dir =
     "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test/";
   std::string result_file_dir =
-    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test/";
+    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test";
 
   // set up shape file path
   std::string file_name = "sf-test_3-frame.json";
@@ -82,14 +82,24 @@ void testStiffness()
   sf.setSelfWeightNodalLoad(include_sw);
 
   // partial structure ids
-  // std::vector<int> exist_e_ids{0, 24, 25, 26, 27};
-  //  exist_e_ids.push_back(0);
-  //  exist_e_ids.push_back(1);
+  std::vector<int> exist_e_ids;
+   exist_e_ids.push_back(0);
+   exist_e_ids.push_back(1);
 
-  bool success = sf.solve();
-  // bool success = sf.solve(exist_e_ids);
+  // bool success = sf.solve();
+  bool success = sf.solve(exist_e_ids);
 
   std::cout << "stiffness check result: " << success << std::endl;
+
+  double exagg = 1.0;
+  int disc = 2;
+
+  bool draw_full_shape=false;
+  Eigen::MatrixXd OB = sf.getOriginalShape(disc, draw_full_shape);
+  std::cout << "original beam polygonal points:\n" << OB << std::endl;
+
+  Eigen::MatrixXd DB = sf.getDeformedShape(exagg, disc);
+  std::cout << "deformed beam polygonal points:\n" << DB << std::endl;
 }
 
 } // util anon ns
