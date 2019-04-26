@@ -84,12 +84,18 @@ void testStiffness()
   sf.setSelfWeightNodalLoad(include_sw);
 
   // partial structure ids
-  std::vector<int> exist_e_ids{125, 126, 115, 122, 111, 108, 23, 22, 98, 75, 64, 34, 61, 65, 59, 60, 39, 36, 44, 67};
+  std::vector<int> exist_e_ids{0,1};
 
   // bool success = sf.solve();
   bool success = sf.solve(exist_e_ids);
-
   std::cout << "stiffness check result: " << success << std::endl;
+
+  Eigen::MatrixXd nD, fR, eR;
+  sf.getSolvedResults(nD, fR, eR, success);
+  std::cout << "get solved result: criteria pass : " << success << std::endl;
+  std::cout << "nodal disp: \n" << nD << std::endl;
+  std::cout << "fixities reaction: \n" << fR << std::endl;
+  std::cout << "element reaction: \n" << eR << std::endl;
 
   double exagg = 1.0;
   int disc = 2;

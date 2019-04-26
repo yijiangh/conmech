@@ -109,6 +109,14 @@ public:
 
   bool solve(const bool &cond_num = true);
 
+  bool hasStoredResults() const { return has_stored_deformation_; }
+
+  // TODO: pass by const reference or inmutatable
+  bool getSolvedResults (Eigen::MatrixXd &node_displ,
+                        Eigen::MatrixXd &fixities_reaction,
+                        Eigen::MatrixXd &element_reaction,
+                        bool &pass_criteria);
+
   Eigen::MatrixXd getOriginalShape(const int& disc=1, const bool& draw_full_shape=true);
 
   /** compute the cubic interpolated deformed shape
@@ -274,6 +282,8 @@ private:
   std::vector<int> stored_existing_ids_;
 
   Eigen::MatrixXd stored_nodal_deformation_;
+  Eigen::MatrixXd stored_element_reaction_;
+  Eigen::MatrixXd stored_fixities_reaction_;
 
   /**
    * boolean flag for if the model is inited (1) or not (0).

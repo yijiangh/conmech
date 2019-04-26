@@ -469,7 +469,7 @@ bool Stiffness::solve(
   Eigen::MatrixXd &element_reaction,
   const bool &cond_num)
 {
-  assert(is_init_);
+  assert(is_init_); // this should never happen, inited upon construction
 
   int n_Element = frame_.sizeOfElementList();
   int n_Node = frame_.sizeOfVertList();
@@ -483,7 +483,15 @@ bool Stiffness::solve(
   int dof = node_dof_ * n_Node;
   Eigen::VectorXi full_f = Eigen::VectorXi::Constant(dof, -1);
 
-  assert(exist_element_ids.size() > 0 && exist_element_ids.size() <= frame_.sizeOfElementList());
+  try {
+      if(!(exist_element_ids.size() > 0 && exist_element_ids.size() <= frame_.sizeOfElementList())) {
+          throw std::invalid_argument("input existing ids not within range!");
+      }
+  } catch (const std::invalid_argument& e) {
+    fprintf(stderr, "%s", e.what());
+    return false;
+  }
+
   std::set<int> sub_nodes_set;
   for (int e_id : exist_element_ids)
   {
@@ -638,6 +646,7 @@ bool Stiffness::solve(
                                                                  Ue).transpose();
     cnt++;
   }
+  stored_element_reaction_ = element_reaction;
 
   if (verbose_)
   {
@@ -658,6 +667,7 @@ bool Stiffness::solve(
       cnt++;
     }
   }
+  stored_fixities_reaction_ = fixities_reaction;
 
   if (verbose_)
   {
@@ -731,6 +741,27 @@ bool Stiffness::solve(const bool &cond_num)
 {
   Eigen::MatrixXd U, R, F;
   return solve(U, R, F, cond_num);
+}
+
+bool Stiffness::getSolvedResults(Eigen::MatrixXd &node_displ,
+                      Eigen::MatrixXd &fixities_reaction,
+                      Eigen::MatrixXd &element_reaction,
+                      bool &pass_criteria)
+{
+  try {
+    if(!hasStoredResults()) {
+      throw std::runtime_error("no stored result found.\n");
+    }
+    node_displ = stored_nodal_deformation_;
+    fixities_reaction = stored_fixities_reaction_;
+    element_reaction = stored_element_reaction_;
+    pass_criteria = checkStiffnessCriteria(node_displ, fixities_reaction, element_reaction);
+    return true;
+  }
+  catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s", e.what());
+    return false;
+  }
 }
 
 Eigen::MatrixXd Stiffness::getOriginalShape(const int& disc, const bool& draw_full_shape)

@@ -49,6 +49,23 @@ PYBIND11_MODULE(pyconmech, m)
     .def("solve", py::overload_cast<const bool&>(&conmech::stiffness_checker::Stiffness::solve),
     py::arg("if_cond_num") = true)
 
+    // check if have stored results
+    .def("has_stored_result", &conmech::stiffness_checker::Stiffness::hasStoredResults)
+
+    // get solved result
+    .def("get_solved_results",
+    // TODO: make this const
+    [](conmech::stiffness_checker::Stiffness &cm)
+    {
+        Eigen::MatrixXd node_displ, fixities_reaction, element_reaction;
+        bool pass_criteria = false;
+        if(cm.hasStoredResults())
+        {
+            cm.getSolvedResults(node_displ, fixities_reaction, element_reaction, pass_criteria);
+        }
+        return std::make_tuple(pass_criteria, node_displ, fixities_reaction, element_reaction);
+    })
+
     // return the original, undeformed beam
     .def("get_original_shape", &conmech::stiffness_checker::Stiffness::getOriginalShape,
     py::arg("disc") = 1, py::arg("draw_full_shape") = true)
