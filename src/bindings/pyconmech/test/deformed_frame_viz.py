@@ -28,16 +28,19 @@ def meshcat_visualize_deformed(meshcat_vis, beam_disp, orig_shape=None, disc=10,
     
     for k in range(n_row / (disc+1)):
         beam_pts = beam_disp[k*(disc+1):(k+1)*(disc+1),:]
-        beam_pts = ref_pt + (beam_pts - ref_pt) * scale
+        beam_pts = ref_trans + (beam_pts - ref_trans) * scale
 
         orig_beam_pts = orig_shape[k*(disc+1):(k+1)*(disc+1),:]
-        orig_beam_pts = ref_pt + (orig_beam_pts - ref_pt) * scale
+        orig_beam_pts = ref_trans + (orig_beam_pts - ref_trans) * scale
         
         delta = np.abs(np.subtract(beam_pts, orig_beam_pts))
         pt_delta = np.apply_along_axis(np.linalg.norm, 1, delta)
-        pt_delta /= np.max(pt_delta)
+        if np.max(pt_delta) > 1e-30:
+            pt_delta /= np.max(pt_delta)
+            
         color = np.outer(white, e - pt_delta) + np.outer(pink, pt_delta)
-        color = color
+#         print(pt_delta)
+#         color = color
 #         print("color {0}".format(color))
 
         mc_key = 'deformed_' + str(k)

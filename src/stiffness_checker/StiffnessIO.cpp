@@ -89,55 +89,64 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
 
   FILE *fp = fopen(file_path.c_str(), "r");
 
-  assert(fp);
-
-  char readBuffer[65536];
-  FileReadStream is(fp, readBuffer, sizeof(readBuffer));
-
-  Document document;
-
-  if (document.ParseStream(is).HasParseError())
-  {
-    std::cout << "ERROR parsing the input json file!\n";
+  // assert(fp);
+  try {
+    if(!fp) {
+      throw std::runtime_error("Frame json file not found!\n");
+    }
+  } catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s\n", e.what());
+    fclose(fp);
     return false;
   }
 
+  char readBuffer[65536];
+  FileReadStream is(fp, readBuffer, sizeof(readBuffer));
   fclose(fp);
 
-  assert(document.HasMember("material_properties"));
+  try {
+    Document document;
 
-  double unit_conversion;
+    if (document.ParseStream(is).HasParseError()){
+      throw std::runtime_error("Frame json file parse error!\n");
+    }
+    // TODO: convert all these assertions to throw / catch
+    // assert(document.HasMember("material_properties"));
+    double unit_conversion;
 
-  // TODO: check unit
-  // kN/cm^2 -> kN/m^2
-  assert(document["material_properties"].HasMember("youngs_modulus_unit"));
-  assert(document["material_properties"].HasMember("youngs_modulus"));
-//  unit_conversion = convertModulusScale(document["material_properties"]["youngs_modulus_unit"].GetString());
-  unit_conversion = 1e4;
-  frame_parm.youngs_modulus_ = unit_conversion * document["material_properties"]["youngs_modulus"].GetDouble();
+    // TODO: check unit
+    // kN/cm^2 -> kN/m^2
+    // assert(document["material_properties"].HasMember("youngs_modulus_unit"));
+    // assert(document["material_properties"].HasMember("youngs_modulus"));
+  //  unit_conversion = convertModulusScale(document["material_properties"]["youngs_modulus_unit"].GetString());
+    unit_conversion = 1e4;
+    frame_parm.youngs_modulus_ = unit_conversion * document["material_properties"]["youngs_modulus"].GetDouble();
 
-  assert(document["material_properties"].HasMember("shear_modulus_unit"));
-  assert(document["material_properties"].HasMember("shear_modulus"));
-//  unit_conversion = convertModulusScale(document["material_properties"]["shear_modulus_unit"].GetString());
-  unit_conversion = 1e4;
-  frame_parm.shear_modulus_ = unit_conversion * document["material_properties"]["shear_modulus"].GetDouble();
+    // assert(document["material_properties"].HasMember("shear_modulus_unit"));
+    // assert(document["material_properties"].HasMember("shear_modulus"));
+  //  unit_conversion = convertModulusScale(document["material_properties"]["shear_modulus_unit"].GetString());
+    unit_conversion = 1e4;
+    frame_parm.shear_modulus_ = unit_conversion * document["material_properties"]["shear_modulus"].GetDouble();
 
-  assert(document["material_properties"].HasMember("poisson_ratio"));
-  frame_parm.poisson_ratio_ = document["material_properties"]["poisson_ratio"].GetDouble();
+    // assert(document["material_properties"].HasMember("poisson_ratio"));
+    frame_parm.poisson_ratio_ = document["material_properties"]["poisson_ratio"].GetDouble();
 
-  // kN/m^3
-  assert(document["material_properties"].HasMember("density_unit"));
-  assert(document["material_properties"].HasMember("density"));
-  unit_conversion = convertDensityScale(document["material_properties"]["density_unit"].GetString());
-  frame_parm.density_ = unit_conversion * document["material_properties"]["density"].GetDouble();
+    // kN/m^3
+    // assert(document["material_properties"].HasMember("density_unit"));
+    // assert(document["material_properties"].HasMember("density"));
+    unit_conversion = convertDensityScale(document["material_properties"]["density_unit"].GetString());
+    frame_parm.density_ = unit_conversion * document["material_properties"]["density"].GetDouble();
 
-  // cm -> m
-  assert(document["material_properties"].HasMember("radius_unit"));
-  assert(document["material_properties"].HasMember("radius"));
-//  unit_conversion = convertDensityScale(document["material_properties"]["radius_unit"].GetString());
-  unit_conversion = 1e-2;
-  frame_parm.radius_ = unit_conversion * document["material_properties"]["radius"].GetDouble();
-
+    // cm -> m
+    // assert(document["material_properties"].HasMember("radius_unit"));
+    // assert(document["material_properties"].HasMember("radius"));
+  //  unit_conversion = convertDensityScale(document["material_properties"]["radius_unit"].GetString());
+    unit_conversion = 1e-2;
+    frame_parm.radius_ = unit_conversion * document["material_properties"]["radius"].GetDouble();
+  } catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s\n", e.what());
+    return false;
+  }
   return true;
 }
 

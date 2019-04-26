@@ -85,115 +85,139 @@ bool Frame::loadFromJson(const std::string &file_path)
   using namespace rapidjson;
 
   FILE *fp = fopen(file_path.c_str(), "r");
-  assert(fp);
-
-  char readBuffer[65536];
-  FileReadStream is(fp, readBuffer, sizeof(readBuffer));
-
-  Document document;
-  if (document.ParseStream(is).HasParseError())
-  {
-    std::cout << "ERROR parsing the input json file!\n";
+  try {
+    if(!fp) {
+      throw std::runtime_error("Frame json file not found!\n");
+    }
+  } catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s\n", e.what());
     fclose(fp);
     return false;
   }
 
-  fclose(fp);
+  char readBuffer[65536];
+  FileReadStream is(fp, readBuffer, sizeof(readBuffer));
 
+  fclose(fp);
   // reset all existing vert and element list
   clear();
 
-  if (!document.HasMember("unit"))
-  {
-    cout << "WARNING: no unit is specified - using millimeter by default" << endl;
-  }
-  else
-  {
-    // convert to millimeter
-    unit_scale_ = convertUnitScale(document["unit"].GetString());
-  }
-
-  assert(document.HasMember("dimension"));
-  int dim = document["dimension"].GetInt();
-  assert(dim == 2 || dim == 3);
-
-  // read vertices
-  assert(document.HasMember("node_list"));
-  assert(document["node_list"].Size() > 0);
-
-  int full_node_dof = 0;
-  if(dim == 3)
-  {
-    full_node_dof = 6;
-  }
-  else
-  {
-    full_node_dof = 3;
-  }
-
-  for(int i=0; i<document["node_list"].Size(); i++)
-  {
-    const Value& p = document["node_list"][i]["point"];
-    FrameVertPtr vert = insertVertex(
-        Eigen::Vector3d(p["X"].GetDouble()*unit_scale_,
-                        p["Y"].GetDouble()*unit_scale_,
-                        p["Z"].GetDouble()*unit_scale_));
-
-    if(document["node_list"][i]["is_grounded"].GetInt())
+  try{
+    Document document;
+    if (document.ParseStream(is).HasParseError())
     {
-      vert->setFixed(true);
+      throw std::runtime_error("ERROR parsing the input json file!\n");
+    }
 
-      Eigen::VectorXi fixities = Eigen::VectorXi::Zero(full_node_dof);
-      if(document["node_list"][i].HasMember("fixities"))
+    if (!document.HasMember("unit"))
+    {
+      fprintf(stdout, "WARNING: no unit is specified - using millimeter by default\n");
+    }
+    else
+    {
+      // convert to millimeter
+      unit_scale_ = convertUnitScale(document["unit"].GetString());
+    }
+
+    if(!document.HasMember("dimension")) { throw std::runtime_error("Json file does not have dimension entry\n"); }
+    int dim = document["dimension"].GetInt();
+    if(!(dim == 2 || dim == 3)){
+      throw std::runtime_error("dimension must be 2 or 3\n");
+    }
+
+    // read vertices
+    if(!document.HasMember("node_list")) { throw std::runtime_error("Json file does not have node_list entry\n"); };
+    assert(document["node_list"].Size() > 0);
+
+    int full_node_dof = 0;
+    if(dim == 3)
+    {
+      full_node_dof = 6;
+    }
+    else
+    {
+      full_node_dof = 3;
+    }
+
+    for(int i=0; i<document["node_list"].Size(); i++)
+    {
+      const Value& p = document["node_list"][i]["point"];
+      FrameVertPtr vert = insertVertex(
+          Eigen::Vector3d(p["X"].GetDouble()*unit_scale_,
+                          p["Y"].GetDouble()*unit_scale_,
+                          p["Z"].GetDouble()*unit_scale_));
+
+      if(document["node_list"][i]["is_grounded"].GetInt())
       {
-        assert(document["node_list"][i]["fixities"].Size() == full_node_dof);
+        vert->setFixed(true);
 
-        for (int j = 0; j < full_node_dof; j++)
+        Eigen::VectorXi fixities = Eigen::VectorXi::Zero(full_node_dof);
+        if(document["node_list"][i].HasMember("fixities"))
         {
-          fixities[j] = document["node_list"][i]["fixities"][j].GetInt();
+          if(document["node_list"][i]["fixities"].Size() != full_node_dof)
+          {
+            throw std::runtime_error("Specified fixities dof must equal to the full node dof");
+          }
+
+          for (int j = 0; j < full_node_dof; j++)
+          {
+            fixities[j] = document["node_list"][i]["fixities"][j].GetInt();
+          }
+        }
+        else
+        {
+          // default to be all dofs are fixed
+          fprintf(stdout, "No fixities info specified, assuming to be 6-dof fixed.\n");
+          fixities = Eigen::VectorXi::Constant(full_node_dof, 1);
+        }
+
+        vert->setFixities(fixities);
+        fixed_vert_size_++;
+      }
+    }
+
+    if(fixed_vert_size_ == 0) {
+      throw std::runtime_error("there needs to be at least one support (fixed) vertex in the model!\n");
+    }
+
+    // read edges (beams)
+    // assert(document.HasMember("element_list"));
+    if(!document.HasMember("element_list") || document["element_list"].Size() == 0){
+      throw std::runtime_error("there needs to be at least one element specified in the model's element list!\n");
+    }
+
+    for(int i=0; i<document["element_list"].Size(); i++)
+    {
+      int u = document["element_list"][i]["end_node_ids"][0].GetInt();
+      int v = document["element_list"][i]["end_node_ids"][1].GetInt();
+      int layer = document["element_list"][i]["layer_id"].GetInt();
+
+      if(!(0 <= u && u < vert_list_.size() && 0 <= v && v < vert_list_.size())){
+        throw std::runtime_error("element vert u, v id not in range\n");
+      }
+
+      FrameElementPtr e = insertElement(vert_list_[u], vert_list_[v]);
+
+      if (e != NULL)
+      {
+        if(e->layer() != -1) {
+          throw std::runtime_error("Error: overwriting perviously assigned element's layer id\n");
+        }
+        e->setLayer(layer);
+
+        if(layer>layer_size_-1)
+        {
+          layer_size_++;
         }
       }
-      else
-      {
-        // default to be all dofs are fixed
-        fixities = Eigen::VectorXi::Constant(full_node_dof, 1);
-      }
-
-      vert->setFixities(fixities);
-      fixed_vert_size_++;
     }
+
+    unify();
+  } catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s\n", e.what());
+    return false;
   }
 
-  assert(fixed_vert_size_ > 0 && "there needs to be at least one support (fixed) vertex in the model!");
-
-  // read edges (beams)
-  assert(document.HasMember("element_list"));
-  assert(document["element_list"].Size() > 0);
-
-  for(int i=0; i<document["element_list"].Size(); i++)
-  {
-    int u = document["element_list"][i]["end_node_ids"][0].GetInt();
-    int v = document["element_list"][i]["end_node_ids"][1].GetInt();
-    int layer = document["element_list"][i]["layer_id"].GetInt();
-
-    assert(0 <= u && u < vert_list_.size());
-    assert(0 <= v && v < vert_list_.size());
-
-    FrameElementPtr e = insertElement(vert_list_[u], vert_list_[v]);
-
-    if (e != NULL)
-    {
-      assert(e->layer() == -1 && "Error: overwriting perviously assigned element's layer id");
-      e->setLayer(layer);
-
-      if(layer>layer_size_-1)
-      {
-        layer_size_++;
-      }
-    }
-  }
-
-  unify();
   return true;
 }
 

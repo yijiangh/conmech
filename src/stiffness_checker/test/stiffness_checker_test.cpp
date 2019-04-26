@@ -59,7 +59,9 @@ void testStiffness()
     "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test";
 
   // set up shape file path
-  std::string file_name = "sf-test_3-frame.json";
+  std::string file_name =
+  "sf-test_3-frame.json";
+  //"simple_frame.json";
   // "tower_3D.json";
   std::string file_path = file_dir + file_name;
   Stiffness sf(file_path, true);
@@ -70,8 +72,8 @@ void testStiffness()
   sf.setOutputJson(true);
 
   // set up load case
-  std::string load_name = "tower_3D_load_case.json";
-  std::string load_file_path = file_dir + load_name;
+  // std::string load_name = "tower_3D_load_case.json";
+  // std::string load_file_path = file_dir + load_name;
   // Eigen::MatrixXd Load;
   // parseLoadCaseJson(load_file_path, Load, include_sw);
   // std::cout << "load parsed: \n" << Load << std::endl;
@@ -82,9 +84,7 @@ void testStiffness()
   sf.setSelfWeightNodalLoad(include_sw);
 
   // partial structure ids
-  std::vector<int> exist_e_ids;
-   exist_e_ids.push_back(0);
-   exist_e_ids.push_back(1);
+  std::vector<int> exist_e_ids{125, 126, 115, 122, 111, 108, 23, 22, 98, 75, 64, 34, 61, 65, 59, 60, 39, 36, 44, 67};
 
   // bool success = sf.solve();
   bool success = sf.solve(exist_e_ids);

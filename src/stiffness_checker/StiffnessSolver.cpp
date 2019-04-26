@@ -21,7 +21,7 @@ bool StiffnessSolver::solveSparseSimplicialLDLT(
 
   if (solver.info() != Eigen::Success)
   {
-    fprintf(stderr, "SolverSystem(LDLT): Error in Decomposition!\n");
+    // fprintf(stderr, "SolverSystem(LDLT): Error in Decomposition!\n");
     return false;
   }
 
@@ -29,17 +29,17 @@ bool StiffnessSolver::solveSparseSimplicialLDLT(
   auto Diag = solver.vectorD();
   for (int i = 0; i < Diag.size(); i++)
   {
-    if (Diag[i] == 0.0)
+    if (std::abs(Diag[i]) < 1e-300)
     {
-      fprintf(stderr, " SolveSystem(LDLT): zero found on diagonal ...\n");
-      fprintf(stderr, " d[%d] = %11.4e\n", i, Diag[i]);
+      // fprintf(stderr, " SolveSystem(LDLT): zero found on diagonal ...\n");
+      // fprintf(stderr, " d[%d] = %11.4e\n", i, Diag[i]);
       return false;
     }
 
-    if (Diag[i] < 0.0)
+    if (Diag[i] < -1e-300)
     {
-      fprintf(stderr, " SolveSystem(LDLT): negative number found on diagonal ...\n");
-      fprintf(stderr, " d[%d] = %11.4e\n", i, Diag[i]);
+      // fprintf(stderr, " SolveSystem(LDLT): negative number found on diagonal ...\n");
+      // fprintf(stderr, " d[%d] = %11.4e\n", i, Diag[i]);
       info--;
       return false;
     }
@@ -47,18 +47,18 @@ bool StiffnessSolver::solveSparseSimplicialLDLT(
 
   if (info < 0)
   {
-    fprintf(stderr, "Stiffness Matrix is not positive definite: %d negative elements\n", info);
-    fprintf(stderr, "found on decomp diagonal of K.\n");
-    fprintf(stderr, "The stucture may have mechanism and thus not stable in general\n");
-    fprintf(stderr, "Please Make sure that all six\n");
-    fprintf(stderr, "rigid body translations are restrained!\n");
+    // fprintf(stderr, "Stiffness Matrix is not positive definite: %d negative elements\n", info);
+    // fprintf(stderr, "found on decomp diagonal of K.\n");
+    // fprintf(stderr, "The stucture may have mechanism and thus not stable in general\n");
+    // fprintf(stderr, "Please Make sure that all six\n");
+    // fprintf(stderr, "rigid body translations are restrained!\n");
     return false;
   }
 
   x = solver.solve(b);
   if (solver.info() != Eigen::Success)
   {
-    fprintf(stderr, "SolverSystem(LDLT): Error in Solving!\n");
+    // fprintf(stderr, "SolverSystem(LDLT): Error in Solving!\n");
     return false;
   }
 

@@ -42,18 +42,19 @@ namespace stiffness_checker
 //}
 
 Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std::string& model_type, bool output_json)
-  : verbose_(verbose), is_init_(false), include_self_weight_load_(false),
+  : verbose_(verbose), is_init_(false), include_self_weight_load_(true),
     transl_tol_(1e-3), rot_tol_(1 * (3.14 / 180)), write_result_(output_json),
     has_stored_deformation_(false)
 {
   verbose_ = verbose;
   stiff_solver_.timing_ = verbose;
 
-  // parse frame
-  frame_.loadFromJson(json_file_path);
-
-  // parse material properties
-  parseMaterialPropertiesJson(json_file_path, material_parm_);
+  // parse frame, material properties
+  if(!frame_.loadFromJson(json_file_path)
+    || !parseMaterialPropertiesJson(json_file_path, material_parm_))
+  {
+    throw std::runtime_error("Parsing json files failed\n");
+  }
 
   model_type_ = model_type;
 
@@ -520,7 +521,7 @@ bool Stiffness::solve(
   {
     if (verbose_)
     {
-      std::cout << "Not stable: At least one node needs to be fixed in the considered substructure!" << std::endl;
+      std::cerr << "Not stable: At least one node needs to be fixed in the considered substructure!" << std::endl;
     }
     return false;
   }
@@ -552,7 +553,6 @@ bool Stiffness::solve(
       nexist_tail++;
     }
   }
-//  std::cout << "id_map_RO:\n" << id_map_RO << std::endl;
 
   // a row permuatation matrix (multiply left)
   Eigen::SparseMatrix<double> Perm(dof, dof);
@@ -752,9 +752,9 @@ Eigen::MatrixXd Stiffness::getOriginalShape(const int& disc, const bool& draw_fu
     orig_beam = Eigen::MatrixXd::Zero(nE*(disc+1), dim_);
   }
 
-  for(const int& i : draw_ids)
+  for(int i=0; i < draw_ids.size(); i++)
   {
-    const auto e = frame_.getElement(i);
+    const auto e = frame_.getElement(draw_ids[i]);
     const auto end_u = e->endVertU()->position();
     const auto end_v = e->endVertV()->position();
     for(int k=0; k<disc+1; k++)
@@ -783,9 +783,9 @@ Eigen::MatrixXd Stiffness::getDeformedShape(const double& exagg, const int& disc
   Eigen::MatrixXd tmp_beam_disp;
   Eigen::MatrixXd beam_displ = Eigen::MatrixXd::Zero(nE*(disc+1), dim_);
 
-  for(const int i : stored_existing_ids_)
+  for(int i; i < stored_existing_ids_.size(); i++)
   {
-    const auto e = frame_.getElement(i);
+    const auto e = frame_.getElement(stored_existing_ids_[i]);
     const auto end_u = e->endVertU();
     const auto end_v = e->endVertV();
 
@@ -803,7 +803,9 @@ Eigen::MatrixXd Stiffness::getDeformedShape(const double& exagg, const int& disc
         v_row_id = j;
       }
     }
-    assert(u_row_id != -1 && v_row_id != -1 && "existing node id not found in existing deformation matrix!");
+    if(u_row_id == -1 || v_row_id == -1) {
+      throw std::runtime_error("existing node id not found in existing deformation matrix!");
+    }
 
     d_end_u = stored_nodal_deformation_.row(u_row_id).segment(1, node_dof_);
     d_end_v = stored_nodal_deformation_.row(v_row_id).segment(1, node_dof_);
