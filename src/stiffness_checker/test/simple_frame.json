@@ -41,6 +41,8 @@
     "youngs_modulus_unit": "kN/cm2",
     "shear_modulus": 240,
     "shear_modulus_unit": "kN/cm2",
+    "tensile_yeild_stress": 5,
+    "tensile_yeild_stress_unit": "kN/cm2",
     "density": 0.000012748,
     "density_unit": "kN/m3",
     "poisson_ratio": -0.27083,

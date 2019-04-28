@@ -58,6 +58,7 @@ class FrameVert
     p_nghd_element_list_.clear();
     degree_ = (int)p_nghd_element_list_.size();
   }
+  const std::vector<FrameElementPtr>& getNghdElement() const { return p_nghd_element_list_; }
 
  private:
   std::vector<FrameElementPtr> p_nghd_element_list_;
@@ -90,6 +91,7 @@ class FrameElement
   void setLayer(int layer) { layer_ = layer; }
   void setEndVertU(FrameVertPtr u) { pvert_u = u; }
   void setEndVertV(FrameVertPtr v) { pvert_v = v; }
+  bool isFixed() const { return this->endVertU()->isFixed() || this->endVertV()->isFixed(); }
 
   double getLength() const
   {

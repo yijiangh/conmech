@@ -15,7 +15,8 @@ class StiffnessParm
  public:
   // TODO: this radius should be associated with geometry
   /**
-   * raidus of the cross section, unit: centimeter
+   * raidus of the cross section
+   * unit: meter
    */
   double radius_;
 
@@ -25,14 +26,19 @@ class StiffnessParm
   double density_;
 
   /**
-   * unit: kN/cm^2
+   * unit: kN/m^2
    */
   double youngs_modulus_;
 
   /**
-   * unit: kN/cm^2
+   * unit: kN/m^2
    */
   double shear_modulus_;
+
+  /**
+   * unit: kN/m^2
+   */
+  double tensile_yeild_stress_;
 
   /**
    * unit: [] (unitless)

@@ -247,6 +247,7 @@ void Stiffness::setLoad(const Eigen::MatrixXd &nodal_forces)
 
 void Stiffness::createElementStiffnessMatrixList()
 {
+  // TODO: clean the units in the comments here
   // check the complete element stiffness matrix
   // in local frame: [MSA McGuire et al.] P73
 
@@ -269,7 +270,7 @@ void Stiffness::createElementStiffnessMatrixList()
 //  double Asz = Asy;
 
   // torsion constant (around local x axis)
-  // for solid circle: (1/2)pi*r^4, unit: mm^4
+  // for solid circle: (1/2)pi*r^4, unit: m^4
   // see: https://en.wikipedia.org/wiki/Torsion_constant#Circle
   double Jx = 0.5 * M_PI * std::pow(material_parm_.radius_, 4);
 //  double Jx = (2.0/3.0) * pi * std::pow(material_parm_.radius_, 4);
@@ -399,6 +400,7 @@ void Stiffness::createElementSelfWeightNodalLoad()
         // according to fixed-end force diagram
         // uniform load on a beam with both ends fixed ([MSA] p111.)
         // fixed-end fictitious reaction
+        // "mass lumping"
         fixed_end_sw_load[2] = -q_sw * Le / 2.0;
         fixed_end_sw_load[3] =
           q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
@@ -1014,27 +1016,87 @@ bool Stiffness::checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
   // stability check
   // element reaction check
   // grounded element shouldn't be in tension
-//  for (int i = 0; i < element_reation.rows(); i++)
-//  {
-//    int e_id = (int) element_reation(i, 0);
-//    const auto e = frame_.getElement(e_id);
-//    if (e->endVertU()->isFixed() || e->endVertV()->isFixed())
-//    {
-//      // check tension
-//      if (element_reation(i, 1) < 0)
-//      {
-//        assert(element_reation(i, 7) > 0 && "element axial reaction sign not consistent!");
-//
-//        if (verbose_)
-//        {
-//          std::cout << "grounded element #" << e_id
-//                    << " is in tension, the structure is not stable." << std::endl;
-//        }
-//
-//        return false;
-//      }
-//    }
-//  }
+  double sec_mod = M_PI * std::pow(material_parm_.radius_, 3) / 4;
+  double area = M_PI * std::pow(material_parm_.radius_, 2);
+
+  for (int i = 0; i < fixities_reaction.rows(); i++)
+  {
+    int v_id = (int) fixities_reaction(i, 0);
+    const auto vertF = frame_.getVert(v_id);
+    const auto& nghdE = vertF->getNghdElement();
+
+    double eF_lx;
+    for(const auto& e : nghdE) {
+      if(e->isFixed()) {
+        // find element reaction
+        int e_result_id = -1;
+
+        for(int j = 0; j < element_reation.size(); j++) {
+          if (e->id() == element_reation(j, 0)) {
+            e_result_id = j;
+            break;
+          }
+        }
+
+        if(e->endVertU()->id() == v_id) {
+          eF_lx = element_reation(e_result_id, 1);
+          // only want tensile
+          if(eF_lx <= 0) {
+            eF_lx = 0;
+          }
+        } else {
+          eF_lx = element_reation(e_result_id, 7);
+          // only want tensile
+          if(eF_lx >= 0) {
+            eF_lx = 0;
+          }
+        } // end pts in local axis
+      } // e is fixed
+    }
+    std::cout << "result eM: " << eF_lx << std::endl;
+
+    // moment reaction at fixities
+    Eigen::VectorXd fixM = fixities_reaction.block<1,2>(i, 4);
+
+    // tension/compression bending stress
+    Eigen::VectorXd sigma_b = fixM / sec_mod;
+    std::cout << "bending stess: " << sigma_b << std::endl;
+
+    // axial tensile stress
+    Eigen::VectorXd sigma_a = (eF_lx / area) * Eigen::VectorXd::Ones(2);
+    std::cout << "axial stess: " << sigma_a << std::endl;
+
+    // total tensile stress = bending tensile stress + axial tensile stress
+    Eigen::VectorXd total_tensile = sigma_b + sigma_a;
+    std::cout << "total stess: " << total_tensile << "\n/" << 0.1 * material_parm_.tensile_yeild_stress_ << std::endl;
+
+    // if  > 0.1 (tbd) * yield stress
+    if(std::abs(total_tensile.maxCoeff()) > 0.1 * material_parm_.tensile_yeild_stress_) {
+      return false;
+    }
+  } // fixities_reaction
+
+ // for (int i = 0; i < element_reation.rows(); i++)
+ // {
+ //   int e_id = (int) element_reation(i, 0);
+ //   const auto e = frame_.getElement(e_id);
+ //   if (e->endVertU()->isFixed() || e->endVertV()->isFixed())
+ //   {
+ //     // check tension
+ //     if (element_reation(i, 1) < 0)
+ //     {
+ //       assert(element_reation(i, 7) > 0 && "element axial reaction sign not consistent!");
+ //
+ //       if (verbose_)
+ //       {
+ //         std::cout << "grounded element #" << e_id
+ //                   << " is in tension, the structure is not stable." << std::endl;
+ //       }
+ //
+ //       return false;
+ //     }
+ //   }
+ // }
 
   return true;
 }

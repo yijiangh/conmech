@@ -40,6 +40,8 @@
     "youngs_modulus_unit": "MPa",
     "shear_modulus": 80760.0,
     "shear_modulus_unit": "MPa",
+    "tensile_yeild_stress": 37,
+    "tensile_yeild_stress_unit": "kN/cm2",
     "density": 8010.204082,
     "density_unit": "kg/m3",
     "poisson_ratio": 0.300149,
