@@ -129,8 +129,8 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
     frame_parm.shear_modulus_ = unit_conversion * document["material_properties"]["shear_modulus"].GetDouble();
 
     // kN/cm^2 -> kN/m^2
-    unit_conversion = 1e4;
-    frame_parm.tensile_yeild_stress_ = unit_conversion * document["material_properties"]["tensile_yeild_stress"].GetDouble();
+    // unit_conversion = 1e4;
+    // frame_parm.tensile_yeild_stress_ = unit_conversion * document["material_properties"]["tensile_yeild_stress"].GetDouble();
 
     // assert(document["material_properties"].HasMember("poisson_ratio"));
     frame_parm.poisson_ratio_ = document["material_properties"]["poisson_ratio"].GetDouble();

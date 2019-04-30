@@ -1013,68 +1013,69 @@ bool Stiffness::checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
     }
   }
 
+  // TODO: not well tested yet
   // stability check
   // element reaction check
   // grounded element shouldn't be in tension
-  double sec_mod = M_PI * std::pow(material_parm_.radius_, 3) / 4;
-  double area = M_PI * std::pow(material_parm_.radius_, 2);
-
-  for (int i = 0; i < fixities_reaction.rows(); i++)
-  {
-    int v_id = (int) fixities_reaction(i, 0);
-    const auto vertF = frame_.getVert(v_id);
-    const auto& nghdE = vertF->getNghdElement();
-
-    double eF_lx;
-    for(const auto& e : nghdE) {
-      if(e->isFixed()) {
-        // find element reaction
-        int e_result_id = -1;
-
-        for(int j = 0; j < element_reation.size(); j++) {
-          if (e->id() == element_reation(j, 0)) {
-            e_result_id = j;
-            break;
-          }
-        }
-
-        if(e->endVertU()->id() == v_id) {
-          eF_lx = element_reation(e_result_id, 1);
-          // only want tensile
-          if(eF_lx <= 0) {
-            eF_lx = 0;
-          }
-        } else {
-          eF_lx = element_reation(e_result_id, 7);
-          // only want tensile
-          if(eF_lx >= 0) {
-            eF_lx = 0;
-          }
-        } // end pts in local axis
-      } // e is fixed
-    }
-    std::cout << "result eM: " << eF_lx << std::endl;
-
-    // moment reaction at fixities
-    Eigen::VectorXd fixM = fixities_reaction.block<1,2>(i, 4);
-
-    // tension/compression bending stress
-    Eigen::VectorXd sigma_b = fixM / sec_mod;
-    std::cout << "bending stess: " << sigma_b << std::endl;
-
-    // axial tensile stress
-    Eigen::VectorXd sigma_a = (eF_lx / area) * Eigen::VectorXd::Ones(2);
-    std::cout << "axial stess: " << sigma_a << std::endl;
-
-    // total tensile stress = bending tensile stress + axial tensile stress
-    Eigen::VectorXd total_tensile = sigma_b + sigma_a;
-    std::cout << "total stess: " << total_tensile << "\n/" << 0.1 * material_parm_.tensile_yeild_stress_ << std::endl;
-
-    // if  > 0.1 (tbd) * yield stress
-    if(std::abs(total_tensile.maxCoeff()) > 0.1 * material_parm_.tensile_yeild_stress_) {
-      return false;
-    }
-  } // fixities_reaction
+  // double sec_mod = M_PI * std::pow(material_parm_.radius_, 3) / 4;
+  // double area = M_PI * std::pow(material_parm_.radius_, 2);
+  //
+  // for (int i = 0; i < fixities_reaction.rows(); i++)
+  // {
+  //   int v_id = (int) fixities_reaction(i, 0);
+  //   const auto vertF = frame_.getVert(v_id);
+  //   const auto& nghdE = vertF->getNghdElement();
+  //
+  //   double eF_lx;
+  //   for(const auto& e : nghdE) {
+  //     if(e->isFixed()) {
+  //       // find element reaction
+  //       int e_result_id = -1;
+  //
+  //       for(int j = 0; j < element_reation.size(); j++) {
+  //         if (e->id() == element_reation(j, 0)) {
+  //           e_result_id = j;
+  //           break;
+  //         }
+  //       }
+  //
+  //       if(e->endVertU()->id() == v_id) {
+  //         eF_lx = element_reation(e_result_id, 1);
+  //         // only want tensile
+  //         if(eF_lx <= 0) {
+  //           eF_lx = 0;
+  //         }
+  //       } else {
+  //         eF_lx = element_reation(e_result_id, 7);
+  //         // only want tensile
+  //         if(eF_lx >= 0) {
+  //           eF_lx = 0;
+  //         }
+  //       } // end pts in local axis
+  //     } // e is fixed
+  //   }
+  //   std::cout << "result eM: " << eF_lx << std::endl;
+  //
+  //   // moment reaction at fixities
+  //   Eigen::VectorXd fixM = fixities_reaction.block<1,2>(i, 4);
+  //
+  //   // tension/compression bending stress
+  //   Eigen::VectorXd sigma_b = fixM / sec_mod;
+  //   std::cout << "bending stess: " << sigma_b << std::endl;
+  //
+  //   // axial tensile stress
+  //   Eigen::VectorXd sigma_a = (eF_lx / area) * Eigen::VectorXd::Ones(2);
+  //   std::cout << "axial stess: " << sigma_a << std::endl;
+  //
+  //   // total tensile stress = bending tensile stress + axial tensile stress
+  //   Eigen::VectorXd total_tensile = sigma_b + sigma_a;
+  //   std::cout << "total stess: " << total_tensile << "\n/" << 0.1 * material_parm_.tensile_yeild_stress_ << std::endl;
+  //
+  //   // if  > 0.1 (tbd) * yield stress
+  //   if(std::abs(total_tensile.maxCoeff()) > 0.1 * material_parm_.tensile_yeild_stress_) {
+  //     return false;
+  //   }
+  // } // fixities_reaction
 
  // for (int i = 0; i < element_reation.rows(); i++)
  // {
