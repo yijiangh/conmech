@@ -117,6 +117,11 @@ public:
                         Eigen::MatrixXd &element_reaction,
                         bool &pass_criteria);
 
+  bool getMaxNodalDeformation(double &max_trans, double &max_rot);
+
+  double getTransTol() const { return transl_tol_; }
+  double getRotTol() const { return rot_tol_; }
+
   Eigen::MatrixXd getOriginalShape(const int& disc=1, const bool& draw_full_shape=true);
 
   /** compute the cubic interpolated deformed shape

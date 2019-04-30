@@ -10,30 +10,6 @@
 
 namespace
 {
-// void testGNUPlot()
-// {
-//   using namespace conmech::stiffness_checker;
-//
-//   std::string file_dir =
-//     "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/matlab/test/problem_instances/";
-//
-//   std::string file_name = "sf-test_3-frame.json";
-//   std::string file_path = file_dir + file_name;
-//
-//   std::string save_path = "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test";
-//
-//   Frame f;
-//
-//   f.loadFromJson(file_path);
-//   std::cout << "frame readed: vert size: " << f.sizeOfVertList() << ", element size: " << f.sizeOfElementList()
-//             << std::endl;
-//   std::cout << "fixed vert size: " << f.sizeOfFixedVert() << ", layer size: " << f.sizeOfLayer() << std::endl;
-//
-//   Eigen::MatrixXd nodal_d;
-//
-//   createGnuPltStaticShape(file_name, save_path, f, nodal_d, 1, 0);
-// }
-
 void testLocalGlobalTransf()
 {
   auto end_u = Eigen::Vector3d(1,1,1);
@@ -46,7 +22,6 @@ void testLocalGlobalTransf()
   getGlobal2LocalRotationMatrix(end_u, end_v, m, 70 * pi/180);
 
   std::cout << m << std::endl;
-
 }
 
 void testStiffness()
@@ -54,7 +29,7 @@ void testStiffness()
   using namespace conmech::stiffness_checker;
 
   std::string file_dir =
-    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test/";
+    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/bindings/pyconmech/test/assembly_instances/extrusion/";
   std::string result_file_dir =
     "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test";
 
@@ -91,6 +66,10 @@ void testStiffness()
 
   // bool success = sf.solve();
   bool success = sf.solve(exist_e_ids);
+  double max_trans, max_rot;
+  sf.getMaxNodalDeformation(max_trans, max_rot);
+  std::cout << "max_trans: " << max_trans << " / " << sf.getTransTol() << std::endl;
+  std::cout << "max_rot: " << max_rot << " / " << sf.getRotTol() << std::endl;
   std::cout << "stiffness check result: " << success << std::endl;
 
   Eigen::MatrixXd nD, fR, eR;
@@ -105,10 +84,10 @@ void testStiffness()
 
   bool draw_full_shape=false;
   Eigen::MatrixXd OB = sf.getOriginalShape(disc, draw_full_shape);
-  std::cout << "original beam polygonal points:\n" << OB << std::endl;
+  // std::cout << "original beam polygonal points:\n" << OB << std::endl;
 
   Eigen::MatrixXd DB = sf.getDeformedShape(exagg, disc);
-  std::cout << "deformed beam polygonal points:\n" << DB << std::endl;
+  // std::cout << "deformed beam polygonal points:\n" << DB << std::endl;
 }
 
 } // util anon ns

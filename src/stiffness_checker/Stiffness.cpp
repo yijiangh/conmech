@@ -43,7 +43,7 @@ namespace stiffness_checker
 
 Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std::string& model_type, bool output_json)
   : verbose_(verbose), is_init_(false), include_self_weight_load_(true),
-    transl_tol_(1e-3), rot_tol_(1 * (3.14 / 180)), write_result_(output_json),
+    transl_tol_(1e-3), rot_tol_(3 * (3.14 / 180)), write_result_(output_json),
     has_stored_deformation_(false)
 {
   verbose_ = verbose;
@@ -766,6 +766,23 @@ bool Stiffness::getSolvedResults(Eigen::MatrixXd &node_displ,
   }
 }
 
+bool Stiffness::getMaxNodalDeformation(double &max_trans, double &max_rot)
+{
+  try {
+    if (!hasStoredResults()) {
+      throw std::runtime_error("no stored result found.\n");
+    }
+    const int nNode = stored_nodal_deformation_.rows();
+    max_trans = stored_nodal_deformation_.block(0, 1, nNode, 3).cwiseAbs().maxCoeff();
+    max_rot = stored_nodal_deformation_.block(0, 4, nNode, 3).cwiseAbs().maxCoeff();
+    return true;
+  }
+  catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s", e.what());
+    return false;
+  }
+}
+
 Eigen::MatrixXd Stiffness::getOriginalShape(const int& disc, const bool& draw_full_shape)
 {
   assert(disc >= 1);
@@ -981,36 +998,24 @@ bool Stiffness::checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
 {
   // stiffness check
   // nodal displacement check
-  for (int i = 0; i < node_displ.rows(); i++)
+  const int nNode = node_displ.rows();
+  const auto& max_trans = node_displ.block(0, 1, nNode, 3).cwiseAbs();
+  const auto& max_rot = node_displ.block(0, 4, nNode, 3).cwiseAbs();
+
+  if (verbose_)
   {
-    if (0 <= node_displ(i, 1) && node_displ(i, 1) <= 2)
-    {
-      if (std::abs(node_displ(i, 2)) > transl_tol_)
-      {
-        if (verbose_)
-        {
-          std::cout << "node #" << node_displ(i, 0)
-                    << "translational dof #" << node_displ(i, 1)
-                    << " disp: " << node_displ(i, 2)
-                    << " > " << "tolerance " << transl_tol_ << std::endl;
-        }
-        return false;
-      }
-    }
-    else
-    {
-      if (std::abs(node_displ(i, 2)) > rot_tol_)
-      {
-        if (verbose_)
-        {
-          std::cout << "node #" << node_displ(i, 0)
-                    << "rotational dof #" << node_displ(i, 1)
-                    << " disp: " << node_displ(i, 2)
-                    << " > " << "tolerance " << rot_tol_ << std::endl;
-        }
-        return false;
-      }
-    }
+    std::cout << "max translation deformation: " << max_trans.maxCoeff()
+              << " / " << "tolerance " << transl_tol_ << std::endl;
+    std::cout << "max rotational deformation: " << max_rot.maxCoeff()
+              << " / " << "tolerance " << rot_tol_ << std::endl;
+  }
+  if (max_trans.maxCoeff() > transl_tol_)
+  {
+    return false;
+  }
+  if (max_rot.maxCoeff() > rot_tol_)
+  {
+    return false;
   }
 
   // TODO: not well tested yet

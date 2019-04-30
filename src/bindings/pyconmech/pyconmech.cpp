@@ -39,6 +39,7 @@ PYBIND11_MODULE(pyconmech, m)
     .def("set_output_json", &conmech::stiffness_checker::Stiffness::setOutputJson,
     py::arg("output_json") = false)
 
+    // trans unit: meter, rot unit: rad
     .def("set_nodal_displacement_tol", &conmech::stiffness_checker::Stiffness::setNodalDisplacementTolerance,
     py::arg("transl_tol"), py::arg("rot_tol"))
 
@@ -64,6 +65,22 @@ PYBIND11_MODULE(pyconmech, m)
             cm.getSolvedResults(node_displ, fixities_reaction, element_reaction, pass_criteria);
         }
         return std::make_tuple(pass_criteria, node_displ, fixities_reaction, element_reaction);
+    })
+
+    .def("get_max_nodal_deformation",
+    [](conmech::stiffness_checker::Stiffness &cm)
+    {
+        double max_trans, max_rot;
+        if(cm.hasStoredResults()) {
+            cm.getMaxNodalDeformation(max_trans, max_rot);
+        }
+        return std::make_tuple(max_trans, max_rot);
+    })
+
+    .def("get_nodal_deformation_tol",
+    [](conmech::stiffness_checker::Stiffness &cm)
+    {
+        return std::make_tuple(cm.getTransTol(), cm.getRotTol());
     })
 
     // return the original, undeformed beam
