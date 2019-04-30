@@ -7,3 +7,8 @@
 	path = ext/rapidjson
 	url = https://github.com/Tencent/rapidjson.git
 	branch = master
+
+[submodule "assembly_instances"]
+	path = src/bindings/pyconmech/test/assembly_instances
+	url = https://github.com/yijiangh/assembly_instances
+	branch = master
