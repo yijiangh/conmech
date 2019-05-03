@@ -71,10 +71,21 @@ PYBIND11_MODULE(pyconmech, m)
     [](conmech::stiffness_checker::Stiffness &cm)
     {
         double max_trans, max_rot;
+        int max_trans_vid, max_rot_vid;
         if(cm.hasStoredResults()) {
-            cm.getMaxNodalDeformation(max_trans, max_rot);
+            cm.getMaxNodalDeformation(max_trans, max_rot, max_trans_vid, max_rot_vid);
         }
-        return std::make_tuple(max_trans, max_rot);
+        return std::make_tuple(max_trans, max_rot, max_trans_vid, max_rot_vid);
+    })
+
+    .def("get_complaince",
+    [](conmech::stiffness_checker::Stiffness &cm)
+    {
+        double complaince;
+        if(cm.hasStoredResults()) {
+            cm.getSolvedCompliance(complaince);
+        }
+        return complaince;
     })
 
     .def("get_nodal_deformation_tol",

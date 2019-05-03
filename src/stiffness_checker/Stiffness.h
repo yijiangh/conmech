@@ -117,7 +117,10 @@ public:
                         Eigen::MatrixXd &element_reaction,
                         bool &pass_criteria);
 
-  bool getMaxNodalDeformation(double &max_trans, double &max_rot);
+  bool getMaxNodalDeformation(double &max_trans, double &max_rot,
+                              int &max_trans_vid, int &max_rot_id);
+
+  bool getSolvedCompliance(double &complaince);
 
   double getTransTol() const { return transl_tol_; }
   double getRotTol() const { return rot_tol_; }
@@ -289,6 +292,7 @@ private:
   Eigen::MatrixXd stored_nodal_deformation_;
   Eigen::MatrixXd stored_element_reaction_;
   Eigen::MatrixXd stored_fixities_reaction_;
+  double stored_compliance_;
 
   /**
    * boolean flag for if the model is inited (1) or not (0).

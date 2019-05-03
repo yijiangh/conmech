@@ -612,6 +612,7 @@ bool Stiffness::solve(
   }
 
 //  std::cout << "U_m:\n" << U_m << std::endl;
+  stored_compliance_ = U_m.dot(Q_m);
 
   // reaction force
   Eigen::VectorXd R(dof);
@@ -766,18 +767,42 @@ bool Stiffness::getSolvedResults(Eigen::MatrixXd &node_displ,
   }
 }
 
-bool Stiffness::getMaxNodalDeformation(double &max_trans, double &max_rot)
+bool Stiffness::getMaxNodalDeformation(double &max_trans, double &max_rot,
+    int &max_trans_vid, int &max_rot_vid)
 {
   try {
     if (!hasStoredResults()) {
       throw std::runtime_error("no stored result found.\n");
     }
     const int nNode = stored_nodal_deformation_.rows();
-    max_trans = stored_nodal_deformation_.block(0, 1, nNode, 3).cwiseAbs().maxCoeff();
-    max_rot = stored_nodal_deformation_.block(0, 4, nNode, 3).cwiseAbs().maxCoeff();
+    int mt_i, mt_j, mr_i, mr_j;
+    max_trans = stored_nodal_deformation_.block(0, 1, nNode, 3).cwiseAbs().maxCoeff(&mt_i, &mt_j);
+    max_rot = stored_nodal_deformation_.block(0, 4, nNode, 3).cwiseAbs().maxCoeff(&mr_i, &mr_j);
+    max_trans_vid = stored_nodal_deformation_(mt_i, 0);
+    max_rot_vid = stored_nodal_deformation_(mt_j, 0);
     return true;
   }
   catch (const std::runtime_error &e) {
+    max_trans = 0;
+    max_rot = 0;
+    max_trans_vid = -1;
+    max_rot_vid = -1;
+    fprintf(stderr, "%s", e.what());
+    return false;
+  }
+}
+
+bool Stiffness::getSolvedCompliance(double &complaince)
+{
+  try {
+    if (!hasStoredResults()) {
+      throw std::runtime_error("no stored result found.\n");
+    }
+    complaince = stored_compliance_;
+    return true;
+  }
+  catch (const std::runtime_error &e) {
+    complaince = 0;
     fprintf(stderr, "%s", e.what());
     return false;
   }

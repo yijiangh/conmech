@@ -66,10 +66,6 @@ void testStiffness()
 
   // bool success = sf.solve();
   bool success = sf.solve(exist_e_ids);
-  double max_trans, max_rot;
-  sf.getMaxNodalDeformation(max_trans, max_rot);
-  std::cout << "max_trans: " << max_trans << " / " << sf.getTransTol() << std::endl;
-  std::cout << "max_rot: " << max_rot << " / " << sf.getRotTol() << std::endl;
   std::cout << "stiffness check result: " << success << std::endl;
 
   Eigen::MatrixXd nD, fR, eR;
@@ -78,6 +74,19 @@ void testStiffness()
   std::cout << "nodal disp: \n" << nD << std::endl;
   std::cout << "fixities reaction: \n" << fR << std::endl;
   std::cout << "element reaction: \n" << eR << std::endl;
+
+  double trans_tol = sf.getTransTol();
+  double rot_tol = sf.getRotTol();
+
+  double max_trans, max_rot;
+  int max_trans_vid, max_rot_vid;
+  sf.getMaxNodalDeformation(max_trans, max_rot, max_trans_vid, max_rot_vid);
+  std::cout << "max nodal deformation: Trans: " << max_trans << " / tol " << trans_tol << ", at node #" << max_trans_vid << std::endl;
+  std::cout << "max nodal deformation: Rot: " << max_rot << " / tol " << rot_tol << ", at node #" << max_rot_vid << std::endl;
+
+  double complaince;
+  sf.getSolvedCompliance(complaince);
+  std::cout << "complaince: " << complaince << std::endl;
 
   double exagg = 1.0;
   int disc = 2;
