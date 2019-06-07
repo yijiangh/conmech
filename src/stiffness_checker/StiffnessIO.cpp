@@ -8,6 +8,7 @@
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/filewritestream.h>
 #include <rapidjson/prettywriter.h>
+#include <rapidjson/cursorstreamwrapper.h>
 
 #include "stiffness_checker/Frame.h"
 #include "stiffness_checker/StiffnessParm.h"
@@ -100,16 +101,30 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
     return false;
   }
 
-  char readBuffer[65536];
-  FileReadStream is(fp, readBuffer, sizeof(readBuffer));
-  fclose(fp);
-
   try {
-    Document document;
+	  char readBuffer[65536];
+	  rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+	  rapidjson::MemoryPoolAllocator<> alloc;
+		rapidjson::Document document(&alloc);
 
-    if (document.ParseStream(is).HasParseError()){
-      throw std::runtime_error("Frame json file parse error!\n");
+    CursorStreamWrapper<FileReadStream> csw(is);
+		while(1) {
+        document.ParseStream<rapidjson::kParseStopWhenDoneFlag,rapidjson::UTF8<>>(csw);
+        // document.ParseStream(csw);
+
+				if(document.HasParseError()) {
+	    		// fprintf(stderr, "\nError(line %u, col %u, char %u): %s\n",
+          //   	(unsigned)csw.GetLine(), // get line number
+	        //     (unsigned)csw.GetColumn(), // get column number
+	        //     (unsigned)document.GetErrorOffset(), // get number of chars (last parsing error)
+	        //     GetParseError_En(document.GetParseError()));
+					break;
+				}
     }
+		fclose(fp);
+    // std::cout <<  "Size:" << alloc.Size() << "\n";
+    // std::cout <<  "Capacity:" << alloc.Capacity() << "\n";
+
     // TODO: convert all these assertions to throw / catch
     // assert(document.HasMember("material_properties"));
     double unit_conversion;
@@ -149,6 +164,7 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
     frame_parm.radius_ = unit_conversion * document["material_properties"]["radius"].GetDouble();
 
   } catch (const std::runtime_error &e) {
+		fclose(fp);
     fprintf(stderr, "%s\n", e.what());
     return false;
   }
@@ -161,70 +177,94 @@ bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool
 
   FILE *fp = fopen(file_path.c_str(), "r");
 
-  assert(fp);
-
-  char readbuffer[65536];
-  rapidjson::FileReadStream is(fp, readbuffer, sizeof(readbuffer));
-
-  rapidjson::Document document;
-
-  if (document.ParseStream(is).HasParseError())
-  {
-    std::cout << "error parsing the input json file!\n";
+  // assert(fp);
+  try {
+    if(!fp) {
+      throw std::runtime_error("Frame json file not found!\n");
+    }
+  } catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s\n", e.what());
+    fclose(fp);
     return false;
   }
 
-  fclose(fp);
+  try {
+	  char readBuffer[65536];
+	  rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+	  rapidjson::MemoryPoolAllocator<> alloc;
+		rapidjson::Document document(&alloc);
 
-  assert(document.HasMember("dimension"));
-  int dim = document["dimension"].GetInt();
-  int node_full_dof = 0;
-  if(3 == dim)
-  {
-    node_full_dof = 6;
-  }
-  else
-  {
-    node_full_dof = 3;
-  }
+    CursorStreamWrapper<FileReadStream> csw(is);
+		while(1) {
+        document.ParseStream<rapidjson::kParseStopWhenDoneFlag,rapidjson::UTF8<>>(csw);
+        // document.ParseStream(csw);
 
-  if(document.HasMember("include_self_weight"))
-  {
-    include_sw = document["include_self_weight"].GetBool();
-  }
-  else
-  {
-    include_sw = false;
-  }
-
-  // read point loads
-  assert((include_sw || document.HasMember("point_load_list"))
-  && "the load case must specify a load case, self-weight or point loads.");
-  assert(document["point_load_list"].Size() > 0);
-  int load_v_num  = document["point_load_list"].Size();
-  Load = Eigen::MatrixXd::Zero(load_v_num, node_full_dof + 1);
-  // std::cout << Load << std::endl;
-
-  for(int i=0; i<load_v_num; i++)
-  {
-    const Value& p = document["point_load_list"][i];
-    Load(i,0) = p["applied_node_id"].GetInt();
-
-    if (3 == dim)
-    {
-      Load(i,1) = p["Fx"].GetDouble();
-      Load(i,2) = p["Fy"].GetDouble();
-      Load(i,3) = p["Fz"].GetDouble();
-      Load(i,4) = p["Mx"].GetDouble();
-      Load(i,5) = p["My"].GetDouble();
-      Load(i,6) = p["Mz"].GetDouble();
+				if(document.HasParseError()) {
+	    		// fprintf(stderr, "\nError(line %u, col %u, char %u): %s\n",
+          //   	(unsigned)csw.GetLine(), // get line number
+	        //     (unsigned)csw.GetColumn(), // get column number
+	        //     (unsigned)document.GetErrorOffset(), // get number of chars (last parsing error)
+	        //     GetParseError_En(document.GetParseError()));
+					break;
+				}
     }
-    else
-    {
-      Load(i,1) = p["Fx"].GetDouble();
-      Load(i,2) = p["Fy"].GetDouble();
-      Load(i,3) = p["Mz"].GetDouble();
-    }
+		fclose(fp);
+    // std::cout <<  "Size:" << alloc.Size() << "\n";
+    // std::cout <<  "Capacity:" << alloc.Capacity() << "\n";
+
+	  // assert(document.HasMember("dimension"));
+	  int dim = document["dimension"].GetInt();
+	  int node_full_dof = 0;
+	  if(3 == dim)
+	  {
+	    node_full_dof = 6;
+	  }
+	  else
+	  {
+	    node_full_dof = 3;
+	  }
+
+	  if(document.HasMember("include_self_weight"))
+	  {
+	    include_sw = document["include_self_weight"].GetBool();
+	  }
+	  else
+	  {
+	    include_sw = false;
+	  }
+
+	  // read point loads
+	  // assert((include_sw || document.HasMember("point_load_list"))
+	  // && "the load case must specify a load case, self-weight or point loads.");
+	  // assert(document["point_load_list"].Size() > 0);
+	  int load_v_num  = document["point_load_list"].Size();
+	  Load = Eigen::MatrixXd::Zero(load_v_num, node_full_dof + 1);
+
+	  for(int i=0; i<load_v_num; i++)
+	  {
+	    const Value& p = document["point_load_list"][i];
+	    Load(i,0) = p["applied_node_id"].GetInt();
+
+	    if (3 == dim)
+	    {
+	      Load(i,1) = p["Fx"].GetDouble();
+	      Load(i,2) = p["Fy"].GetDouble();
+	      Load(i,3) = p["Fz"].GetDouble();
+	      Load(i,4) = p["Mx"].GetDouble();
+	      Load(i,5) = p["My"].GetDouble();
+	      Load(i,6) = p["Mz"].GetDouble();
+	    }
+	    else
+	    {
+	      Load(i,1) = p["Fx"].GetDouble();
+	      Load(i,2) = p["Fy"].GetDouble();
+	      Load(i,3) = p["Mz"].GetDouble();
+	    }
+	  }
+  } catch (const std::runtime_error &e) {
+		fclose(fp);
+    fprintf(stderr, "%s\n", e.what());
+    return false;
   }
 
   return true;

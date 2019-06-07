@@ -1,6 +1,8 @@
 #include <iostream>
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
+#include <rapidjson/error/en.h>
+#include <rapidjson/cursorstreamwrapper.h>
 
 #include <Eigen/Dense>
 
@@ -95,19 +97,33 @@ bool Frame::loadFromJson(const std::string &file_path)
     return false;
   }
 
-  char readBuffer[65536];
-  FileReadStream is(fp, readBuffer, sizeof(readBuffer));
-
-  fclose(fp);
   // reset all existing vert and element list
-  clear();
+  this->clear();
 
   try{
-    Document document;
-    if (document.ParseStream(is).HasParseError())
-    {
-      throw std::runtime_error("ERROR parsing the input json file!\n");
+		// code snippet from: https://github.com/Tencent/rapidjson/issues/970
+	  char readBuffer[65536];
+	  rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+	  rapidjson::MemoryPoolAllocator<> alloc;
+		rapidjson::Document document(&alloc);
+
+    CursorStreamWrapper<FileReadStream> csw(is);
+		while(1) {
+        document.ParseStream<rapidjson::kParseStopWhenDoneFlag,rapidjson::UTF8<>>(csw);
+        // document.ParseStream(csw);
+
+				if(document.HasParseError()) {
+	    		// fprintf(stderr, "\nError(line %u, col %u, char %u): %s\n",
+          //   	(unsigned)csw.GetLine(), // get line number
+	        //     (unsigned)csw.GetColumn(), // get column number
+	        //     (unsigned)document.GetErrorOffset(), // get number of chars (last parsing error)
+	        //     GetParseError_En(document.GetParseError()));
+					break;
+				}
     }
+		fclose(fp);
+    // std::cout <<  "Size:" << alloc.Size() << "\n";
+    // std::cout <<  "Capacity:" << alloc.Capacity() << "\n";
 
     if (!document.HasMember("unit"))
     {
@@ -115,7 +131,7 @@ bool Frame::loadFromJson(const std::string &file_path)
     }
     else
     {
-      // convert to millimeter
+      // convert to meter
       unit_scale_ = convertUnitScale(document["unit"].GetString());
     }
 
@@ -211,9 +227,9 @@ bool Frame::loadFromJson(const std::string &file_path)
         }
       }
     }
-
     unify();
   } catch (const std::runtime_error &e) {
+		fclose(fp);
     fprintf(stderr, "%s\n", e.what());
     return false;
   }
