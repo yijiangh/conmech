@@ -183,7 +183,7 @@ bool Frame::loadFromJson(const std::string &file_path)
         else
         {
           // default to be all dofs are fixed
-          fprintf(stdout, "Node #%d: No fixities info specified, assuming to be 6-dof fixed.\n", i);
+          // fprintf(stdout, "Node #%d: No fixities info specified, assuming to be 6-dof fixed.\n", i);
           fixities = Eigen::VectorXi::Constant(full_node_dof, 1);
         }
 

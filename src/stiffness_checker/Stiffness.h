@@ -120,7 +120,7 @@ public:
   bool getMaxNodalDeformation(double &max_trans, double &max_rot,
                               int &max_trans_vid, int &max_rot_id);
 
-  bool getSolvedCompliance(double &complaince);
+  bool getSolvedCompliance(double &compliance);
 
   double getTransTol() const { return transl_tol_; }
   double getRotTol() const { return rot_tol_; }

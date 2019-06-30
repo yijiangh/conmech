@@ -2,6 +2,8 @@
 #include <set>
 #include <algorithm>
 #include <numeric>
+#include <chrono>
+#include <ctime>
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
@@ -206,8 +208,6 @@ void Stiffness::createSelfWeightNodalLoad(const std::vector<int> &exist_e_ids, E
       self_weight_load_P[id_map_(e_id, j)] += Qe[j];
     }
   }
-
-//  std::cout << self_weight_load_P << std::endl;
 }
 
 void Stiffness::createExternalNodalLoad(
@@ -226,8 +226,6 @@ void Stiffness::createExternalNodalLoad(
 
     ext_load.segment(v_id * 6, 6) = nodal_forces.block<1, 6>(i, 1);
   }
-
-//  std::cout << "nodal_load" << ext_load << std::endl;
 }
 
 void Stiffness::setLoad(const Eigen::MatrixXd &nodal_forces)
@@ -247,6 +245,8 @@ void Stiffness::setLoad(const Eigen::MatrixXd &nodal_forces)
 
 void Stiffness::createElementStiffnessMatrixList()
 {
+  // std::clock_t c_start = std::clock();
+
   // TODO: clean the units in the comments here
   // check the complete element stiffness matrix
   // in local frame: [MSA McGuire et al.] P73
@@ -351,12 +351,13 @@ void Stiffness::createElementStiffnessMatrixList()
     auto R_LG_diagT = R_LG_diag.transpose();
     K_loc = R_LG_diagT * K_loc * R_LG_diag;
 
-//    std::cout <<  "K_loc:\n" << K_loc << std::endl;
-//    std::cout <<  "R_LG_diag:\n" << R_LG_diag << std::endl;
-
     element_K_list_.push_back(K_loc);
     rot_m_list_.push_back(R_LG_diag);
   }
+
+  // std::clock_t c_end = std::clock();
+  // std::cout << "create elemental stiffness matrix: "
+  // << 1e3 * (c_end - c_start) / CLOCKS_PER_SEC << " ms" << std::endl;
 }
 
 void Stiffness::createElementSelfWeightNodalLoad()
@@ -433,6 +434,8 @@ void Stiffness::createElementSelfWeightNodalLoad()
 
 void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exist_e_ids)
 {
+  // std::clock_t c_start = std::clock();
+
   assert(element_K_list_.size() > 0);
   assert(exist_e_ids.size() > 0);
   assert(id_map_.rows() >= exist_e_ids.size());
@@ -462,6 +465,9 @@ void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exis
     }
   } // end e_id
   K_assembled_full_.setFromTriplets(K_triplets.begin(), K_triplets.end());
+
+  // std::clock_t c_end = std::clock();
+  // std::cout << "create global stiffness matrix: " << 1e3 * (c_end - c_start) / CLOCKS_PER_SEC << " ms" << std::endl;
 }
 
 bool Stiffness::solve(
@@ -525,8 +531,6 @@ bool Stiffness::solve(
     }
   }
 
-//  std::cout << "full_f: " << full_f << std::endl;
-
   if (0 == n_Fixities)
   {
     if (verbose_)
@@ -577,19 +581,20 @@ bool Stiffness::solve(
 
   // permute the full stiffness matrix & carve the needed portion out
   createCompleteGlobalStiffnessMatrix(exist_element_ids);
-  auto K_perm = Perm * K_assembled_full_ * Perm_T;
 
+  auto K_perm = Perm * K_assembled_full_ * Perm_T;
   auto K_mm = K_perm.block(0, 0, n_Free, n_Free);
   auto K_fm = K_perm.block(n_Free, 0, n_Fixities, n_Free);
 
+  Eigen::VectorXd nodal_load_P_tmp = nodal_load_P_;
   if (include_self_weight_load_)
   {
     Eigen::VectorXd load_sw;
     createSelfWeightNodalLoad(exist_element_ids, load_sw);
-    nodal_load_P_ += load_sw;
+    nodal_load_P_tmp += load_sw;
   }
 
-  Eigen::VectorXd Q_perm = Perm * nodal_load_P_;
+  Eigen::VectorXd Q_perm = Perm * nodal_load_P_tmp;
 
   auto Q_m = Q_perm.segment(0, n_Free);
   auto Q_f = Q_perm.segment(n_Free, n_Fixities);
@@ -792,17 +797,17 @@ bool Stiffness::getMaxNodalDeformation(double &max_trans, double &max_rot,
   }
 }
 
-bool Stiffness::getSolvedCompliance(double &complaince)
+bool Stiffness::getSolvedCompliance(double &compliance)
 {
   try {
     if (!hasStoredResults()) {
       throw std::runtime_error("no stored result found.\n");
     }
-    complaince = stored_compliance_;
+    compliance = stored_compliance_;
     return true;
   }
   catch (const std::runtime_error &e) {
-    complaince = 0;
+    compliance = 0;
     fprintf(stderr, "%s", e.what());
     return false;
   }
