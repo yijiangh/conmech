@@ -85,9 +85,9 @@ void repTestStiffness(const char* cfile_name,
     std::cout << "max nodal deformation: Trans: " << max_trans << " / tol " << trans_tol << ", at node #" << max_trans_vid << std::endl;
     std::cout << "max nodal deformation: Rot: " << max_rot << " / tol " << rot_tol << ", at node #" << max_rot_vid << std::endl;
 
-    double complaince;
-    sf.getSolvedCompliance(complaince);
-    std::cout << "complaince: " << complaince << std::endl;
+    double compliance;
+    sf.getSolvedCompliance(compliance);
+    std::cout << "compliance: " << compliance << std::endl;
   }
 
   std::cout << "=====================" << std::endl;
