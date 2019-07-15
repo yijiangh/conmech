@@ -109,6 +109,15 @@ public:
 
   bool solve(const bool &cond_num = true);
 
+  // in global coordinate
+  bool getElementStiffnessMatrices(std::vector<Eigen::MatrixXd> &element_stiffness_mats);
+  bool getElementLocal2GlobalRotationMatrices(std::vector<Eigen::MatrixXd> &e_L2G_rot_mats);
+
+  // for now, these load vectors contain all the nodes in the full structure
+  // no index column
+  bool getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load);
+  bool getExternalNodalLoad(Eigen::VectorXd& ext_point_load) { ext_point_load = nodal_load_P_; return true; }
+
   bool hasStoredResults() const { return has_stored_deformation_; }
 
   // TODO: pass by const reference or inmutatable
@@ -124,6 +133,8 @@ public:
 
   double getTransTol() const { return transl_tol_; }
   double getRotTol() const { return rot_tol_; }
+  Eigen::MatrixXi getElement2DofIdMap() const { return id_map_; }
+  Eigen::MatrixXi getNode2DofIdMap() const { return v_id_map_; }
 
   Eigen::MatrixXd getOriginalShape(const int& disc=1, const bool& draw_full_shape=true);
 
@@ -139,6 +150,9 @@ public:
                                 const Eigen::VectorXd& d_end_u, const Eigen::VectorXd& d_end_v,
                                 const double& exagg, const int& disc,
                                 Eigen::MatrixXd& BeamPolygon);
+
+  int getTotalNumOfElements();
+  int getTotalNumOfVertices();
 
   /* Check condition number */
 //  bool CheckIllCondition(IllCondDetector &stiff_inspector);
@@ -174,7 +188,6 @@ private:
    * and store it to the class var local_K_list_.
    */
   void createElementStiffnessMatrixList();
-
   void createElementSelfWeightNodalLoad();
 
   /**
@@ -244,6 +257,12 @@ private:
    * element id -> dof id map
    */
   Eigen::MatrixXi id_map_;
+
+  /**
+   * a (N_node x (2*node_dof)) map
+   * node id -> dof id map
+   */
+  Eigen::MatrixXi v_id_map_;
 
   /**
    * a ((num_fix_node) x node_dof_) eigen int matrix

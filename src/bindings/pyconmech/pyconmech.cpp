@@ -50,6 +50,67 @@ PYBIND11_MODULE(pyconmech, m)
     .def("solve", py::overload_cast<const bool&>(&conmech::stiffness_checker::Stiffness::solve),
     py::arg("if_cond_num") = true)
 
+    // for my own education:
+    // C++ lambda function stateful/stateless enclosure
+    // https://arne-mertz.de/2015/10/new-c-features-lambdas/
+    // https://arne-mertz.de/2015/11/lambdas-part-2-capture-lists-and-stateful-closures/
+    .def("get_nodal_load",
+    [](conmech::stiffness_checker::Stiffness &cm, std::vector<int> &existing_ids, bool self_weight_load_only)
+    {
+      // TODO: sanity check existing_ids within range
+      if (existing_ids.empty()) {
+        for (int i=1;i<cm.getTotalNumOfElements();i++) existing_ids.push_back(i);
+      }
+      Eigen::VectorXd sw_nodal_loads;
+      cm.getSelfWeightNodalLoad(existing_ids, sw_nodal_loads);
+
+      if (self_weight_load_only) {
+        return sw_nodal_loads;
+      } else {
+        // total load
+        Eigen::VectorXd tot_pt_load;
+        cm.getExternalNodalLoad(tot_pt_load);
+        tot_pt_load += sw_nodal_loads;
+        return tot_pt_load;
+      }
+    },
+    py::arg("existing_ids"), py::arg("self_weight_load_only") = false)
+
+    // get a list of elemental stiffness matrix (R * K_{eL} * R^T)
+    // all in global coordinate system, 12 x 12 matrix
+    .def("get_element_stiffness_matrices",
+    [](conmech::stiffness_checker::Stiffness &cm)
+    {
+      std::vector<Eigen::MatrixXd> element_stiffness_mats;
+      cm.getElementStiffnessMatrices(element_stiffness_mats);
+      return element_stiffness_mats;
+    })
+
+    // get a list of elemental local to global rotational matrix, 12 x 12 matrix
+    .def("get_element_local2global_rot_matrices",
+    [](conmech::stiffness_checker::Stiffness &cm)
+    {
+      std::vector<Eigen::MatrixXd> element_rot_mats;
+      cm.getElementLocal2GlobalRotationMatrices(element_rot_mats);
+      return element_rot_mats;
+    })
+
+    // returns a (N_element x (2*6)) map
+    // element id -> dof id map
+    .def("get_element2dof_id_map",
+    [](conmech::stiffness_checker::Stiffness &cm)
+    {
+        return cm.getElement2DofIdMap();
+    })
+
+    // returns a (N_node x (6)) map
+    // node id -> dof id map
+    .def("get_node2dof_id_map",
+    [](conmech::stiffness_checker::Stiffness &cm)
+    {
+        return cm.getNode2DofIdMap();
+    })
+
     // check if have stored results
     .def("has_stored_result", &conmech::stiffness_checker::Stiffness::hasStoredResults)
 
@@ -76,6 +137,13 @@ PYBIND11_MODULE(pyconmech, m)
             cm.getMaxNodalDeformation(max_trans, max_rot, max_trans_vid, max_rot_vid);
         }
         return std::make_tuple(max_trans, max_rot, max_trans_vid, max_rot_vid);
+    })
+
+    // return (n_node, n_elment) for the full structure
+    .def("get_frame_stat",
+    [](conmech::stiffness_checker::Stiffness &cm)
+    {
+        return std::make_tuple(cm.getTotalNumOfVertices(), cm.getTotalNumOfElements());
     })
 
     .def("get_compliance",

@@ -29,21 +29,6 @@ namespace conmech
 namespace stiffness_checker
 {
 
-// copy from an existing frame
-//Stiffness::Stiffness(Frame &frame, bool verbose, std::string model_type)
-//  : frame_(frame), verbose_(verbose), is_init_(false), transl_tol_(1.0), rot_tol_(5 * (3.14 / 180))
-//{
-//  // frame sanity check
-//  int N_vert = frame_.sizeOfVertList();
-//  int N_element = frame_.sizeOfElementList();
-//  assert(N_vert > 0 && N_element > 0);
-//
-//  stiff_solver_.timing_ = verbose;
-//  model_type_ = model_type;
-//
-//  init();
-//}
-
 Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std::string& model_type, bool output_json)
   : verbose_(verbose), is_init_(false), include_self_weight_load_(true),
     transl_tol_(1e-3), rot_tol_(3 * (3.14 / 180)), write_result_(output_json),
@@ -121,9 +106,17 @@ bool Stiffness::init()
   // create id_map_
   int dof = frame_.sizeOfVertList() * node_dof_;
   int N_element = frame_.sizeOfElementList();
+  int N_node = frame_.sizeOfVertList();
 
   id_map_.resize(N_element, node_dof_ * 2);
+  v_id_map_.resize(N_node, node_dof_);
   auto lin_sp_id = Eigen::VectorXi::LinSpaced(node_dof_, 0, node_dof_ - 1); // 0,1,..,5
+
+  for (int i = 0; i < N_node; i++)
+  {
+    v_id_map_.block(i, 0, 1, node_dof_) =
+      (Eigen::VectorXi::Constant(node_dof_, node_dof_ * i) + lin_sp_id).transpose();
+  }
 
   for (int i = 0; i < N_element; i++)
   {
@@ -139,7 +132,6 @@ bool Stiffness::init()
  // std::cout << id_map_ << std::endl;
 
   // create fixities table
-  int N_node = frame_.sizeOfVertList();
   assert(frame_.sizeOfFixedVert() && "at least one fixed vert in model");
   fixities_table_ = Eigen::MatrixXi::Zero(frame_.sizeOfFixedVert(), 1 + node_dof_);
 
@@ -185,7 +177,6 @@ void Stiffness::setNodalDisplacementTolerance(double transl_tol, double rot_tol)
   rot_tol_ = rot_tol;
 }
 
-// TODO: self-weight depends on the existing elements too!
 void Stiffness::createSelfWeightNodalLoad(const std::vector<int> &exist_e_ids, Eigen::VectorXd &self_weight_load_P)
 {
   assert(is_init_);
@@ -750,6 +741,65 @@ bool Stiffness::solve(const bool &cond_num)
 {
   Eigen::MatrixXd U, R, F;
   return solve(U, R, F, cond_num);
+}
+
+bool Stiffness::getElementStiffnessMatrices(std::vector<Eigen::MatrixXd> &element_stiffness_mats)
+{
+  try{
+    if (!is_init_) {
+      throw std::runtime_error("stiffness checker not inited yet.\n");
+    }
+    element_stiffness_mats = element_K_list_;
+    return true;
+  }
+  catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s", e.what());
+    return false;
+  }
+}
+
+bool Stiffness::getElementLocal2GlobalRotationMatrices(std::vector<Eigen::MatrixXd> &e_L2G_rot_mats)
+{
+  try{
+    if (!is_init_) {
+      throw std::runtime_error("stiffness checker not inited yet.\n");
+    }
+    e_L2G_rot_mats = rot_m_list_;
+    return true;
+  }
+  catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s", e.what());
+    return false;
+  }
+}
+
+bool Stiffness::getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load)
+{
+  try{
+      createSelfWeightNodalLoad(exist_e_ids, self_weight_load);
+      return true;
+  }
+  catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s", e.what());
+    return false;
+  }
+}
+
+
+int Stiffness::getTotalNumOfElements()
+{
+  if (is_init_) {
+    return frame_.sizeOfElementList();
+  }
+  return 0;
+}
+
+int Stiffness::getTotalNumOfVertices()
+{
+  if (is_init_) {
+    return frame_.sizeOfVertList();
+  }
+  return 0;
 }
 
 bool Stiffness::getSolvedResults(Eigen::MatrixXd &node_displ,
