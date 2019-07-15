@@ -1,4 +1,6 @@
 # conmech - an elastic analysis engine for 3D frame structures
+[![Build Status](https://travis-ci.com/yijiangh/conmech.svg?branch=master)](https://travis-ci.com/yijiangh/conmech)
+
 
 **conmech** is an open-source library to provide efficient stiffness checkers for architectural construction sequencing. It's written in C++11 and wrapped friendly with Python via [pybind11].
 
