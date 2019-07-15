@@ -12,3 +12,6 @@
 	path = src/bindings/pyconmech/test/assembly_instances
 	url = https://github.com/yijiangh/assembly_instances
 	branch = master
+[submodule "ext/eigen"]
+	path = ext/eigen
+	url = https://github.com/eigenteam/eigen-git-mirror.git

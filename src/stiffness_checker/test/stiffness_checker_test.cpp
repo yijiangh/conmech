@@ -13,6 +13,13 @@
 
 namespace
 {
+const std::string PathSeparator =
+#ifdef _WIN32
+"\\";
+#else
+"/";
+#endif
+
 void testLocalGlobalTransf()
 {
   auto end_u = Eigen::Vector3d(1,1,1);
@@ -33,10 +40,15 @@ void repTestStiffness(const char* cfile_name,
   assert(iter > 0);
   using namespace conmech::stiffness_checker;
 
+  // TODO: cross platform
+  // std::string file_dir =
+  //   "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/bindings/pyconmech/test/assembly_instances/extrusion/";
+  // std::string result_file_dir =
+  //   "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test";
   std::string file_dir =
-    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/bindings/pyconmech/test/assembly_instances/extrusion/";
-  std::string result_file_dir =
-    "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test";
+    "C:\\Users\\harry\\Documents\\pb-construction\\conmech\\src\\bindings\\pyconmech\\test\\assembly_instances\\extrusion\\";
+  // std::string result_file_dir =
+  //   "/Users/yijiangh/Dropbox (MIT)/Projects/conmech/conmech/src/stiffness_checker/test";
 
   // set up shape file path
   std::string file_name = cfile_name;
@@ -104,6 +116,8 @@ void repTestStiffness(const char* cfile_name,
 
 } // util anon ns
 
+// from commandline:
+// >> sc_test.exe "topopt-100_S1_03-14-2019_w_layer.json" true(use_exist_id) false(verbose) 5(test_rep) false(reinit)
 int main(int argc, char** argv)
 {
   std::stringstream ss;

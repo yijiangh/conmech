@@ -1,29 +1,32 @@
-# conmech - a structural analysis computation engine for construction
+# conmech - an elastic analysis engine for 3D frame structures
 
-**conmech** is an open-source library to provide efficient mechanics checkers for architectural construction sequencing. It's written in C++11 and wrapped friendly with Python via [pybind11].
+**conmech** is an open-source library to provide efficient stiffness checkers for architectural construction sequencing. It's written in C++11 and wrapped friendly with Python via [pybind11].
 
 ## Prerequisites
+*conmech* depends on [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) for linear algebra and [rapidjson](https://github.com/Tencent/rapidjson) for json (de-)serialization, both of which are shipped with conmech.
+
+The following dependencies come from [pybind11] for building the python wrappers.
 
 **On Unix (Linux, OS X)**
 
 * A compiler with C++11 support
 * CMake >= 2.8.12
-* Dependencies: [Eigen]
-
-    ```bash
-    sudo apt-get install libeigen3-dev
-    ```
 
 **On Windows**
 
-Coming soon.
+* Visual Studio 2015 (required for all Python versions, see notes below)
+* CMake >= 3.1
 
 ## Installation
 
-Just clone this repository and pip install. Note the `--recursive` option which is needed for the pybind11 submodule:
+*conmech*'s python bindings are built with a CMake-based build system via [pybind11].
+**It is recommended (especially for Windows users) to test the environment with the [cmake_example for pybind11](https://github.com/pybind/cmake_example) before proceeding to build conmech.**
+
+
+Just clone this repository and pip install. Note the `--recursive` option which is needed for cloning the submodules:
 
 ```bash
-git clone --recursive git@github.mit.edu:yijiangh/conmech.git
+git clone --recursive https://github.com/yijiangh/conmech
 pip install ./conmech --user
 ```
 
