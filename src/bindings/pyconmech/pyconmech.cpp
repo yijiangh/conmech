@@ -173,22 +173,22 @@ PYBIND11_MODULE(pyconmech, m)
 
   ; // end stiffness checker
 
-m.def("parse_load_case_from_json", [](std::string file_path)
-{
-    Eigen::MatrixXd Load;
-    bool include_sw;
-    conmech::stiffness_checker::parseLoadCaseJson(file_path, Load, include_sw);
-    return std::make_tuple(Load, include_sw);
-});
+  m.def("parse_load_case_from_json", [](std::string file_path)
+  {
+      Eigen::MatrixXd Load;
+      bool include_sw;
+      conmech::stiffness_checker::parseLoadCaseJson(file_path, Load, include_sw);
+      return std::make_tuple(Load, include_sw);
+  });
 
-py::class_<EigenSolveDemo>(m,"eigen_solve_demo")
-  .def(py::init<>())
-  .def("test_eigen", &EigenSolveDemo::testEigen)
-  ; // end eigen solve demo
+  py::class_<EigenSolveDemo>(m,"eigen_solve_demo")
+    .def(py::init<>())
+    .def("test_eigen", &EigenSolveDemo::testEigen)
+    ; // end eigen solve demo
 
-// TODO: redirecting C++ streams
-// https://pybind11.readthedocs.io/en/stable/reference.html#redirecting-c-streams
-py::add_ostream_redirect(m, "ostream_redirect");
+  // TODO: redirecting C++ streams
+  // https://pybind11.readthedocs.io/en/stable/reference.html#redirecting-c-streams
+  py::add_ostream_redirect(m, "ostream_redirect");
 
 } // end pyconmech def
 

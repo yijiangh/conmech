@@ -1,3 +1,7 @@
+# should be refactored...
+# better way to include the input json file for tests?
+# pytest
+
 import numpy as np
 import pyconmech as cm
 import os

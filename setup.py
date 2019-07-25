@@ -63,11 +63,11 @@ class CMakeBuild(build_ext):
 # https://docs.python.org/2/distutils/setupscript.html
 
 setup(
-    name='conmech',
-    version='0.1',
+    name='pyconmech',
+    version='0.1.1',
     author='Yijiang Huang',
     author_email='yijiangh@mit.edu',
-    description='py bindings for conmech C++ code.',
+    description='py bindings for conmech: a C++ lib for 3D frame elastis deformation analysis.',
     long_description='',
     ext_modules=[CMakeExtension('pyconmech')],
     cmdclass=dict(build_ext=CMakeBuild),
