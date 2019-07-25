@@ -5,7 +5,6 @@
 
 #include <stiffness_checker/Stiffness.h>
 #include <stiffness_checker/StiffnessIO.h>
-#include <eigen_demo/eigen_demo.h>
 
 namespace py = pybind11;
 
@@ -185,11 +184,6 @@ PYBIND11_MODULE(pyconmech, m)
       conmech::stiffness_checker::parseLoadCaseJson(file_path, Load, include_sw);
       return std::make_tuple(Load, include_sw);
   });
-
-  py::class_<EigenSolveDemo>(m,"eigen_solve_demo")
-    .def(py::init<>())
-    .def("test_eigen", &EigenSolveDemo::testEigen)
-    ; // end eigen solve demo
 
   // TODO: redirecting C++ streams
   // https://pybind11.readthedocs.io/en/stable/reference.html#redirecting-c-streams
