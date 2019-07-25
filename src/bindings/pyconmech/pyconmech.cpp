@@ -189,6 +189,11 @@ PYBIND11_MODULE(pyconmech, m)
   // https://pybind11.readthedocs.io/en/stable/reference.html#redirecting-c-streams
   py::add_ostream_redirect(m, "ostream_redirect");
 
+#ifdef VERSION_INFO
+    m.attr("__version__") = VERSION_INFO;
+#else
+    m.attr("__version__") = "dev";
+#endif
 } // end pyconmech def
 
 } // namespace pyconmech
