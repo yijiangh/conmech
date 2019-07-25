@@ -34,5 +34,5 @@ build_script:
       conda build conda.recipe
       conda install --use-local pyconmech
     }
-test_script:
-- ps: python tests\test.py
+# test_script:
+# - ps: python tests\test.py

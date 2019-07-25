@@ -22,8 +22,8 @@ const std::string PathSeparator =
 
 void testLocalGlobalTransf()
 {
-  auto end_u = Eigen::Vector3d(1,1,1);
-  auto end_v = Eigen::Vector3d(1,1,1) + Eigen::Vector3d(3,5,8);
+  Eigen::Vector3d end_u = Eigen::Vector3d(1,1,1);
+  Eigen::Vector3d end_v = Eigen::Vector3d(1,1,1) + Eigen::Vector3d(3,5,8);
   Eigen::Matrix3d m;
 
   double pi = atan(1)*4;
