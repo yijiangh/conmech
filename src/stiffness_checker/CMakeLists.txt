@@ -1,4 +1,4 @@
-add_definitions("-std=c++11")
+# add_definitions("-std=c++11")
 
 #find_package(LAPACK REQUIRED)
 
@@ -14,5 +14,10 @@ add_library(stiffness_checker
 	Timer.cpp
 	StiffnessIO.cpp
 	)
+
+# auto deducing CXX features
+# https://stackoverflow.com/questions/10851247/how-to-activate-c-11-in-cmake
+# https://stackoverflow.com/questions/10984442/how-to-detect-c11-support-of-a-compiler-with-cmake/20165220#20165220
+target_compile_features(stiffness_checker PRIVATE cxx_range_for)
 
 target_link_libraries(sc_test stiffness_checker)

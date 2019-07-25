@@ -43,12 +43,17 @@ PYBIND11_MODULE(pyconmech, m)
     .def("set_nodal_displacement_tol", &conmech::stiffness_checker::Stiffness::setNodalDisplacementTolerance,
     py::arg("transl_tol"), py::arg("rot_tol"))
 
-    .def("solve", py::overload_cast<const std::vector<int> &, const bool&>(&conmech::stiffness_checker::Stiffness::solve),
+    .def("solve",
+    [](conmech::stiffness_checker::Stiffness &cm, std::vector<int> &exist_element_ids, bool if_cond_num)
+    {
+      // TODO: sanity check existing_ids within range
+      if (exist_element_ids.empty()) {
+        return cm.solve(if_cond_num);
+      } else {
+        return cm.solve(exist_element_ids, if_cond_num);
+      }
+    },
     py::arg("exist_element_ids"), py::arg("if_cond_num") = true)
-
-    // directly computing the whole structure
-    .def("solve", py::overload_cast<const bool&>(&conmech::stiffness_checker::Stiffness::solve),
-    py::arg("if_cond_num") = true)
 
     // for my own education:
     // C++ lambda function stateful/stateless enclosure
