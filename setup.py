@@ -69,7 +69,13 @@ setup(
     author_email='yijiangh@mit.edu',
     description='py bindings for conmech: a C++ lib for 3D frame elastis deformation analysis.',
     long_description='',
+    url="https://github.com/yijiangh/conmech",
     ext_modules=[CMakeExtension('pyconmech')],
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
 )
