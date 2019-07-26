@@ -61,7 +61,7 @@ before_install:
       pip install --user --upgrade pip virtualenv;
       python -m virtualenv -p python$PYTHON venv;
       source venv/bin/activate;
-    elif [ "$TRAVIS_OS_NAME" = "windows" ]; then
+    elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
       tools/travis-cache-windows.sh restore;
       cinst -y --no-progress python${PYTHON:0:1};
       # Ensure Python and the Scripts folder is available in PATH.
@@ -94,7 +94,8 @@ install:
     if [ "$TRAVIS_OS_NAME" != "windows" ]; then
       pip install --verbose dist/*.tar.gz
     elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
-      pip install --verbose dist\pyconmech-0.1.1.tar.gz
+      pip install --verbose dist/*.tar.gz
+      # pip install --verbose dist\pyconmech-0.1.1.tar.gz
     fi
   elif [ -n "$CONDA" ]; then
     conda build conda.recipe
