@@ -57,11 +57,11 @@ before_install:
     if [ "$TRAVIS_OS_NAME" == "osx" ] && [ "${PYTHON:0:1}" == "3" ]; then
       brew update; brew install python3;
     fi
-    if ["$TRAVIS_OS_NAME" != "windows" ]; then
+    if [ "$TRAVIS_OS_NAME" != "windows" ]; then
       pip install --user --upgrade pip virtualenv;
       python -m virtualenv -p python$PYTHON venv;
       source venv/bin/activate;
-    elif ["$TRAVIS_OS_NAME" = "windows" ]; then
+    elif [ "$TRAVIS_OS_NAME" = "windows" ]; then
       tools/travis-cache-windows.sh restore;
       cinst -y --no-progress python${PYTHON:0:1};
       # Ensure Python and the Scripts folder is available in PATH.
@@ -73,7 +73,7 @@ before_install:
       } | Select -Unique | % { cygpath $_ }) -Join ":"')";
       echo "PATH=$PATH";
     fi
-    ## all platforms
+    # ## all platforms
     pip install pytest
   elif [ -n "$CONDA" ]; then
     if [ "$TRAVIS_OS_NAME" == "linux" ]; then OS=Linux-x86_64; else OS=MacOSX-x86_64; fi
@@ -91,9 +91,9 @@ install:
 - |
   if [ -n "$PYTHON" ]; then
     python setup.py sdist
-    if ["$TRAVIS_OS_NAME" != "windows" ]; then
+    if [ "$TRAVIS_OS_NAME" != "windows" ]; then
       pip install --verbose dist/*.tar.gz
-    elif ["$TRAVIS_OS_NAME" == "windows" ]; then
+    elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
       pip install --verbose dist\pyconmech-0.1.1.tar.gz
     fi
   elif [ -n "$CONDA" ]; then
