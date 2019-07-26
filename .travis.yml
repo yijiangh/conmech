@@ -97,7 +97,7 @@ install:
     elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
       # pip install --verbose dist/pyconmech-0.1.1.tar.gz
       # wildcard in windows shell: https://superuser.com/questions/460598/is-there-any-way-to-get-the-windows-cmd-shell-to-expand-wildcard-paths
-      powershell -Command "& pip install --verbose $(ls dist\*.tar.gz | % {$_.FullName})"
+      powershell -Command "& pip install --verbose $(ls dist\\*.tar.gz | % {$_.FullName})"
     fi
   elif [ -n "$CONDA" ]; then
     conda build conda.recipe
