@@ -2,38 +2,81 @@ language: cpp
 dist: trusty
 matrix:
   include:
-  - os: linux
+  - name: Linux with py2.7
+    os: linux
     env: PYTHON=2.7
-  - os: linux
+  - os: linux with py3.4
     env: PYTHON=3.4
   # - os: linux
   #   env: CONDA=2.7
   # - os: linux
   #   env: CONDA=3.6
-  - os: osx
+  - name: OSX with py2.7
+    os: osx
     env: PYTHON=2.7
-  - os: osx
+  - name: OSX with py3.6
+    os: osx
     env: PYTHON=3.6
   # - os: osx
   #   env: CONDA=2.7
   # - os: osx
   #   env: CONDA=3.6
+  - name: Windows (VS2017 x64) with py3.7
+    # adapted from: https://github.com/wireshark/wireshark/blob/master/.travis.yml
+    # Set a supported language, otherwise the Windows worker will not start.
+    language : shell
+    os : windows
+    env:
+      - PLATFORM: x64
+      - PYTHON=3.7
+    cache:
+      directories:
+        - travis-cache
+  - name: Windows (VS2017 Win32) with py3.7
+    language: shell
+    os: windows
+    env:
+      - PLATFORM: Win32
+      - PYTHON=3.7
+    cache:
+      directories:
+        - travis-cache
+  # Windows builds are experimental in Travis and are unreliable, do not force it.
+  # https://blog.travis-ci.com/2018-10-11-windows-early-release
+  allow_failures:
+    - os: windows
 before_install:
 - |
-  if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+  echo $TRAVIS_OS_NAME
+  if [ "$TRAVIS_OS_NAME" == "linux" ]; then
     export CXX=g++-4.8 CC=gcc-4.8;
-  elif [ "$TRAVIS_OS_NAME" = "osx" ]; then
+  elif [ "$TRAVIS_OS_NAME" == "osx" ]; then
     export CXX=clang++ CC=clang;
   fi
   if [ -n "$PYTHON" ]; then
     if [ "$TRAVIS_OS_NAME" = "osx" ] && [ "${PYTHON:0:1}" = "3" ]; then
       brew update; brew install python3;
     fi
-    pip install --user --upgrade pip virtualenv
-    python -m virtualenv -p python$PYTHON venv
-    source venv/bin/activate
+    if ["$TRAVIS_OS_NAME" != "windows" ]; then
+      pip install --user --upgrade pip virtualenv
+      python -m virtualenv -p python$PYTHON venv
+      source venv/bin/activate
+    elif ["$TRAVIS_OS_NAME" == "windows" ]; then
+      tools/travis-cache-windows.sh restore
+      cinst -y --no-progress python${PYTHON:0:1}
+      # Ensure Python and the Scripts folder is available in PATH.
+      # refreshenv does not seem to work in bash, so reload it manually.
+      # Entries in the Machine PATH might contain trailing slashes, drop those.
+      # Apply Process paths before Machine to ensure /bin appears before others (otherwise casher will break and stall).
+      export PATH="$(powershell -Command '("Process", "Machine" | % {
+        [Environment]::GetEnvironmentVariable("PATH", $_) -Split ";" -Replace "\\$", ""
+      } | Select -Unique | % { cygpath $_ }) -Join ":"')"
+      echo "PATH=$PATH"
+    fi
+    ## all platforms
+    pip install pytest pytest-xdist
   elif [ -n "$CONDA" ]; then
-    if [ "$TRAVIS_OS_NAME" = "linux" ]; then OS=Linux-x86_64; else OS=MacOSX-x86_64; fi
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then OS=Linux-x86_64; else OS=MacOSX-x86_64; fi
     wget -O miniconda.sh https://repo.continuum.io/miniconda/Miniconda${CONDA:0:1}-latest-$OS.sh
     bash miniconda.sh -b -p $HOME/miniconda
     export PATH="$HOME/miniconda/bin:$PATH"
@@ -48,7 +91,11 @@ install:
 - |
   if [ -n "$PYTHON" ]; then
     python setup.py sdist
-    pip install --verbose dist/*.tar.gz
+    if ["$TRAVIS_OS_NAME" != "windows" ]; then
+      pip install --verbose dist/*.tar.gz
+    elif ["$TRAVIS_OS_NAME" == "windows" ]; then
+      pip install --verbose dist\pyconmech-0.1.1.tar.gz
+    fi
   elif [ -n "$CONDA" ]; then
     conda build conda.recipe
     conda install --use-local pyconmech
