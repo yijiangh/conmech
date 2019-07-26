@@ -73,6 +73,7 @@ before_install:
         [Environment]::GetEnvironmentVariable("PATH", $_) -Split ";" -Replace "\\$", ""
       } | Select -Unique | % { cygpath $_ }) -Join ":"')";
       echo "PATH=$PATH";
+      pip install --disable-pip-version-check --user --upgrade pip setuptools
     fi
     # ## all platforms
     pip install pytest
@@ -98,7 +99,7 @@ install:
       # pip install --verbose dist/pyconmech-0.1.1.tar.gz
       # wildcard in windows shell: https://superuser.com/questions/460598/is-there-any-way-to-get-the-windows-cmd-shell-to-expand-wildcard-paths
       powershell -Command "& ls"
-      powershell -Command "& pip install --verbose $(ls yijiangh/conmech/dist/*.tar.gz | % {$_.FullName})"
+      powershell -Command "& pip install --verbose $(ls dist/*.tar.gz | % {$_.FullName})"
     fi
   elif [ -n "$CONDA" ]; then
     conda build conda.recipe
