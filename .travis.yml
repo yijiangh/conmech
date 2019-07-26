@@ -92,10 +92,11 @@ before_install:
 install:
 - |
   if [ -n "$PYTHON" ]; then
-    python setup.py sdist
     if [ "$TRAVIS_OS_NAME" != "windows" ]; then
+      python setup.py sdist
       pip install --verbose dist/*.tar.gz
     elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
+      python${PYTHON:0:1} setup.py sdist
       # pip install --verbose dist/pyconmech-0.1.1.tar.gz
       # wildcard in windows shell: https://superuser.com/questions/460598/is-there-any-way-to-get-the-windows-cmd-shell-to-expand-wildcard-paths
       powershell -Command "& ls"
@@ -106,4 +107,9 @@ install:
     conda install --use-local pyconmech
   fi
 script:
-- python tests/test.py
+- |
+  if [ "$TRAVIS_OS_NAME" != "windows" ]; then
+    python tests/test.py;
+  elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
+    python${PYTHON:0:1} tests/test.py;
+  fi
