@@ -5,7 +5,8 @@ matrix:
   - name: Linux with py2.7
     os: linux
     env: PYTHON=2.7
-  - os: linux with py3.4
+  - name: Linux with py3.4
+    os: linux
     env: PYTHON=3.4
   # - os: linux
   #   env: CONDA=2.7
@@ -47,7 +48,6 @@ matrix:
     - os: windows
 before_install:
 - |
-  echo $TRAVIS_OS_NAME
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
     export CXX=g++-4.8 CC=gcc-4.8;
   elif [ "$TRAVIS_OS_NAME" == "osx" ]; then
