@@ -16,8 +16,8 @@ from compas_fea.structure import GravityLoad
 from compas_fea.structure import PointLoad
 from compas_fea.structure import ElasticIsotropic
 from compas_fea.structure import Structure
-from compas_fea.structure import TrussSection
 from compas_fea.structure import CircularSection
+from compas_fea.structure import PinnedDisplacement, GeneralDisplacement
 
 ASSEMBLY_INSTANCE_DIR = os.path.join('..', 'assembly_instances', 'extrusion')
 TEST_DATA_DIR = os.path.join('..', 'test_data')
@@ -253,7 +253,7 @@ def compute_abaqus(file_path, load_path):
             load_json_data = json.loads(f.read())
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    temp_dir = os.path.join(root_dir, 'compas_fea-temp')
+    temp_dir = os.path.join(root_dir, 'compas_fea-temp-')
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
     file_json_name = file_path.split(os.sep)[-1]
@@ -279,13 +279,16 @@ def compute_abaqus(file_path, load_path):
         # 'ex' axis represents the cross-section’s major axis
         # 'ey' is the cross-section’s minor axis
         # 'ez' is the axis along the element
-        ez = mat[0][0:3] # conmech longitude axis
-        ex = mat[1][0:3] # conmech cross sec major axis
-        ey = mat[2][0:3] # conmech cross sec minor axis
+        # TODO: this numpy array to list conversion
+        # is essential to make compas_fea work...
+        ez = list(mat[0][0:3]) # conmech longitude axis
+        ex = list(mat[1][0:3]) # conmech cross sec major axis
+        ey = list(mat[2][0:3]) # conmech cross sec minor axis
 
         mdl.add_element(nodes=e,
                         type='BeamElement',
                         axes={'ex': ex, 'ey': ey, 'ez': ez})
+        # print(mdl.elements[mdl.check_element_exists(nodes=e)])
 
     assert_equal(mdl.element_count(), len(elements))
 
@@ -293,8 +296,19 @@ def compute_abaqus(file_path, load_path):
     # just convenient aliases for referring to a group of elements
     mdl.add_set(name='elset_all', type='element', selection=list(range(mdl.element_count())))
 
+    mdl.add_set(name='nset_all', type='node', selection=list(range(mdl.node_count())))
+
     fixities = parse_fixties(json_data)
     mdl.add_set(name='nset_fix', type='node', selection=[f[0] for f in fixities])
+
+    if load_json_data:
+        pt_loads, include_sw = parse_load_case(load_json_data)
+        # mdl.add_set(name='nset_pt_load', type='node', selection=[l[0] for l in pt_loads])
+    else:
+        pt_loads = []
+        include_sw = True
+    if pt_loads:
+        mdl.add_set(name='nset_v_load_all', type='node', selection=[pl[0] for pl in pt_loads])
 
     # Materials
     # Young’s modulus E [in units of Pa]
@@ -311,64 +325,74 @@ def compute_abaqus(file_path, load_path):
     # G_scale = parse_pressure_scale_conversion(mat_json['shear_modulus_unit'])
     # print('{}, {}'.format(mdl.materials['mat_' + mat_json['material_name']].G, G_scale * mat_json['shear_modulus']))
     # assert_almost_equal(mdl.materials['mat_' + mat_json['material_name']].G['G'], G_scale * mat_json['shear_modulus'])
-    print(mdl.materials[mat_name])
+    # print('-----------material')
+    # print(mdl.materials[mat_name])
 
     # Sections
     # SI units should be used, this includes the use of metres m for cross-section dimensions, not millimetres mm.
     sec_name = 'sec_circ'
-    mdl.add([
-        TrussSection(name=sec_name, A=parse_circular_cross_sec_radius(json_data)),
-    ])
+    mdl.add(CircularSection(name=sec_name, r=parse_circular_cross_sec_radius(json_data)))
+
+    # print('-----------cross section')
+    # print(mdl.sections[sec_name])
 
     # Properties, associate material & cross sec w/ element sets
     mdl.add(Properties(name='ep_all', material=mat_name, section=sec_name, elset='elset_all'))
 
     # Displacements
-    # conmech does not support this at the moment...
-    # mdl.add(PinnedDisplacement(name='disp_pinned', nodes='nset_pins'))
+    # pin supports
+    for i, fix in enumerate(fixities):
+        f_dof = []
+        for j in range(6):
+            if fix[j+1] == 1:
+                f_dof.append(0)
+            else:
+                f_dof.append(None)
+        mdl.add(GeneralDisplacement(name='disp_fix_'+str(i), nodes=[fix[0]], x=f_dof[0], y=f_dof[1], z=f_dof[2], xx=f_dof[3], yy=f_dof[4], zz=f_dof[5]))
+    # print('-----------fixities')
+    # for i in range(len(fixities)):
+    #     print(mdl.displacements['disp_fix_'+str(i)])
 
     # Loads
-    if load_json_data:
-        pt_loads, include_sw = parse_load_case(load_json_data)
-        # mdl.add_set(name='nset_pt_load', type='node', selection=[l[0] for l in pt_loads])
-    else:
-        pt_loads = []
-        include_sw = True
     mdl.add(GravityLoad(name='load_gravity', elements='elset_all'))
     if pt_loads:
         mdl.add([PointLoad(name='load_v_'+str(i), nodes=[pl[0]],
                            x=pl[1], y=pl[2], z=pl[3],
                            xx=pl[4], yy=pl[5], zz=pl[6])
                  for i, pl in enumerate(pt_loads)])
+    # print('-----------loads')
+    # print(mdl.loads['load_gravity'])
+    # for i in range(len(pt_loads)):
+    #     print(mdl.loads['load_v_'+str(i)])
 
-    print(mdl.loads['load_gravity'])
-    for i in range(len(pt_loads)):
-        print(mdl.loads['load_v_'+str(i)])
+    # Steps
+    mdl.add([
+        GeneralStep(name='step_bc', displacements=['disp_fix_'+str(i) for i in range(len(fixities))]),
+        GeneralStep(name='step_loads', loads=['load_v_'+str(i) for i in range(len(pt_loads))] + ['load_gravity'])
+        ])
+    # a boundary condition step such as 'step_bc' above, should always be applied as the first step to prevent rigid body motion
+    mdl.steps_order = ['step_bc', 'step_loads']
 
-    # # Steps
-    #
-    # mdl.add([
-    #     GeneralStep(name='step_bc', displacements=['disp_pinned']),
-    #     GeneralStep(name='step_loads', loads=['load_v', 'load_h', 'load_gravity'], factor=1.5, increments=300),
-    # ])
-    # mdl.steps_order = ['step_bc', 'step_loads']
-    #
-    # # Summary
-    #
-    # mdl.summary()
-    #
-    # # Run
-    #
-    # mdl.analyse_and_extract(software='abaqus', fields=['u', 's', 'sf', 'cf', 'rf'], ndof=3)
-    #
-    # rhino.plot_data(mdl, step='step_loads', field='um', radius=0.1, scale=10, cbar_size=0.3)
-    # rhino.plot_data(mdl, step='step_loads', field='sxx', radius=0.1, cbar_size=0.3)  # abaqus:sxx opensees:sf1
-    # rhino.plot_reaction_forces(mdl, step='step_loads', scale=0.05)
-    # rhino.plot_concentrated_forces(mdl, step='step_loads', scale=0.2)
-    #
-    # print(mdl.get_nodal_results(step='step_loads', field='um', nodes='nset_load_v'))
-    # print(mdl.get_nodal_results(step='step_loads', field='rfm', nodes='nset_pins'))
-    # print(mdl.get_element_results(step='step_loads', field='sxx', elements='elset_main'))
+    # Summary
+    mdl.summary()
+
+    # Run
+    # node
+    # 'u': nodal displacement: ux, uy, uz, um (magnitude)
+    # 'ur': nodal rotation
+    # 'rf': reaction force
+    # 'cf': concentrated force
+    # 'cm': concentrated moment
+
+    # element
+    # 's': beam stress: sxx, syy, szz
+    # 'sf': section force: sf1, sf2, sf3
+
+    mdl.analyse_and_extract(software='abaqus', fields=['u', 'ur', 's', 'sf', 'cf', 'rf'], ndof=6)
+
+    print(mdl.get_nodal_results(step='step_loads', field='um', nodes='nset_v_load_all'))
+    print(mdl.get_nodal_results(step='step_loads', field='rfm', nodes='nset_fix'))
+    print(mdl.get_element_results(step='step_loads', field='sxx', elements='elset_all'))
 
     nodal_disp = []
     fixities_reaction = []

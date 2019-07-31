@@ -30,4 +30,5 @@ src/stiffness_checker/test/validation/*
 .tags1
 
 # abaqus temp
-**/compas_fea-temp
+**/compas_fea-temp*
+abaqus.rpy
