@@ -354,27 +354,36 @@ def compute_abaqus(file_path, load_path):
     #     print(mdl.displacements['disp_fix_'+str(i)])
 
     # Loads
-    mdl.add(GravityLoad(name='load_gravity', elements='elset_all'))
     if pt_loads:
         mdl.add([PointLoad(name='load_v_'+str(i), nodes=[pl[0]],
                            x=pl[1], y=pl[2], z=pl[3],
                            xx=pl[4], yy=pl[5], zz=pl[6])
                  for i, pl in enumerate(pt_loads)])
+        if include_sw:
+            mdl.add(GravityLoad(name='load_gravity', elements='elset_all'))
+    else:
+        mdl.add(GravityLoad(name='load_gravity', elements='elset_all'))
     # print('-----------loads')
     # print(mdl.loads['load_gravity'])
     # for i in range(len(pt_loads)):
     #     print(mdl.loads['load_v_'+str(i)])
 
     # Steps
+    loads_names = []
+    if pt_loads:
+        loads_names.extend(['load_v_'+str(i) for i in range(len(pt_loads))])
+    if include_sw:
+        loads_names.append('load_gravity')
     mdl.add([
         GeneralStep(name='step_bc', displacements=['disp_fix_'+str(i) for i in range(len(fixities))]),
-        GeneralStep(name='step_loads', loads=['load_v_'+str(i) for i in range(len(pt_loads))] + ['load_gravity'])
+        GeneralStep(name='step_loads', loads=loads_names)
         ])
+
     # a boundary condition step such as 'step_bc' above, should always be applied as the first step to prevent rigid body motion
     mdl.steps_order = ['step_bc', 'step_loads']
 
     # Summary
-    mdl.summary()
+    # mdl.summary()
 
     # Run
     # node
@@ -390,11 +399,22 @@ def compute_abaqus(file_path, load_path):
 
     mdl.analyse_and_extract(software='abaqus', fields=['u', 'ur', 's', 'sf', 'cf', 'rf'], ndof=6)
 
-    print(mdl.get_nodal_results(step='step_loads', field='um', nodes='nset_v_load_all'))
-    print(mdl.get_nodal_results(step='step_loads', field='rfm', nodes='nset_fix'))
-    print(mdl.get_element_results(step='step_loads', field='sxx', elements='elset_all'))
+    # nodal displacement
+    ux = mdl.get_nodal_results(step='step_loads', field='ux', nodes='nset_all')
+    uy = mdl.get_nodal_results(step='step_loads', field='uy', nodes='nset_all')
+    uz = mdl.get_nodal_results(step='step_loads', field='uz', nodes='nset_all')
+    urx = mdl.get_nodal_results(step='step_loads', field='urx', nodes='nset_all')
+    ury = mdl.get_nodal_results(step='step_loads', field='ury', nodes='nset_all')
+    urz = mdl.get_nodal_results(step='step_loads', field='urz', nodes='nset_all')
+
+    # print(mdl.get_nodal_results(step='step_loads', field='rfm', nodes='nset_fix'))
+    # print(mdl.get_element_results(step='step_loads', field='sxx', elements='elset_all'))
 
     nodal_disp = []
+    for e_id in ux.keys():
+        nodal_disp.append([e_id, ux[e_id], uy[e_id], uz[e_id],
+                           urx[e_id], ury[e_id], urz[e_id]])
+
     fixities_reaction = []
     element_reaction = []
     return nodal_disp, fixities_reaction, element_reaction
@@ -428,7 +448,7 @@ def compute_conmech(file_path, load_path=''):
     """
     sc = stiffness_checker(json_file_path=file_path, verbose=False)
     if load_path:
-        ext_load, include_sw = parse_load_case_from_json(load_case_path)
+        ext_load, include_sw = parse_load_case_from_json(load_path)
         sc.set_load(nodal_forces = ext_load)
         sc.set_self_weight_load(include_sw)
     else:
@@ -437,15 +457,15 @@ def compute_conmech(file_path, load_path=''):
     sc.solve()
     success, nodal_disp, fixities_reaction, element_reaction  = sc.get_solved_results()
 
-    print('============================')
-    print("conmech pass criteria?\n {0}".format(success))
-    trans_tol, rot_tol = sc.get_nodal_deformation_tol()
-    max_trans, max_rot, max_trans_vid, max_rot_vid = sc.get_max_nodal_deformation()
-    compliance = sc.get_compliance()
-
-    print('max deformation: translation: {0} / tol {1}, at node #{2}'.format(max_trans, trans_tol, max_trans_vid))
-    print('max deformation: rotation: {0} / tol {1}, at node #{2}'.format(max_rot, rot_tol, max_rot_vid))
-    print('compliance: {}'.format(compliance))
+    # print('============================')
+    # print("conmech pass criteria?\n {0}".format(success))
+    # trans_tol, rot_tol = sc.get_nodal_deformation_tol()
+    # max_trans, max_rot, max_trans_vid, max_rot_vid = sc.get_max_nodal_deformation()
+    # compliance = sc.get_compliance()
+    #
+    # print('max deformation: translation: {0} / tol {1}, at node #{2}'.format(max_trans, trans_tol, max_trans_vid))
+    # print('max deformation: rotation: {0} / tol {1}, at node #{2}'.format(max_rot, rot_tol, max_rot_vid))
+    # print('compliance: {}'.format(compliance))
 
     return nodal_disp, fixities_reaction, element_reaction
 
@@ -468,8 +488,29 @@ def main():
     else:
         file_path = os.path.join(root_directory, ASSEMBLY_INSTANCE_DIR, args.problem)
 
-    # cm_nD, cm_fR, cm_eR = compute_conmech(file_path, load_path)
+    cm_nD, cm_fR, cm_eR = compute_conmech(file_path, load_path)
+    print('===================')
+    print('---conmech result:')
+    for i in range(len(cm_nD)):
+        print('node u #{}: {}'.format(int(cm_nD[i][0]), cm_nD[i][1:7]))
+    print('--------------------')
+
+    # for i in range(len(cm_fR)):
+    #     print('fix node #{} r: {}'.format(int(cm_fR[i][0]), cm_fR[i][1:7]))
+    # print('--------------------')
+
+    # for i in range(len(cm_fR)):
+    #     print('fix node #{} n0: {}'.format(int(cm_fR[i][0]), cm_fR[i][1:7]))
+    #     print('element r #{} n1: {}'.format(int(cm_fR[i][0]), cm_fR[i][8:14]))
+    #
+
     ab_nD, ab_fR, ab_eR = compute_abaqus(file_path, load_path)
+    print('===================')
+    print('---abaqus result:')
+    for i in range(len(ab_nD)):
+        print('node u #{}: {}'.format(int(ab_nD[i][0]), ab_nD[i][1:7]))
+    print('--------------------')
+
 
 
 if __name__ == '__main__':
