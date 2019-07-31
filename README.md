@@ -17,7 +17,7 @@ pip install pyconmech
 
 (A cool gif should come here :satisfied:)
 
-For examples of interactive usage in python (analysis for complete or partial structure in a construction sequence), see [stiffness_checker_test.ipynb](src/bindings/pyconmech/test/stiffness_checker_test.ipynb).
+For examples of interactive usage in python (analysis for complete or partial structure in a construction sequence), see [stiffness_checker_test.ipynb](tests/notebook_demo/demo.ipynb).
 
 ## Build from source
 

@@ -3,6 +3,7 @@ import re
 import sys
 import platform
 import subprocess
+import io
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
@@ -62,13 +63,28 @@ class CMakeBuild(build_ext):
 # for more info for extension modules:
 # https://docs.python.org/2/distutils/setupscript.html
 
+here = os.path.abspath(os.path.dirname(__file__))
+
+
+def read(*names, **kwargs):
+    return io.open(
+        os.path.join(here, *names),
+        encoding=kwargs.get('encoding', 'utf8')
+    ).read()
+
+
+long_description = read('README.md')
+# requirements = read('requirements.txt').split('\n')
+# optional_requirements = {
+# }
+
 setup(
     name='pyconmech',
     version='0.1.1',
     author='Yijiang Huang',
     author_email='yijiangh@mit.edu',
     description='py bindings for conmech: a C++ lib for 3D frame elastis deformation analysis.',
-    long_description='',
+    long_description='long_description',
     url="https://github.com/yijiangh/conmech",
     ext_modules=[CMakeExtension('pyconmech')],
     cmdclass=dict(build_ext=CMakeBuild),
@@ -86,4 +102,5 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Topic :: Structural Engineering',
     ],
+    keywords=['3D frame analysis', 'Finite Element Analysis', 'Structural Analysis'],
 )
