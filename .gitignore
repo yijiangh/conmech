@@ -28,3 +28,6 @@ src/stiffness_checker/test/validation/*
 # ctags
 .tags
 .tags1
+
+# abaqus temp
+**/compas_fea-temp

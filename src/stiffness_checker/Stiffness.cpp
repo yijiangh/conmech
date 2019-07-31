@@ -642,8 +642,8 @@ bool Stiffness::solve(
     }
 
     element_reaction(cnt, 0) = e_id;
-    element_reaction.block(cnt, 1, 1, e_react_dof_id_.size()) = (rot_m_list_[e_id] * element_K_list_[e_id] *
-                                                                 Ue).transpose();
+    element_reaction.block(cnt, 1, 1, e_react_dof_id_.size()) =
+      (rot_m_list_[e_id] * element_K_list_[e_id] * Ue).transpose();
     cnt++;
   }
   stored_element_reaction_ = element_reaction;
