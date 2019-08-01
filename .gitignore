@@ -31,4 +31,5 @@ src/stiffness_checker/test/validation/*
 
 # abaqus temp
 **/compas_fea-temp*
+**/conmech-temp*
 abaqus.rpy

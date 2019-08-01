@@ -102,4 +102,4 @@ install:
     conda install --use-local pyconmech
   fi
 script:
-- python tests/test.py
+- pytest

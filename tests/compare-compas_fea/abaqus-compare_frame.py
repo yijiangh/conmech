@@ -7,6 +7,8 @@ import argparse
 import os
 import json
 
+import numpy as np
+from numpy import divide, maximum, abs
 from numpy.testing import assert_equal, assert_almost_equal
 from pyconmech import stiffness_checker, parse_load_case_from_json
 
@@ -218,7 +220,63 @@ def parse_load_case(json_data):
     return pt_loads, include_sw
 
 
-def compute_abaqus(file_path, load_path):
+def parse_abaqus_result_json(file_name, temp_dir, step='step_loads'):
+    res_file_path = os.path.join(temp_dir, file_name, file_name + '-results.json')
+    with open(res_file_path, 'r') as f:
+        json_data = json.loads(f.read())
+        print('abaqus result parsed: {}'.format(res_file_path))
+
+    nodal_data = json_data[step]['nodal']
+    n_num = len(nodal_data['ux'])
+    assert n_num == len(nodal_data['uy']) and \
+        n_num == len(nodal_data['uz']) and \
+        n_num == len(nodal_data['urx']) and \
+        n_num == len(nodal_data['ury']) and \
+        n_num == len(nodal_data['urz'])
+
+    nD = {}
+    for n_id in nodal_data['ux'].keys():
+        nD[int(n_id)] = [nodal_data['ux'][n_id],
+                         nodal_data['uy'][n_id],
+                         nodal_data['uz'][n_id],
+                         nodal_data['urx'][n_id],
+                         nodal_data['ury'][n_id],
+                         nodal_data['urz'][n_id]]
+
+    fR = {}
+    for n_id in nodal_data['rfx'].keys():
+        fR[int(n_id)] = [nodal_data['rfx'][n_id],
+                         nodal_data['rfy'][n_id],
+                         nodal_data['rfz'][n_id],
+                         nodal_data['rmx'][n_id],
+                         nodal_data['rmy'][n_id],
+                         nodal_data['rmz'][n_id]]
+
+    eR = {}
+    return nD, fR, eR
+
+
+def parse_conmech_result_json(file_name, temp_dir):
+    res_file_path = os.path.join(temp_dir, file_name + '-results.json')
+    with open(res_file_path, 'r') as f:
+        json_data = json.loads(f.read())
+        print('conmech result parsed: {}'.format(res_file_path))
+
+    nD_data = json_data['node_displacement']
+    nD = {}
+    for nd in nD_data:
+        nD[nd['node_id']] = nd['displacement']
+
+    fR_data = json_data['fixity_reaction']
+    fR = {}
+    for fr in fR_data:
+        fR[fr['node_id']] = fr['reaction']
+
+    eR = {}
+    return nD, fR, eR
+
+
+def compute_abaqus(file_path, load_path, recompute=True):
     """ Use abaqus (via compas_fea) to perform elastic FEA on the given frame
     under a given load case. If no load path is specified, elemental gravity
     will be assumbed to be applied.
@@ -232,19 +290,35 @@ def compute_abaqus(file_path, load_path):
 
     Returns
     -------
-    nodal_disp: (n_element x 7) array
-        Reactional nodal displacement. Each row is
+    nD: dict
+        Reactional nodal displacement
+        key is the node id.
+        value is
         (nodal_id, dx, dy, dz, theta_x, theta_y, theta_z).
 
-    element_reaction: (n_element x 13) array
-        Element-wise reaction force, moment (two ends). The first entry of each
-        row is the element id.
+    fR: dict
+        Fixities reaction force, moment.
+        key is the nodal id.
+        value is [Fxyz, Mxyz] in the global axes.
 
-    fixities_reaction: (n_fixities x 7)
-        Fixities reaction force, moment. The first entry of each row is
-        nodal_id.
+    eR: dict
+        Element-wise reaction force, moment (two ends).
+        key is the element id.
+        (Fxyz_1, Mxyz_1, Fxyz_2, Mxyz_2)
 
     """
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    temp_dir = os.path.join(root_dir, 'compas_fea-temp')
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+
+    file_json_name = file_path.split(os.sep)[-1]
+    file_name = file_json_name.split('.')[0]
+    print('compas_fea initing: file name {}'.format(file_name))
+    if not recompute:
+        nD, fR, eR = parse_abaqus_result_json(file_name, temp_dir)
+        return nD, fR, eR
+
     with open(file_path, 'r') as f:
         json_data = json.loads(f.read())
     load_json_data = {}
@@ -252,16 +326,8 @@ def compute_abaqus(file_path, load_path):
         with open(load_path, 'r') as f:
             load_json_data = json.loads(f.read())
 
-    root_dir = os.path.dirname(os.path.abspath(__file__))
-    temp_dir = os.path.join(root_dir, 'compas_fea-temp-')
-    if not os.path.exists(temp_dir):
-        os.makedirs(temp_dir)
-    file_json_name = file_path.split(os.sep)[-1]
-    file_name = file_json_name.split('.')[0]
-    print('compas_fea initing: file name {}'.format(file_name))
-
     # init an empty structure
-    mdl = Structure(name=file_name, path=temp_dir)
+    mdl = Structure(name=file_name, path=os.path.join(temp_dir, ''))
 
     # nodes
     mdl.add_nodes(nodes=parse_frame_nodes(json_data))
@@ -390,36 +456,32 @@ def compute_abaqus(file_path, load_path):
     # 'u': nodal displacement: ux, uy, uz, um (magnitude)
     # 'ur': nodal rotation
     # 'rf': reaction force
-    # 'cf': concentrated force
-    # 'cm': concentrated moment
+    # 'cf': concentrated force (external load)
+    # 'cm': concentrated moment (external load)
 
     # element
-    # 's': beam stress: sxx, syy, szz
-    # 'sf': section force: sf1, sf2, sf3
+    # 's': beam stress (conmech cannot compute this at
+    # version 0.1.1)
+    # For beam, the following values are evaluated
+    # at the "integration point" 'ip1' (middle point)
+    # and pts along the axis: 'sp3, sp7, sp11, sp15'
+    # sxx: axial
+    # syy: hoop
+    # sxy: torsion
+    # smises: Von Mises
+    # smaxp: max principal
+    # sminp: min principal
 
-    mdl.analyse_and_extract(software='abaqus', fields=['u', 'ur', 's', 'sf', 'cf', 'rf'], ndof=6)
+    # 'sf': beam section force
+    # sf1: axial
+    # sf2: shear x
+    # sf3: shear y
+    mdl.analyse_and_extract(software='abaqus', fields=['u', 'ur', 'rf', 'rm', 'sf'], ndof=6, output=True)
 
-    # nodal displacement
-    ux = mdl.get_nodal_results(step='step_loads', field='ux', nodes='nset_all')
-    uy = mdl.get_nodal_results(step='step_loads', field='uy', nodes='nset_all')
-    uz = mdl.get_nodal_results(step='step_loads', field='uz', nodes='nset_all')
-    urx = mdl.get_nodal_results(step='step_loads', field='urx', nodes='nset_all')
-    ury = mdl.get_nodal_results(step='step_loads', field='ury', nodes='nset_all')
-    urz = mdl.get_nodal_results(step='step_loads', field='urz', nodes='nset_all')
+    nD, fR, eR = parse_abaqus_result_json(file_name, temp_dir)
+    return nD, fR, eR
 
-    # print(mdl.get_nodal_results(step='step_loads', field='rfm', nodes='nset_fix'))
-    # print(mdl.get_element_results(step='step_loads', field='sxx', elements='elset_all'))
-
-    nodal_disp = []
-    for e_id in ux.keys():
-        nodal_disp.append([e_id, ux[e_id], uy[e_id], uz[e_id],
-                           urx[e_id], ury[e_id], urz[e_id]])
-
-    fixities_reaction = []
-    element_reaction = []
-    return nodal_disp, fixities_reaction, element_reaction
-
-def compute_conmech(file_path, load_path=''):
+def compute_conmech(file_path, load_path='', recompute=True):
     """ Use pyconmech to perform elastic FEA on the given frame under a given
     load case. If no load path is specified, elemental gravity will be assumbed
     to be applied.
@@ -446,7 +508,23 @@ def compute_conmech(file_path, load_path=''):
         row is the element id.
 
     """
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    temp_dir = os.path.join(root_dir, 'conmech-temp')
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+
+    file_json_name = file_path.split(os.sep)[-1]
+    file_name = file_json_name.split('.')[0]
+    print('conmech initing: file name {}'.format(file_name))
+    if not recompute:
+        nD, fR, eR = parse_conmech_result_json(file_name, temp_dir)
+        return nD, fR, eR
+
     sc = stiffness_checker(json_file_path=file_path, verbose=False)
+
+    sc.set_output_json(True)
+    sc.set_output_json_path(file_path = temp_dir, file_name = file_name + "-results.json")
+
     if load_path:
         ext_load, include_sw = parse_load_case_from_json(load_path)
         sc.set_load(nodal_forces = ext_load)
@@ -455,7 +533,7 @@ def compute_conmech(file_path, load_path=''):
         sc.set_self_weight_load(True)
 
     sc.solve()
-    success, nodal_disp, fixities_reaction, element_reaction  = sc.get_solved_results()
+    success, nD, fR, eR  = sc.get_solved_results()
 
     # print('============================')
     # print("conmech pass criteria?\n {0}".format(success))
@@ -466,15 +544,35 @@ def compute_conmech(file_path, load_path=''):
     # print('max deformation: translation: {0} / tol {1}, at node #{2}'.format(max_trans, trans_tol, max_trans_vid))
     # print('max deformation: rotation: {0} / tol {1}, at node #{2}'.format(max_rot, rot_tol, max_rot_vid))
     # print('compliance: {}'.format(compliance))
+    nodal_disp = {}
+    fixities_reaction = {}
+    element_reaction = {}
+    for nd in nD:
+        nodal_disp[int(nd[0])] = nd[1:7]
+    for fr in fR:
+        fixities_reaction[int(fr[0])] = fr[1:7]
+    for er in eR:
+        element_reaction[int(er[0])] = er[1:13]
 
     return nodal_disp, fixities_reaction, element_reaction
 
+
+def compute_relative_error(np_vec1, np_vec2):
+    rel_err = np.true_divide(abs(np_vec1 - np_vec2), maximum(abs(np_vec1), abs(np_vec2)))
+    zero_eps = 1e-30
+    # if both entries are zero, rel error 0
+    for i in range(len(rel_err)):
+        if abs(np_vec1[i]) < zero_eps and abs(np_vec2[i]) < zero_eps:
+            rel_err[i] = 0.0
+    return np.amax(rel_err)
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--problem', default='tower_3D.json', help='The name of the problem file to solve')
     parser.add_argument('-l', '--load', default='tower_3D_load_case.json', help='The name of the load case file to solve')
     parser.add_argument('-a', '--assembly', action='store_true', help='Use test problems from assembly_instance')
+    parser.add_argument('-pa', '--parse_result', action='store_true', help='do not recompute abaqus, parse existing results')
+    # parser.add_argument('-pl', '--plot', action='store_true', help='plot results')
 
     args = parser.parse_args()
     print('Arguments:', args)
@@ -484,15 +582,16 @@ def main():
     load_path = ''
     if not args.assembly:
         file_path = os.path.join(root_directory, TEST_DATA_DIR, args.problem)
-        load_path = os.path.join(root_directory, TEST_DATA_DIR, args.load)
+        if args.load:
+            load_path = os.path.join(root_directory, TEST_DATA_DIR, args.load)
     else:
         file_path = os.path.join(root_directory, ASSEMBLY_INSTANCE_DIR, args.problem)
 
-    cm_nD, cm_fR, cm_eR = compute_conmech(file_path, load_path)
+    cm_nD, cm_fR, cm_eR = compute_conmech(file_path, load_path, recompute=not args.parse_result)
     print('===================')
     print('---conmech result:')
-    for i in range(len(cm_nD)):
-        print('node u #{}: {}'.format(int(cm_nD[i][0]), cm_nD[i][1:7]))
+    for n_id, nd in cm_nD.items():
+        print('node u #{}: {}'.format(n_id, nd))
     print('--------------------')
 
     # for i in range(len(cm_fR)):
@@ -504,12 +603,27 @@ def main():
     #     print('element r #{} n1: {}'.format(int(cm_fR[i][0]), cm_fR[i][8:14]))
     #
 
-    ab_nD, ab_fR, ab_eR = compute_abaqus(file_path, load_path)
+    ab_nD, ab_fR, ab_eR = compute_abaqus(file_path, load_path, recompute=not args.parse_result)
     print('===================')
     print('---abaqus result:')
-    for i in range(len(ab_nD)):
-        print('node u #{}: {}'.format(int(ab_nD[i][0]), ab_nD[i][1:7]))
+    for n_id, nd in ab_nD.items():
+        print('node u #{}: {}'.format(n_id, nd))
     print('--------------------')
+
+    # align nodal translational displacement
+    cm_nd_trans = []
+    ab_nd_trans = []
+    cm_nd_rot = []
+    ab_nd_rot = []
+    for n_id in cm_nD.keys():
+        cm_nd_trans.extend(cm_nD[n_id][0:3])
+        ab_nd_trans.extend(ab_nD[n_id][0:3])
+        cm_nd_rot.extend(cm_nD[n_id][3:6])
+        ab_nd_rot.extend(ab_nD[n_id][3:6])
+    assert len(cm_nd_trans) == len(ab_nd_trans)
+    trans_err = compute_relative_error(np.array(cm_nd_trans), np.array(ab_nd_trans))
+    rot_err = compute_relative_error(np.array(cm_nd_rot), np.array(ab_nd_rot))
+    print('nodal displ trans rel error: {}, rot rel error: {}'.format(trans_err, rot_err))
 
 
 

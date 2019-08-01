@@ -276,10 +276,11 @@ void Stiffness::createElementStiffnessMatrixList()
 
   // E,G: MPa; mu (poisson ratio): unitless
   double E = material_parm_.youngs_modulus_;
-  double G = material_parm_.shear_modulus_;
   double mu = material_parm_.poisson_ratio_;
+  // double G = material_parm_.shear_modulus_;
+  double G = 0.5 * E / (1 + mu);
 
-  assert(std::abs((G - E / (2 * (1 + mu))) / G) < 1e-3
+  assert(std::abs((material_parm_.shear_modulus_ - G) / G) < 1e-6
          && "input poisson ratio not compatible with shear and Young's modulus!");
 
   int N_element = frame_.sizeOfElementList();

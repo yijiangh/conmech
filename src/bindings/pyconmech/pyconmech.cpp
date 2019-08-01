@@ -43,7 +43,7 @@ PYBIND11_MODULE(pyconmech, m)
     py::arg("transl_tol"), py::arg("rot_tol"))
 
     .def("solve",
-    [](conmech::stiffness_checker::Stiffness &cm, std::vector<int> &exist_element_ids, bool if_cond_num)
+    [](conmech::stiffness_checker::Stiffness &cm, const std::vector<int> &exist_element_ids = std::vector<int>(), const bool &if_cond_num = true)
     {
       // TODO: sanity check existing_ids within range
       if (exist_element_ids.empty()) {
@@ -52,7 +52,8 @@ PYBIND11_MODULE(pyconmech, m)
         return cm.solve(exist_element_ids, if_cond_num);
       }
     },
-    py::arg("exist_element_ids"), py::arg("if_cond_num") = true)
+    py::arg("exist_element_ids") = std::vector<int>(),
+    py::arg("if_cond_num") = true)
 
     // for my own education:
     // C++ lambda function stateful/stateless enclosure
