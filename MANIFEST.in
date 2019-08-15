@@ -1,6 +1,25 @@
-include README.md LICENSE
+graft docs
+graft tests
+prune tests/compare_compas_fea
+prune tests/assembly_instances
+prune tests/notebook_demo
+
 global-include CMakeLists.txt *.cmake
 recursive-include src *
 recursive-include ext/pybind11/include *.h
 recursive-include ext/rapidjson/include *.h
 recursive-include ext/eigen/Eigen *
+
+include AUTHORS.rst
+include CHANGELOG.rst
+include CONTRIBUTING.rst
+include LICENSE
+include README.rst
+
+prune src/stiffness_checker/matlab
+prune src/stiffness_checker/test
+prune docs
+prune .github
+
+include requirements-dev.txt tasks.py pytest.ini
+global-exclude *.py[cod] __pycache__ *.dylib *.nb[ic] .DS_Store

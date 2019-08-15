@@ -73,18 +73,24 @@ def read(*names, **kwargs):
     ).read()
 
 
-long_description = read('README.md')
-# requirements = read('requirements.txt').split('\n')
+long_description = read('README.rst')
+requirements = read('requirements.txt').split('\n')
 # optional_requirements = {
 # }
 
+
 setup(
     name='pyconmech',
-    version='0.1.1',
+    version='0.1.2',
+    license='MIT license',
     author='Yijiang Huang',
     author_email='yijiangh@mit.edu',
     description='py bindings for conmech: a C++ lib for 3D frame elastis deformation analysis.',
-    long_description='long_description',
+    long_description='%s\n%s' % (
+        re.compile('^.. start-badges.*^.. end-badges', re.M |
+                   re.S).sub('', read('README.rst')),
+        re.sub(':[a-z]+:`~?(.*?)`', r'``\1``', read('CHANGELOG.rst'))
+    ),
     url="https://github.com/yijiangh/conmech",
     ext_modules=[CMakeExtension('pyconmech')],
     cmdclass=dict(build_ext=CMakeBuild),
@@ -100,7 +106,6 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
-        'Topic :: Structural Engineering',
     ],
     keywords=['3D frame analysis', 'Finite Element Analysis', 'Structural Analysis'],
 )

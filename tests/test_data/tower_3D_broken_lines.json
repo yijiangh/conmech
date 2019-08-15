@@ -1,14 +1,51 @@
 {
+  "model_name": "tower_3D_broken_lines",
   "assembly_type": "extrusion",
   "model_type": "3D_frame",
   "unit": "meter",
+  "generate_time": "8/8/2019 4:50:05 PM",
   "dimension": 3,
+  "node_num": 16,
+  "element_num": 36,
+  "base_frame_in_rob_base": {
+    "Origin": {
+      "X": 600.0,
+      "Y": 0.0,
+      "Z": 23.5
+    },
+    "OriginX": 600.0,
+    "OriginY": 0.0,
+    "OriginZ": 23.5,
+    "XAxis": {
+      "X": 1.0,
+      "Y": 0.0,
+      "Z": 0.0
+    },
+    "YAxis": {
+      "X": 0.0,
+      "Y": 1.0,
+      "Z": 0.0
+    },
+    "ZAxis": {
+      "X": 0.0,
+      "Y": 0.0,
+      "Z": 1.0
+    },
+    "Normal": {
+      "X": 0.0,
+      "Y": 0.0,
+      "Z": 1.0
+    },
+    "IsValid": true
+  },
   "material_properties": {
     "material_name": "Steel-S235",
     "youngs_modulus": 21000.0,
     "youngs_modulus_unit": "kN/cm2",
     "shear_modulus": 8076.0,
     "shear_modulus_unit": "kN/cm2",
+    "tensile_yeild_stress": 23.5,
+    "tensile_yeild_stress_unit": "kN/cm2",
     "density": 78.5,
     "density_unit": "kN/m3",
     "poisson_ratio": 0.300149,
@@ -18,8 +55,8 @@
   "node_list": [
     {
       "point": {
-        "X": 10.0,
-        "Y": 0.0,
+        "X": 0.0,
+        "Y": 10.0,
         "Z": 0.0
       },
       "node_id": 0,
@@ -35,8 +72,8 @@
     },
     {
       "point": {
-        "X": 10.0,
-        "Y": 10.0,
+        "X": 0.0,
+        "Y": 0.0,
         "Z": 0.0
       },
       "node_id": 1,
@@ -52,8 +89,8 @@
     },
     {
       "point": {
-        "X": 0.0,
-        "Y": 10.0,
+        "X": 10.0,
+        "Y": 0.0,
         "Z": 0.0
       },
       "node_id": 2,
@@ -69,8 +106,8 @@
     },
     {
       "point": {
-        "X": 0.0,
-        "Y": 0.0,
+        "X": 10.0,
+        "Y": 10.0,
         "Z": 0.0
       },
       "node_id": 3,
@@ -86,8 +123,8 @@
     },
     {
       "point": {
-        "X": 8.0,
-        "Y": 8.0,
+        "X": 2.0,
+        "Y": 2.0,
         "Z": 10.0
       },
       "node_id": 4,
@@ -96,8 +133,8 @@
     },
     {
       "point": {
-        "X": 2.0,
-        "Y": 2.0,
+        "X": 8.0,
+        "Y": 8.0,
         "Z": 10.0
       },
       "node_id": 5,
@@ -127,10 +164,50 @@
     {
       "point": {
         "X": 5.0,
-        "Y": 2.0,
-        "Z": 15.72497324684676
+        "Y": 8.75,
+        "Z": 6.25
       },
       "node_id": 8,
+      "is_grounded": 0,
+      "fixities": []
+    },
+    {
+      "point": {
+        "X": 1.25,
+        "Y": 5.0,
+        "Z": 6.25
+      },
+      "node_id": 9,
+      "is_grounded": 0,
+      "fixities": []
+    },
+    {
+      "point": {
+        "X": 5.0,
+        "Y": 1.25,
+        "Z": 6.25
+      },
+      "node_id": 10,
+      "is_grounded": 0,
+      "fixities": []
+    },
+    {
+      "point": {
+        "X": 8.75,
+        "Y": 5.0,
+        "Z": 6.25
+      },
+      "node_id": 11,
+      "is_grounded": 0,
+      "fixities": []
+    },
+    {
+      "point": {
+        "X": 3.5,
+        "Y": 5.0,
+        "Z": 12.862486623423379
+      },
+      "node_id": 12,
       "is_grounded": 0,
       "fixities": []
     },
@@ -140,7 +217,27 @@
         "Y": 8.0,
         "Z": 15.72497324684676
       },
-      "node_id": 9,
+      "node_id": 13,
+      "is_grounded": 0,
+      "fixities": []
+    },
+    {
+      "point": {
+        "X": 5.0,
+        "Y": 2.0,
+        "Z": 15.72497324684676
+      },
+      "node_id": 14,
+      "is_grounded": 0,
+      "fixities": []
+    },
+    {
+      "point": {
+        "X": 6.5,
+        "Y": 5.0,
+        "Z": 12.862486623423379
+      },
+      "node_id": 15,
       "is_grounded": 0,
       "fixities": []
     }
@@ -148,7 +245,7 @@
   "element_list": [
     {
       "end_node_ids": [
-        2,
+        0,
         6
       ],
       "element_id": 0,
@@ -156,15 +253,15 @@
     },
     {
       "end_node_ids": [
-        3,
-        5
+        1,
+        4
       ],
       "element_id": 1,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        0,
+        2,
         7
       ],
       "element_id": 2,
@@ -172,15 +269,15 @@
     },
     {
       "end_node_ids": [
-        1,
-        4
+        3,
+        5
       ],
       "element_id": 3,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        5,
+        4,
         6
       ],
       "element_id": 4,
@@ -188,7 +285,7 @@
     },
     {
       "end_node_ids": [
-        5,
+        4,
         7
       ],
       "element_id": 5,
@@ -196,7 +293,7 @@
     },
     {
       "end_node_ids": [
-        4,
+        5,
         7
       ],
       "element_id": 6,
@@ -204,7 +301,7 @@
     },
     {
       "end_node_ids": [
-        4,
+        5,
         6
       ],
       "element_id": 7,
@@ -212,71 +309,71 @@
     },
     {
       "end_node_ids": [
-        0,
-        5
+        5,
+        13
       ],
       "element_id": 8,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        3,
-        7
+        6,
+        13
       ],
       "element_id": 9,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        1,
-        7
+        7,
+        14
       ],
       "element_id": 10,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        0,
-        4
+        4,
+        14
       ],
       "element_id": 11,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        3,
-        6
+        5,
+        8
       ],
       "element_id": 12,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        2,
-        5
+        3,
+        8
       ],
       "element_id": 13,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        2,
-        4
+        0,
+        8
       ],
       "element_id": 14,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        1,
-        6
+        6,
+        8
       ],
       "element_id": 15,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        4,
+        6,
         9
       ],
       "element_id": 16,
@@ -284,7 +381,7 @@
     },
     {
       "end_node_ids": [
-        6,
+        0,
         9
       ],
       "element_id": 17,
@@ -292,50 +389,146 @@
     },
     {
       "end_node_ids": [
-        7,
-        8
+        1,
+        9
       ],
       "element_id": 18,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        5,
-        8
+        4,
+        9
       ],
       "element_id": 19,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        5,
-        9
+        4,
+        10
       ],
       "element_id": 20,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        7,
-        9
+        1,
+        10
       ],
       "element_id": 21,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        6,
-        8
+        2,
+        10
       ],
       "element_id": 22,
       "layer_id": 0
     },
     {
       "end_node_ids": [
-        4,
-        8
+        7,
+        10
       ],
       "element_id": 23,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        7,
+        11
+      ],
+      "element_id": 24,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        2,
+        11
+      ],
+      "element_id": 25,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        3,
+        11
+      ],
+      "element_id": 26,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        5,
+        11
+      ],
+      "element_id": 27,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        6,
+        12
+      ],
+      "element_id": 28,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        4,
+        12
+      ],
+      "element_id": 29,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        12,
+        13
+      ],
+      "element_id": 30,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        12,
+        14
+      ],
+      "element_id": 31,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        14,
+        15
+      ],
+      "element_id": 32,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        7,
+        15
+      ],
+      "element_id": 33,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        5,
+        15
+      ],
+      "element_id": 34,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        13,
+        15
+      ],
+      "element_id": 35,
       "layer_id": 0
     }
   ]

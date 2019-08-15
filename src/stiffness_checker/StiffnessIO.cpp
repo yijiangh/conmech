@@ -289,6 +289,11 @@ bool write_output_json(const Frame& frame,
   int n_node = node_displ.rows();
   int n_element = element_reaction.rows();
 
+  document.AddMember("length_unit", "meter", allocator);
+  document.AddMember("rot_angle_unit", "rad", allocator);
+  document.AddMember("force_unit", "kN", allocator);
+  document.AddMember("moment_unit", "kN-m", allocator);
+
   Value nodal_disp_container(rapidjson::kArrayType);
   for(int i=0; i<n_node; i++)
   {
