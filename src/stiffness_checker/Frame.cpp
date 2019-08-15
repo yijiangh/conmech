@@ -163,7 +163,7 @@ bool Frame::loadFromJson(const std::string &file_path)
                           p["Y"].GetDouble()*unit_scale_,
                           p["Z"].GetDouble()*unit_scale_));
 
-      if(document["node_list"][i]["is_grounded"].GetInt())
+      if(document["node_list"][i]["is_grounded"].GetInt() || document["node_list"][i]["is_grounded"].GetBool())
       {
         vert->setFixed(true);
 

@@ -47,6 +47,8 @@ double convertLengthScale(const std::string &unit)
 
 double convertModulusScale(const std::string &unit)
 {
+  // TODO: this is super outdated! Change this!
+
   // 1 pa = 1 N/m^2 = 1e-4 N/cm^2 = 1e-6 N/mm^2
   // 1 Mpa = 1 N/mm^2
 
@@ -67,7 +69,8 @@ double convertModulusScale(const std::string &unit)
 
 double convertDensityScale(const std::string &unit)
 {
-  if ("kg/m3" == unit)
+  // TODO: this is super outdated! Change this!
+  if ("kN/m3" == unit)
   {
     return 1;
   }
@@ -93,7 +96,7 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
   // assert(fp);
   try {
     if(!fp) {
-      throw std::runtime_error("Frame json file not found!\n");
+      throw std::runtime_error("Frame json file not found (material info should be included there)!\n");
     }
   } catch (const std::runtime_error &e) {
     fprintf(stderr, "%s\n", e.what());
@@ -180,7 +183,7 @@ bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool
   // assert(fp);
   try {
     if(!fp) {
-      throw std::runtime_error("Frame json file not found!\n");
+      throw std::runtime_error("Load case json file not found!\n");
     }
   } catch (const std::runtime_error &e) {
     fprintf(stderr, "%s\n", e.what());

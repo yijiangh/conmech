@@ -8,14 +8,12 @@
 
 namespace py = pybind11;
 
-namespace conmech
-{
-namespace pyconmech
-{
+namespace conmech {
+namespace pyconmech {
 
-PYBIND11_MODULE(pyconmech, m)
+PYBIND11_MODULE(_pystiffness_checker, m)
 {
-    py::class_<conmech::stiffness_checker::Stiffness>(m,"stiffness_checker")
+    py::class_<conmech::stiffness_checker::Stiffness>(m, "_stiffness_checker")
     .def(py::init<const std::string&, bool, const std::string&, bool>(),
     py::arg("json_file_path"), py::arg("verbose") = false,
     py::arg("model_type") = "frame", py::arg("output_json") = false)
@@ -183,7 +181,7 @@ PYBIND11_MODULE(pyconmech, m)
 
   ; // end stiffness checker
 
-  m.def("parse_load_case_from_json", [](std::string file_path)
+  m.def("_parse_load_case_from_json", [](std::string file_path)
   {
       Eigen::MatrixXd Load;
       bool include_sw;
@@ -195,11 +193,6 @@ PYBIND11_MODULE(pyconmech, m)
   // https://pybind11.readthedocs.io/en/stable/reference.html#redirecting-c-streams
   py::add_ostream_redirect(m, "ostream_redirect");
 
-#ifdef VERSION_INFO
-    m.attr("__version__") = VERSION_INFO;
-#else
-    m.attr("__version__") = "dev";
-#endif
 } // end pyconmech def
 
 } // namespace pyconmech

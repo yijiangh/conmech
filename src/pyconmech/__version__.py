@@ -1,0 +1,8 @@
+__title__ = 'pyconmech'
+__description__ = 'py bindings for conmech: a C++ lib for 3D frame elastis deformation analysis.'
+__url__ = 'https://github.com/yijiangh/conmech'
+__version__ = '0.1.2'
+__author__ = 'Yijiang Huang'
+__author_email__ = 'yijiangh@mit.edu'
+__license__ = 'MIT license'
+__copyright__ = 'Copyright 2019 Yijiang Huang'

@@ -10,7 +10,7 @@ import json
 import numpy as np
 from numpy import divide, maximum, abs
 from numpy.testing import assert_equal, assert_almost_equal
-from pyconmech import stiffness_checker, parse_load_case_from_json
+from pyconmech import stiffness_checker 
 
 from compas_fea.structure import ElementProperties as Properties
 from compas_fea.structure import GeneralStep

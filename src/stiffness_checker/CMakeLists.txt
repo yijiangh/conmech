@@ -1,5 +1,5 @@
 # add_definitions("-std=c++11")
-
+# TODO: lapack is needed for condition number checking
 #find_package(LAPACK REQUIRED)
 
 include_directories(${EIGEN_INCLUDE_DIRS} ${RAPIDJSON_INCLUDE_DIRS})
@@ -21,3 +21,10 @@ add_library(stiffness_checker
 target_compile_features(stiffness_checker PRIVATE cxx_range_for)
 
 # target_link_libraries(sc_test stiffness_checker)
+
+set(CONMECH_STIFFNESS_CHECKER_SOURCE_DIR "${CONMECH_ROOT}/src/stiffness_checker")
+
+if(CONMECH_WITH_PYTHON)
+	message(STATUS "Building stiffness_checker's python bindings.")
+	add_subdirectory(bindings)
+endif(CONMECH_WITH_PYTHON)

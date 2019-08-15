@@ -1,4 +1,5 @@
 #define _USE_MATH_DEFINES
+#include <cstdlib>
 #include <cmath>
 #include <set>
 #include <algorithm>
@@ -30,7 +31,7 @@ namespace stiffness_checker
 {
 
 Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std::string& model_type, bool output_json)
-  : verbose_(verbose), is_init_(false), include_self_weight_load_(true),
+  : verbose_(verbose), is_init_(false), include_self_weight_load_(false),
     transl_tol_(1e-3), rot_tol_(3 * (3.14 / 180)), write_result_(output_json),
     has_stored_deformation_(false)
 {
@@ -38,10 +39,18 @@ Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std:
   stiff_solver_.timing_ = verbose;
 
   // parse frame, material properties
-  if(!frame_.loadFromJson(json_file_path)
-    || !parseMaterialPropertiesJson(json_file_path, material_parm_))
-  {
-    throw std::runtime_error("Parsing json files failed\n");
+
+  try{
+    if(!frame_.loadFromJson(json_file_path)) {
+      throw std::runtime_error("Parsing frame json files failed\n");
+    }
+    if(!parseMaterialPropertiesJson(json_file_path, material_parm_))
+    {
+      throw std::runtime_error("Parsing material json files failed\n");
+    }
+  } catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s\n", e.what());
+    throw;
   }
 
   model_type_ = model_type;
@@ -414,7 +423,7 @@ void Stiffness::createElementSelfWeightNodalLoad()
       else
       {
         // TODO
-        assert(false && "2D truss gravity not implemented yet.");
+        assert(false && "2D frame gravity not implemented yet.");
       }
     }
     else
