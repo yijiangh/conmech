@@ -1,5 +1,7 @@
 Under the hood
 ==============
 
-Self-weight gravity load
-------------------------
+.. toctree::
+   :maxdepth: 2
+
+   load
