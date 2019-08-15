@@ -69,6 +69,25 @@ void createLocalStiffnessMatrix(const double &L, const double &A, const int &dim
   }
 }
 
+/**
+ * @brief Get the Global to Local Rotation Matrix object
+ * Calculates a 3x3 matrix to tranform the global xyz axis to the element local axis.
+ * TODO: add info on the axis convention, we have different conventions with compas_fea (abaqus)
+ * 
+ * The coordinate transformation matrix can be used to:
+ *  - transform frame element end forces from the element (local) coordinate system
+ *    to the structure (global) coordinate system
+ *  - transfrom end displacements from the structural (global) coordinate system 
+ *    to the element (local) coordinate system,
+ *  - transform the frame element stiffness and mass matrices
+ *    from element (local) coordinates to structral (global) coordinates.
+ * Symbolically, the return matrix R = {local}_R_{global}
+ * 
+ * @param[in] end_vert_u 
+ * @param[in] end_vert_v 
+ * @param[out] rot_m 3x3 Eigen matrix, transforming global axis to local coordinate frame
+ * @param[in] rot_y2x optional rotation of local y axis around the local x axis, defaults to zero
+ */
 void getGlobal2LocalRotationMatrix(
     const Eigen::VectorXd& end_vert_u,
     const Eigen::VectorXd& end_vert_v,

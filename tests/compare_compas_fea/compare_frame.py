@@ -21,8 +21,16 @@ from compas_fea.structure import Structure
 from compas_fea.structure import CircularSection
 from compas_fea.structure import PinnedDisplacement, GeneralDisplacement
 
+import matplotlib.pyplot as plt
+
+OPENSEES_PATH = 'C:/OpenSees/OpenSees.exe'
+
 ASSEMBLY_INSTANCE_DIR = os.path.join('..', 'assembly_instances', 'extrusion')
 TEST_DATA_DIR = os.path.join('..', 'test_data')
+
+__all__ = [
+           'run',
+           ]
 
 def parse_length_unit_conversion(unit_str):
     """ get the length unit conversion scale to meter (required by compas_fea)
@@ -178,7 +186,10 @@ def parse_fixties(json_data):
     data = []
     for i, json_node in enumerate(json_data['node_list']):
         if json_node['is_grounded'] == 1:
-            fix_dofs = json_node['fixities'] if json_node['fixities'] else [1] * 6
+            if 'fixities' in json_node:
+                fix_dofs = json_node['fixities'] if json_node['fixities'] else [1] * 6
+            else:
+                fix_dofs = [1] * 6
             data.append([i] + fix_dofs)
     return data
 
@@ -265,18 +276,19 @@ def parse_conmech_result_json(file_name, temp_dir):
     nD_data = json_data['node_displacement']
     nD = {}
     for nd in nD_data:
+        # meter / rad, all good
         nD[nd['node_id']] = nd['displacement']
 
     fR_data = json_data['fixity_reaction']
     fR = {}
     for fr in fR_data:
-        fR[fr['node_id']] = fr['reaction']
+        fR[fr['node_id']] = np.array(fr['reaction']) * 1e3
 
     eR = {}
     return nD, fR, eR
 
 
-def compute_abaqus(file_path, load_path, recompute=True):
+def compute_compas_fea(file_path, load_path, fea_engine='abaqus', recompute=True):
     """ Use abaqus (via compas_fea) to perform elastic FEA on the given frame
     under a given load case. If no load path is specified, elemental gravity
     will be assumbed to be applied.
@@ -449,7 +461,7 @@ def compute_abaqus(file_path, load_path, recompute=True):
     mdl.steps_order = ['step_bc', 'step_loads']
 
     # Summary
-    # mdl.summary()
+    mdl.summary()
 
     # Run
     # node
@@ -476,9 +488,21 @@ def compute_abaqus(file_path, load_path, recompute=True):
     # sf1: axial
     # sf2: shear x
     # sf3: shear y
-    mdl.analyse_and_extract(software='abaqus', fields=['u', 'ur', 'rf', 'rm', 'sf'], ndof=6, output=True)
+    if fea_engine == 'abaqus':
+        mdl.analyse_and_extract(software='abaqus', fields=['u', 'ur', 'rf', 'rm', 'sf'], ndof=6, output=True)
+        nD, fR, eR = parse_abaqus_result_json(file_name, temp_dir)
+    elif fea_engine == 'opensees':
+        mdl.analyse_and_extract(software='opensees', fields=['u'], exe=OPENSEES_PATH, ndof=6, output=True, save=True)
+        raise NotImplementedError('opensees from compas_fea is not fully supported at this moment...')
 
-    nD, fR, eR = parse_abaqus_result_json(file_name, temp_dir)
+        nD = {}
+        fR = {}
+        eR = {}
+        # nD = mdl.get_nodal_results(step='step_load', field='ux', nodes='nset_all')
+        print(mdl.results)
+    else:
+        raise NotImplementedError('FEA engine not supported!')
+
     return nD, fR, eR
 
 def compute_conmech(file_path, load_path='', recompute=True):
@@ -529,7 +553,9 @@ def compute_conmech(file_path, load_path='', recompute=True):
         ext_load, include_sw = parse_load_case_from_json(load_path)
         sc.set_load(nodal_forces = ext_load)
         sc.set_self_weight_load(include_sw)
+        print('conmech using load from: {}, pt_load #{}, include_sw: {}'.format(load_path, len(ext_load), include_sw))
     else:
+        print('No external load specified, default using gravity load.')
         sc.set_self_weight_load(True)
 
     sc.solve()
@@ -544,31 +570,30 @@ def compute_conmech(file_path, load_path='', recompute=True):
     # print('max deformation: translation: {0} / tol {1}, at node #{2}'.format(max_trans, trans_tol, max_trans_vid))
     # print('max deformation: rotation: {0} / tol {1}, at node #{2}'.format(max_rot, rot_tol, max_rot_vid))
     # print('compliance: {}'.format(compliance))
-    nodal_disp = {}
-    fixities_reaction = {}
-    element_reaction = {}
-    for nd in nD:
-        nodal_disp[int(nd[0])] = nd[1:7]
-    for fr in fR:
-        fixities_reaction[int(fr[0])] = fr[1:7]
-    for er in eR:
-        element_reaction[int(er[0])] = er[1:13]
 
-    return nodal_disp, fixities_reaction, element_reaction
+    nD, fR, eR = parse_conmech_result_json(file_name, temp_dir)
+    return nD, fR, eR
 
 
-def compute_relative_error(np_vec1, np_vec2):
-    rel_err = np.true_divide(abs(np_vec1 - np_vec2), maximum(abs(np_vec1), abs(np_vec2)))
+def compute_relative_error(np_vec1, np_vec2, use_abs=True):
+    # rel_err = np.true_divide(abs(np_vec1 - np_vec2), maximum(abs(np_vec1), abs(np_vec2)))
+    if use_abs:
+        rel_err = np.true_divide(abs(np_vec1 - np_vec2), abs(np_vec2))
+    else:
+        rel_err = np.true_divide(np_vec1 - np_vec2, abs(np_vec2))
+
     zero_eps = 1e-30
     # if both entries are zero, rel error 0
     for i in range(len(rel_err)):
         if abs(np_vec1[i]) < zero_eps and abs(np_vec2[i]) < zero_eps:
             rel_err[i] = 0.0
-    return np.amax(rel_err)
+    # return np.amax(rel_err)
+    return rel_err
 
-def main():
+def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--problem', default='tower_3D.json', help='The name of the problem file to solve')
+    parser.add_argument('-fea', '--fea_engine', default='abaqus', help='fea engines name, default to abaqus, avaible: opensees')
     parser.add_argument('-l', '--load', default='tower_3D_load_case.json', help='The name of the load case file to solve')
     parser.add_argument('-a', '--assembly', action='store_true', help='Use test problems from assembly_instance')
     parser.add_argument('-pa', '--parse_result', action='store_true', help='do not recompute abaqus, parse existing results')
@@ -603,12 +628,12 @@ def main():
     #     print('element r #{} n1: {}'.format(int(cm_fR[i][0]), cm_fR[i][8:14]))
     #
 
-    ab_nD, ab_fR, ab_eR = compute_abaqus(file_path, load_path, recompute=not args.parse_result)
-    print('===================')
-    print('---abaqus result:')
-    for n_id, nd in ab_nD.items():
-        print('node u #{}: {}'.format(n_id, nd))
-    print('--------------------')
+    ab_nD, ab_fR, ab_eR = compute_compas_fea(file_path, load_path, recompute=not args.parse_result, fea_engine=args.fea_engine)
+    # print('===================')
+    # print('---abaqus result:')
+    # for n_id, nd in ab_nD.items():
+    #     print('node u #{}: {}'.format(n_id, nd))
+    # print('--------------------')
 
     # align nodal translational displacement
     cm_nd_trans = []
@@ -620,12 +645,63 @@ def main():
         ab_nd_trans.extend(ab_nD[n_id][0:3])
         cm_nd_rot.extend(cm_nD[n_id][3:6])
         ab_nd_rot.extend(ab_nD[n_id][3:6])
-    assert len(cm_nd_trans) == len(ab_nd_trans)
-    trans_err = compute_relative_error(np.array(cm_nd_trans), np.array(ab_nd_trans))
-    rot_err = compute_relative_error(np.array(cm_nd_rot), np.array(ab_nd_rot))
-    print('nodal displ trans rel error: {}, rot rel error: {}'.format(trans_err, rot_err))
 
+    trans_err = compute_relative_error(np.array(cm_nd_trans), np.array(ab_nd_trans), use_abs=False)
+    rot_err = compute_relative_error(np.array(cm_nd_rot), np.array(ab_nd_rot), use_abs=False)
+    # print('nodal displ trans rel error: {}, rot rel error: {}'.format(trans_err, rot_err))
+
+    nD_fig, nD_axes = plt.subplots(2, 3)
+
+    ax_name = {0: 'x', 1: 'y', 2: 'z', 3: 'xx', 4: 'yy', 5: 'zz'}
+    nDt_len = len(trans_err)
+
+    for i in range(0, 3):
+        nD_axes[0, i].plot(list(range(0,len(cm_nD))), trans_err[i:nDt_len:3])
+        # nD_axes[0, i].set_xlabel('node id')
+        # nD_axes[0, i].set_ylabel('{}: (cm_nD - ab_nD) / ab_nD'.format(ax_name[i]))
+        nD_axes[0, i].set_title('nD_{} relative error'.format(ax_name[i]))
+
+        nD_axes[1, i].plot(list(range(0,len(cm_nD))), rot_err[i:nDt_len:3])
+        # nD_axes[1, i].set_xlabel('node id')
+        # nD_axes[1, i].set_ylabel('{}: (cm_nD - ab_nD) / ab_nD'.format(ax_name[i]))
+        nD_axes[1, i].set_title('nD_{} relative error'.format(ax_name[i+3]))
+
+    nD_fig.show()
+
+    # align fixities reaction
+    cm_fr_force = []
+    ab_fr_force = []
+    cm_fr_moment = []
+    ab_fr_moment = []
+    for n_id in cm_fR.keys():
+        cm_fr_force.extend(cm_fR[n_id][0:3])
+        ab_fr_force.extend(ab_fR[n_id][0:3])
+        cm_fr_moment.extend(cm_fR[n_id][3:6])
+        ab_fr_moment.extend(ab_fR[n_id][3:6])
+    fR_force_err = compute_relative_error(np.array(cm_fr_force), np.array(ab_fr_force), use_abs=False)
+    fR_moment_err = compute_relative_error(np.array(cm_fr_moment), np.array(ab_fr_moment), use_abs=False)
+    print('fixities reaction force rel error: {}, moment rel error: {}'.format(fR_force_err, fR_moment_err))
+
+    fR_fig, fR_axes = plt.subplots(2, 3)
+
+    ax_name = {0: 'Fx', 1: 'Fy', 2: 'Fz', 3: 'Mx', 4: 'My', 5: 'Mz'}
+    fRt_len = len(fR_force_err)
+
+    for i in range(0, 3):
+        fR_axes[0, i].plot(list(range(0,len(cm_fR))), fR_force_err[i:fRt_len:3])
+        # fR_axes[0, i].set_xlabel('node id')
+        # fR_axes[0, i].set_ylabel('{}: (cm_fR - ab_fR) / ab_fR'.format(ax_name[i]))
+        fR_axes[0, i].set_title('fR_{} relative error'.format(ax_name[i]))
+
+        fR_axes[1, i].plot(list(range(0,len(cm_fR))), fR_moment_err[i:fRt_len:3])
+        # fR_axes[1, i].set_xlabel('node id')
+        # fR_axes[1, i].set_ylabel('{}: (cm_fR - ab_fR) / ab_fR'.format(ax_name[i]))
+        fR_axes[1, i].set_title('fR_{} relative error'.format(ax_name[i+3]))
+
+    fR_fig.show()
+    print('type <Enter> to exit... ')
+    input()
 
 
 if __name__ == '__main__':
-    main()
+    run()

@@ -42,6 +42,11 @@ PYBIND11_MODULE(pyconmech, m)
     .def("set_nodal_displacement_tol", &conmech::stiffness_checker::Stiffness::setNodalDisplacementTolerance,
     py::arg("transl_tol"), py::arg("rot_tol"))
 
+
+    // element length L: m
+    // E, G: kN/m^2
+    // Force: kN
+    // Moment: kN m
     .def("solve",
     [](conmech::stiffness_checker::Stiffness &cm, const std::vector<int> &exist_element_ids = std::vector<int>(), const bool &if_cond_num = true)
     {

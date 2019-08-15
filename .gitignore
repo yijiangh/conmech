@@ -33,3 +33,5 @@ src/stiffness_checker/test/validation/*
 **/compas_fea-temp*
 **/conmech-temp*
 abaqus.rpy
+
+.ropeproject
