@@ -180,6 +180,21 @@ class stiffness_checker(object):
         """
         self._sc_ins.set_nodal_displacement_tol(trans_tol, rot_tol)
 
+    def get_nodal_deformation_tol(self):
+        """Get nodal displacement tolerance for stiffness checking criteria.
+        
+        Returns
+        -------
+        trans_tol : float
+            maximal nodal translational deformation, entry-wise
+        rot_tol : float
+            maximal nodal rotational deformation, entry-wise
+        """
+        trans_tol, rot_tol = self._sc_ins.get_nodal_deformation_tol()
+        return trans_tol, rot_tol
+
+    # TODO: pass in user-specified criteria checking function handle
+
     # ==========================================================================
     # stiffness data query
     # ==========================================================================
@@ -196,31 +211,175 @@ class stiffness_checker(object):
     
     def get_solved_results(self):
         """Fetch back solved results from last time.
-
-        The elemental local coordinate is placed at the end point 0, with local axis pointing along
-        the `end point 0` -> `end point L` direction. See doc (TODO: link) for more info.
         
         Returns
         -------
         success : bool
             pass criteria or not
-        nD : numpy array
+        nD : dict
             nodal displacements in the global coordinate
-            [[node_id, dx, dy, dz, rxx, ryy, rzz], ...]
-        fR : numpy array
+            {node_id: np.array([dx, dy, dz, rxx, ryy, rzz]), ...]
+        fR : dict
             fixities reaction force and moment in the global coordinate
-            [[node_id, Fx, Fy, Fz, Mxx, Myy, Mzz], ...]
+            {node_id: np.array([Fx, Fy, Fz, Mxx, Myy, Mzz], ...}
         eR : numpy array
             elemental reaction force and moment in the local coordinate
-            [[element_id, F_0_lx, F_0_ly, F_0_lz, M_0_lxx, M_0_lyy, M_0_lzz,
-                          F_L_lx, F_L_ly, F_L_lz, M_L_lxx, M_L_lyy, M_L_lzz,
+            {element_id: {0 : np.array([F_0_lx, F_0_ly, F_0_lz, M_0_lxx, M_0_lyy, M_0_lzz]),
+                          1 : np.array([F_L_lx, F_L_ly, F_L_lz, M_L_lxx, M_L_lyy, M_L_lzz])
             ], ...]
             F_0_lx means internal reaction force at the end point 0, in the direction of local x axis
             M_L_lyy means internal reaction moment at the end point L, around the local yy axis            
+
+            The elemental local coordinate is placed at the end point 0, with local axis pointing along
+            the `end point 0` -> `end point L` direction. See doc (TODO: link) for more info.
         """
-        success, nD, fR, eR = self._sc_ins.get_solved_results()
+        success, nD_np, fR_np, eR_np = self._sc_ins.get_solved_results()
+        nD = {}
+        for row in nD_np:
+            nD[int(row[0])] = np.array(row[1:7])
+        fR = {}
+        for row in fR_np:
+            fR[int(row[0])] = np.array(row[1:7])
+        eR = {}
+        for row in eR_np:
+            e_r = {}
+            e_r[0] = np.array(row[1:7])
+            e_r[1] = np.array(row[7:13])
+            eR[int(row[0])] = e_r
         return success, nD, fR, eR
 
+    def get_max_nodal_deformation(self):
+        """Get max nodal deformation info
+        
+        Returns
+        -------
+        max_trans : float
+            maximal translational deformation, componentwise max, unit meter
+        max_rot : float
+            maximal rotational deformation, componentwise max, unit rad
+        max_trans_vid : int
+            node id for maximal trans deformation
+        max_rot_vid : int
+            node id for maximal rotational deformation
+        """
+        max_trans, max_rot, max_trans_vid, max_rot_vid = self._sc_ins.get_max_nodal_deformation()
+        return max_trans, max_rot, max_trans_vid, max_rot_vid
+
+    def get_compliance(self):
+        """Get compliance of the last solved deformation
+
+        compliance = nodal_loads.dot(nodal_deformation)  
+        TODO: check if we need moment and rotational deformation here?
+        
+        Returns
+        -------
+        float
+        """
+        return self._sc_ins.get_compliance()
+
+    def get_self_weight_loads(self, existing_ids=[]):
+        raise NotImplementedError
+
+    def get_nodal_loads(self, existing_ids=[], include_self_weight=False, dof_flattened=False):
+        """Return nodal loads
+        
+        Parameters
+        ----------
+        existing_ids : list, optional
+            existing element's ids in the partial structure, by default [], which means full structure
+        include_self_weight : bool, optional
+            add self-weight load to external loads, by default False
+        dof_flattened : bool, optional
+            if True, return a flattened dof x 1 vector, 
+            otherwise return a dict{node_id: np.array([1:dof])}, by default False
+        
+        Returns
+        -------
+        dict / np.array
+        """
+        assert self.model_type != 'frame', 'this function assumes 6 dof each node for now!'
+        nL_flat = self._sc_ins.get_nodal_load(existing_ids, self_weight_load_only=include_self_weight)
+        if not dof_flattened:
+            nL = {}
+            for nid in range(len(self.node_points)):
+                nL[nid] = nL_flat[nid*6 : (nid+1)*6]
+            return nL
+        else:
+            return nL_flat
+
+    def get_element_stiffness_matrices(self, in_local_coordinate=False):
+        """Get all elemental stiffness matrices, each of which is 12 x 12
+        in global coordinate (default): R_{LG}^T * K_{eL} * R_{LG}
+        in local coordinate (default): K_{eL}
+        
+        Returns
+        -------
+        dict
+            {element_id : np.array}
+        """
+        eMs = {}
+        eMs_raw = self._sc_ins.get_element_stiffness_matrices()
+        if in_local_coordinate:
+            R_lgs = self.get_element_local2global_rot_matrices()
+
+        for eid, eMg in enumerate(eMs_raw):
+            if not in_local_coordinate:
+                eMs[eid] = eMg
+            else:
+                R_lg = R_lgs[eid]
+                eMs = np.transpose(R_lg).dot(eMg)
+                eMs = eMs.dot(R_lg)
+                eMs[eid] = eMg
+        return eMs
+
+    def get_element_local2global_rot_matrices(self):
+        """Get all elemental local to global transformation matrices, each of which is 12 x 12
+
+        The array is in the following shape:
+        | R       |
+        |   R     |
+        |     R   |
+        |       R |
+        where R is the 3x3 coordinate transformation matrix, which tranforms 
+        the global xyz axis to the element local axis.
+
+        The coordinate transformation matrix can be used to:
+         - transform frame element end forces from the element (local) coordinate system
+           to the structure (global) coordinate system
+         - transfrom end displacements from the structural (global) coordinate system 
+           to the element (local) coordinate system,
+         - transform the frame element stiffness and mass matrices
+           from element (local) coordinates to structral (global) coordinates.
+        Symbolically, the return matrix R = {local}_R_{global}
+
+        Returns
+        -------
+        dict
+            {node_id : 12 x 12 np.array}
+        """
+        return {nid : mat for nid, mat in enumerate(self._sc_ins.get_element_local2global_rot_matrices())}
+
+    def get_element2dof_id_map(self):
+        """Get element_id-to-dof_id maps
+        
+        Returns
+        -------
+        dict
+            {e_id : {0 : [dof_ids for end point 0]}, {1 : [dof_ids for end point 1]}}
+        """
+        assert self.model_type != 'frame', 'this function assumes 6 dof each node for now!'
+        return {int(e_id) : {0 : id_map[0:6], 1 : id_map[6:12]} 
+                for e_id, id_map in enumerate(self._sc_ins.get_element2dof_id_map())}
+
+    def get_node2dof_id_map(self):
+        """Get node_id-to-dof_id maps
+        
+        Returns
+        -------
+        dict
+            {node_id : [dof ids]}
+        """
+        return {int(n_id) : id_map for n_id, id_map in enumerate(self._sc_ins.get_node2dof_id_map())}
 
     # ==========================================================================
     # output settings
@@ -275,4 +434,12 @@ class stiffness_checker(object):
             element_neighbors[e].remove(e)
         return element_neighbors
 
+    # ==========================================================================
+    # beam shape query for deformation visualization
+    # ==========================================================================
 
+    def get_original_shape(self, disc=1, draw_full_shape=True):
+        pass
+
+    def get_deformed_shape(self, disc=10, exagg_ratio=1.0):
+        pass

@@ -19,7 +19,7 @@ def test_get_material_from_database():
     print(STEEL_S235_MAT)
 
 
-# @pytest.mark.wip
+@pytest.mark.wip
 def test_stiffness_checker_single_full_solve():
     file_name = 'tower_3D.json'
     root_dir = os.path.dirname(os.path.abspath(__file__))
@@ -27,9 +27,18 @@ def test_stiffness_checker_single_full_solve():
     sc = stiffness_checker(json_file_path=json_path)
     sc.set_self_weight_load(True)
 
-    assert sc.solve()
     existing_ids = [0, 4, 7, 8, 9] # some parts are floating
     assert not sc.solve(existing_ids, eid_sanity_check=True)
+    success, fail_nD, fail_fR, fail_eR = sc.get_solved_results() # can get, but result not useful
+
+    assert sc.solve()
+    success, nD, fR, eR = sc.get_solved_results()
+    assert len(nD) == len(sc.node_points)
+    assert len(eR) == len(sc.elements)
+    assert len(fR) == len(sc.fix_node_ids)
+
+    for fnid in sc.fix_node_ids:
+        assert_equal(nD[fnid], np.zeros(6))
 
 
 def test_init_stiffness_checker():
