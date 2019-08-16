@@ -597,11 +597,8 @@ bool Stiffness::solve(
   }
 
   Eigen::VectorXd Q_perm = Perm * nodal_load_P_tmp;
-
   auto Q_m = Q_perm.segment(0, n_Free);
   auto Q_f = Q_perm.segment(n_Free, n_Fixities);
-
-//  std::cout << "Q_m:\n" << Q_m << std::endl;
 
   if (verbose_)
   {
@@ -609,16 +606,23 @@ bool Stiffness::solve(
   }
 
   Eigen::VectorXd U_m(n_Free);
-  if (!stiff_solver_.solveSparseSimplicialLDLT(K_mm, Q_m, U_m))
+  // TODO: tolerance here?
+  if (nodal_load_P_tmp.isZero())
   {
-    if (verbose_)
+    U_m.setZero();
+  }
+  else
+  {
+    if (!stiff_solver_.solveSparseSimplicialLDLT(K_mm, Q_m, U_m))
     {
-      std::cout << "ERROR: Stiffness Solver fail! The sub-structure contains mechanism.\n" << std::endl;
+      if (verbose_)
+      {
+        std::cout << "ERROR: Stiffness Solver fail! The sub-structure contains mechanism.\n" << std::endl;
+      }
+      return false;
     }
-    return false;
   }
 
-//  std::cout << "U_m:\n" << U_m << std::endl;
   stored_compliance_ = U_m.dot(Q_m);
 
   // reaction force

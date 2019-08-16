@@ -26,7 +26,7 @@ def parse_point(json_point, scale=1.0, dim=3):
 
 
 def parse_elements(json_data):
-    return [json_element['end_node_ids'] for json_element in json_data['element_list']]
+    return [tuple(json_element['end_node_ids']) for json_element in json_data['element_list']]
 
 
 def parse_node_points(json_data, scale=1.0, dim=3):
@@ -39,7 +39,7 @@ def parse_fixed_nodes(json_data, dim=3):
     for i, json_node in enumerate(json_data['node_list']):
         if json_node['is_grounded'] == 1:
             fixities_node_id.append(i)
-            if json_node['fixities']:
+            if 'fixities' in json_node and json_node['fixities']:
                 if dim == 3:
                     assert len(json_node['fixities']) == dim*2 
                 else:

@@ -24,6 +24,7 @@ include CONTRIBUTING.rst
 include LICENSE
 include README.rst
 include setup_cmake_utils.py
+include requirements.txt
 
 exclude requirements-dev.txt
 exclude .bumpversion.cfg

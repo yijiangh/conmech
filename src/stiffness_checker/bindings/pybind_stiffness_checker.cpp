@@ -62,8 +62,27 @@ PYBIND11_MODULE(_pystiffness_checker, m)
     // C++ lambda function stateful/stateless enclosure
     // https://arne-mertz.de/2015/10/new-c-features-lambdas/
     // https://arne-mertz.de/2015/11/lambdas-part-2-capture-lists-and-stateful-closures/
-    .def("get_nodal_load",
-    [](conmech::stiffness_checker::Stiffness &cm, std::vector<int> &existing_ids, bool self_weight_load_only)
+    // Get all lumped nodal load at the node 
+    .def("get_lumped_nodal_loads",
+    [](conmech::stiffness_checker::Stiffness &cm, std::vector<int> &existing_ids = std::vector<int>())
+    {
+      // TODO: sanity check existing_ids within range
+      if (existing_ids.empty()) {
+        for (int i=1;i<cm.getTotalNumOfElements();i++) existing_ids.push_back(i);
+      }
+      Eigen::VectorXd tot_pt_load;
+      cm.getExternalNodalLoad(tot_pt_load);
+      if (cm.isIncludeSelfWeightLoad()) {
+        Eigen::VectorXd sw_nodal_loads;
+        cm.getSelfWeightNodalLoad(existing_ids, sw_nodal_loads);
+        tot_pt_load += sw_nodal_loads;
+      }
+      return tot_pt_load;
+    },
+    py::arg("existing_ids") = std::vector<int>())
+
+    .def("get_gravity_nodal_loads",
+    [](conmech::stiffness_checker::Stiffness &cm, std::vector<int> &existing_ids = std::vector<int>())
     {
       // TODO: sanity check existing_ids within range
       if (existing_ids.empty()) {
@@ -71,18 +90,9 @@ PYBIND11_MODULE(_pystiffness_checker, m)
       }
       Eigen::VectorXd sw_nodal_loads;
       cm.getSelfWeightNodalLoad(existing_ids, sw_nodal_loads);
-
-      if (self_weight_load_only) {
-        return sw_nodal_loads;
-      } else {
-        // total load
-        Eigen::VectorXd tot_pt_load;
-        cm.getExternalNodalLoad(tot_pt_load);
-        tot_pt_load += sw_nodal_loads;
-        return tot_pt_load;
-      }
+      return sw_nodal_loads;
     },
-    py::arg("existing_ids"), py::arg("self_weight_load_only") = false)
+    py::arg("existing_ids") = std::vector<int>())
 
     // get a list of elemental stiffness matrix (R * K_{eL} * R^T)
     // all in global coordinate system, 12 x 12 matrix

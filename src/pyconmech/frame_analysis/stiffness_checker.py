@@ -93,6 +93,14 @@ class stiffness_checker(object):
         return self._fix_node_ids
 
     @property
+    def fix_element_ids(self):
+        fix_e_ids = []
+        for e_id, e in enumerate(self.elements):
+            if any([v_id in self.fix_node_ids for v_id in e]):
+                fix_e_ids.append(e_id)
+        return fix_e_ids
+
+    @property
     def fix_specs(self):
         return self._fix_specs
 
@@ -142,7 +150,7 @@ class stiffness_checker(object):
     # load settings
     # ==========================================================================
 
-    def set_loads(self, point_loads={}, include_self_weight=False, uniform_distributed_load={}):
+    def set_loads(self, point_loads=None, include_self_weight=False, uniform_distributed_load={}):
         """set load case for the stiffness checker.
         
         Parameters
@@ -227,7 +235,7 @@ class stiffness_checker(object):
         """
         return self._sc_ins.has_stored_result()
     
-    def get_solved_results(self):
+    def get_solved_results(self, existing_ids=[]):
         """Fetch back solved results from last time.
         
         Returns
@@ -251,19 +259,25 @@ class stiffness_checker(object):
             The elemental local coordinate is placed at the end point 0, with local axis pointing along
             the `end point 0` -> `end point L` direction. See doc (TODO: link) for more info.
         """
+        if not existing_ids:
+            existing_e_ids = list(range(len(self.elements)))
+        existing_n_ids = self.get_element_connected_node_ids(existing_ids=existing_ids)
         success, nD_np, fR_np, eR_np = self._sc_ins.get_solved_results()
         nD = {}
         for row in nD_np:
-            nD[int(row[0])] = np.array(row[1:7])
+            if int(row[0]) in existing_n_ids:
+                nD[int(row[0])] = np.array(row[1:7])
         fR = {}
         for row in fR_np:
-            fR[int(row[0])] = np.array(row[1:7])
+            if int(row[0]) in existing_n_ids and int(row[0]) in self.fix_node_ids:
+                fR[int(row[0])] = np.array(row[1:7])
         eR = {}
         for row in eR_np:
-            e_r = {}
-            e_r[0] = np.array(row[1:7])
-            e_r[1] = np.array(row[7:13])
-            eR[int(row[0])] = e_r
+            if int(row[0]) in existing_e_ids:
+                e_r = {}
+                e_r[0] = np.array(row[1:7])
+                e_r[1] = np.array(row[7:13])
+                eR[int(row[0])] = e_r
         return success, nD, fR, eR
 
     def get_max_nodal_deformation(self):
@@ -295,31 +309,57 @@ class stiffness_checker(object):
         """
         return self._sc_ins.get_compliance()
 
-    def get_self_weight_loads(self, existing_ids=[]):
-        raise NotImplementedError
+    def get_self_weight_loads(self, existing_ids=[], dof_flattened=False):
+        """Return lumped gravity loads
 
-    def get_nodal_loads(self, existing_ids=[], include_self_weight=False, dof_flattened=False):
-        """Return nodal loads
+        TODO: put a link to doc here
         
         Parameters
         ----------
         existing_ids : list, optional
             existing element's ids in the partial structure, by default [], which means full structure
-        include_self_weight : bool, optional
-            add self-weight load to external loads, by default False
         dof_flattened : bool, optional
             if True, return a flattened dof x 1 vector, 
             otherwise return a dict{node_id: np.array([1:dof])}, by default False
         
         Returns
         -------
-        dict / np.array
+        dict (dof_flattened = False)
+            {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]} in global coordinate
+        or np.array (dof_flattened = True)
+            [Fx, Fy, Fz, Mxx, Myy, Mzz, ...]
         """
-        print(self.model_type)
         assert self.model_type == 'frame', 'this function assumes 6 dof each node for now!'
-        nL_flat = self._sc_ins.get_nodal_load(existing_ids, self_weight_load_only=include_self_weight)
+        nL_flat = self._sc_ins.get_gravity_nodal_loads(existing_ids)
+        if not dof_flattened:
+            nL = {}
+            for nid in range(len(self.node_points)):
+                nL[nid] = nL_flat[nid*6 : (nid+1)*6]
+            return nL
+        else:
+            return nL_flat
 
-        print(nL_flat)
+
+    def get_nodal_loads(self, existing_ids=[], dof_flattened=False):
+        """Return nodal loads
+        
+        Parameters
+        ----------
+        existing_ids : list, optional
+            existing element's ids in the partial structure, by default [], which means full structure
+        dof_flattened : bool, optional
+            if True, return a flattened dof x 1 vector, 
+            otherwise return a dict{node_id: np.array([1:dof])}, by default False
+        
+        Returns
+        -------
+        dict (dof_flattened = False)
+            {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]} in global coordinate
+        or np.array (dof_flattened = True)
+            [Fx, Fy, Fz, Mxx, Myy, Mzz, ...]
+        """
+        assert self.model_type == 'frame', 'this function assumes 6 dof each node for now!'
+        nL_flat = self._sc_ins.get_lumped_nodal_loads(existing_ids)
         if not dof_flattened:
             nL = {}
             for nid in range(len(self.node_points)):
@@ -454,6 +494,17 @@ class stiffness_checker(object):
             element_neighbors[e].update(node_neighbors[n2])
             element_neighbors[e].remove(e)
         return element_neighbors
+
+    def get_element_connected_node_ids(self, existing_ids=[], fix_node_only=False):
+        if not existing_ids:
+            existing_ids = list(range(len(self.elements)))
+        connected_node_ids = set()
+        for e_id in existing_ids:
+            if not fix_node_only:
+                connected_node_ids.update([v_id for v_id in self.elements[e_id]])
+            else:
+                connected_node_ids.update([v_id for v_id in self.elements[e_id] if v_id in self.fix_node_ids])
+        return list(connected_node_ids)
 
     # ==========================================================================
     # beam shape query for deformation visualization
