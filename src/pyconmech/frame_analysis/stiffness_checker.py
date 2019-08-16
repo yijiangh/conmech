@@ -143,6 +143,23 @@ class stiffness_checker(object):
     # ==========================================================================
 
     def set_loads(self, point_loads={}, include_self_weight=False, uniform_distributed_load={}):
+        """set load case for the stiffness checker.
+        
+        Parameters
+        ----------
+        point_loads : dict, optional
+            {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]}, in global coordinate,
+            by default {}
+        include_self_weight : bool, optional
+            include gravity load or not, by default False
+        uniform_distributed_load : dict, optional
+            elemental uniformly distributed load, by default {}
+        
+        Raises
+        ------
+        NotImplementedError
+            uniform loads input not supported for now
+        """
         self._sc_ins.set_self_weight_load(include_self_weight)
         if point_loads:
             pt_loads = []
@@ -150,7 +167,7 @@ class stiffness_checker(object):
                 pt_loads.append([vid] + vload)
             self._sc_ins.set_load(np.array(pt_loads))
         if uniform_distributed_load:
-            raise NotImplementedError
+            raise NotImplementedError('uniform loads input not supported for now')
 
     def set_self_weight_load(self, include_self_weight):
         """Turn on/off self-weight load.
@@ -164,6 +181,7 @@ class stiffness_checker(object):
     # ==========================================================================
     # check criteria settings
     # ==========================================================================
+
     def set_nodal_displacement_tol(self, trans_tol=1e-3, rot_tol=0.1745):
         """Set nodal displacement tolerance for stiffness checking criteria.
 
@@ -297,8 +315,11 @@ class stiffness_checker(object):
         -------
         dict / np.array
         """
-        assert self.model_type != 'frame', 'this function assumes 6 dof each node for now!'
+        print(self.model_type)
+        assert self.model_type == 'frame', 'this function assumes 6 dof each node for now!'
         nL_flat = self._sc_ins.get_nodal_load(existing_ids, self_weight_load_only=include_self_weight)
+
+        print(nL_flat)
         if not dof_flattened:
             nL = {}
             for nid in range(len(self.node_points)):
@@ -367,7 +388,7 @@ class stiffness_checker(object):
         dict
             {e_id : {0 : [dof_ids for end point 0]}, {1 : [dof_ids for end point 1]}}
         """
-        assert self.model_type != 'frame', 'this function assumes 6 dof each node for now!'
+        assert self.model_type == 'frame', 'this function assumes 6 dof each node for now!'
         return {int(e_id) : {0 : id_map[0:6], 1 : id_map[6:12]} 
                 for e_id, id_map in enumerate(self._sc_ins.get_element2dof_id_map())}
 

@@ -8,7 +8,7 @@ import random
 from numpy.testing import assert_equal, assert_almost_equal
 
 from pyconmech import stiffness_checker
-from pyconmech import read_frame_json, write_frame_json
+from pyconmech import read_frame_json, write_frame_json, read_load_case_json
 from pyconmech.database import MATERIAL_PROPERTY_DATABASE
 
 
@@ -19,8 +19,7 @@ def test_get_material_from_database():
     print(STEEL_S235_MAT)
 
 
-@pytest.mark.wip
-def test_stiffness_checker_single_full_solve():
+def test_stiffness_checker_single_full_solve_self_weight():
     file_name = 'tower_3D.json'
     root_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(root_dir, 'test_data', file_name)
@@ -40,6 +39,26 @@ def test_stiffness_checker_single_full_solve():
     for fnid in sc.fix_node_ids:
         assert_equal(nD[fnid], np.zeros(6))
 
+
+def test_stiffness_checker_single_full_solve_point_load():
+    file_name = 'tower_3D.json'
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(root_dir, 'test_data', file_name)
+    sc = stiffness_checker(json_file_path=json_path)
+    sc.set_self_weight_load(True)
+
+    existing_ids = [0, 4, 7, 8, 9] # some parts are floating
+    assert not sc.solve(existing_ids, eid_sanity_check=True)
+    success, fail_nD, fail_fR, fail_eR = sc.get_solved_results() # can get, but result not useful
+
+    assert sc.solve()
+    success, nD, fR, eR = sc.get_solved_results()
+    assert len(nD) == len(sc.node_points)
+    assert len(eR) == len(sc.elements)
+    assert len(fR) == len(sc.fix_node_ids)
+
+    for fnid in sc.fix_node_ids:
+        assert_equal(nD[fnid], np.zeros(6))
 
 def test_init_stiffness_checker():
     file_name = 'tower_3D_broken_lines.json'
@@ -100,4 +119,25 @@ def test_frame_file_io():
     assert model_type == back_model_type
     assert material_dict == back_material_dict
     assert model_name == back_model_name
+
+
+@pytest.mark.wip
+def test_get_nodal_load():
+    file_name = 'tower_3D.json'
+    load_file_name = 'tower_3D_load_case.json'
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(root_dir, 'test_data', file_name)
+    load_json_path = os.path.join(root_dir, 'test_data', load_file_name)
+
+    sc = stiffness_checker(json_file_path=json_path)
+    sc.set_self_weight_load(False)
+    parsed_pt_loads, _, _ = read_load_case_json(load_json_path)
+
+    sc.set_loads(point_loads=parsed_pt_loads)
+    fetched_nodal_loads = sc.get_nodal_loads()
+    for node_id in parsed_pt_loads:
+        assert node_id in fetched_nodal_loads
+        print(fetched_nodal_loads[node_id]) 
+        print(parsed_pt_loads[node_id])
+        assert_equal(fetched_nodal_loads[node_id], parsed_pt_loads[node_id])
 

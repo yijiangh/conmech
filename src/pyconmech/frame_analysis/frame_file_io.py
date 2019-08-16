@@ -195,3 +195,43 @@ def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dict,
     with open(file_path, 'w+') as outfile:
         json.dump(data, outfile, indent=4)
 
+
+def read_load_case_json(file_path):
+    """Read load case from a json file.
+
+    Note: 
+    - For now, only support `kN` for force unit, `kN-m` for moment unit
+    - Gravity is assumed to be along the negative global z axis.
+    - Element uniform load is converted to global coordinate in this function
+    
+    Parameters
+    ----------
+    file_path : str
+    
+    Returns
+    -------
+    point_load : dict 
+        {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]}, in global coordinate
+    uniform_element_load : dict 
+        {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]}, in global coordinate
+    include_self_weight : bool 
+        include self-weight or not, now only supports gravity in global z direction
+    """
+    assert os.path.exists(file_path) and "json file path does not exist!"
+    with open(file_path, 'r') as f:
+        json_data = json.loads(f.read())
+
+    # version specific sanity checks
+    assert json_data['dimension'] == 3, 'model dimension != 3 not supported now!'
+    # TODO: do unit conversion here
+    assert json_data['force_unit'] == 'kN'
+    assert json_data['moment_unit'] == 'kN-m'
+
+    point_load = {}
+    uniform_element_load = {}
+    include_self_weight = json_data['include_self_weight'] if 'include_self_weight' in json_data else False
+    for pl_data in json_data['point_load_list']:
+       point_load[pl_data['applied_node_id']] = [pl_data['Fx'], pl_data['Fy'], pl_data['Fz'], 
+                                                 pl_data['Mx'], pl_data['My'], pl_data['Mz']]
+    
+    return point_load, uniform_element_load, include_self_weight
