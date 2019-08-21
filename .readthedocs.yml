@@ -14,9 +14,10 @@ version: 2
 python:
    version: 3.7
    install:
-      - method: pip
-        path: .
-        extra_requirements:
-           - cmake
+      - requirements: docs/requirements.txt
+      # - method: pip
+      #   extra_requirements:
+      #      - cmake
       - method: setuptools
         path: .
+    system_packages: true
