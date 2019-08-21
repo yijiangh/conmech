@@ -1,4 +1,5 @@
 #define _USE_MATH_DEFINES
+#include <cstdlib>
 #include <cmath>
 #include <set>
 #include <algorithm>
@@ -30,7 +31,7 @@ namespace stiffness_checker
 {
 
 Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std::string& model_type, bool output_json)
-  : verbose_(verbose), is_init_(false), include_self_weight_load_(true),
+  : verbose_(verbose), is_init_(false), include_self_weight_load_(false),
     transl_tol_(1e-3), rot_tol_(3 * (3.14 / 180)), write_result_(output_json),
     has_stored_deformation_(false)
 {
@@ -38,10 +39,18 @@ Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std:
   stiff_solver_.timing_ = verbose;
 
   // parse frame, material properties
-  if(!frame_.loadFromJson(json_file_path)
-    || !parseMaterialPropertiesJson(json_file_path, material_parm_))
-  {
-    throw std::runtime_error("Parsing json files failed\n");
+
+  try{
+    if(!frame_.loadFromJson(json_file_path)) {
+      throw std::runtime_error("Parsing frame json files failed\n");
+    }
+    if(!parseMaterialPropertiesJson(json_file_path, material_parm_))
+    {
+      throw std::runtime_error("Parsing material json files failed\n");
+    }
+  } catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s\n", e.what());
+    throw;
   }
 
   model_type_ = model_type;
@@ -414,7 +423,7 @@ void Stiffness::createElementSelfWeightNodalLoad()
       else
       {
         // TODO
-        assert(false && "2D truss gravity not implemented yet.");
+        assert(false && "2D frame gravity not implemented yet.");
       }
     }
     else
@@ -588,11 +597,8 @@ bool Stiffness::solve(
   }
 
   Eigen::VectorXd Q_perm = Perm * nodal_load_P_tmp;
-
   auto Q_m = Q_perm.segment(0, n_Free);
   auto Q_f = Q_perm.segment(n_Free, n_Fixities);
-
-//  std::cout << "Q_m:\n" << Q_m << std::endl;
 
   if (verbose_)
   {
@@ -600,16 +606,23 @@ bool Stiffness::solve(
   }
 
   Eigen::VectorXd U_m(n_Free);
-  if (!stiff_solver_.solveSparseSimplicialLDLT(K_mm, Q_m, U_m))
+  // TODO: tolerance here?
+  if (nodal_load_P_tmp.isZero())
   {
-    if (verbose_)
+    U_m.setZero();
+  }
+  else
+  {
+    if (!stiff_solver_.solveSparseSimplicialLDLT(K_mm, Q_m, U_m))
     {
-      std::cout << "ERROR: Stiffness Solver fail! The sub-structure contains mechanism.\n" << std::endl;
+      if (verbose_)
+      {
+        std::cout << "ERROR: Stiffness Solver fail! The sub-structure contains mechanism.\n" << std::endl;
+      }
+      return false;
     }
-    return false;
   }
 
-//  std::cout << "U_m:\n" << U_m << std::endl;
   stored_compliance_ = U_m.dot(Q_m);
 
   // reaction force

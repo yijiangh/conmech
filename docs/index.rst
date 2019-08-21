@@ -8,6 +8,10 @@ conmech
     :target: https://travis-ci.com/yijiangh/conmech
     :alt: Travis CI
 
+.. image:: https://readthedocs.org/projects/conmech/badge/?version=latest
+    :target: https://conmech.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
 .. image:: https://img.shields.io/github/license/yijiangh/conmech
     :target: ./LICENSE
     :alt: License MIT

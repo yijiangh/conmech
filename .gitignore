@@ -35,3 +35,5 @@ src/stiffness_checker/test/validation/*
 abaqus.rpy
 
 .ropeproject
+.cache
+.tox
