@@ -8,7 +8,7 @@ import random
 import time
 from numpy.testing import assert_equal, assert_almost_equal
 
-from pyconmech import stiffness_checker
+from pyconmech import StiffnessChecker
 from pyconmech.frame_analysis import read_frame_json, write_frame_json, read_load_case_json, check_material_dict
 from pyconmech.database import MATERIAL_PROPERTY_DATABASE
 
@@ -22,7 +22,7 @@ def test_get_material_from_database():
 
 def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, include_sw=False,
     n_attempts=50, existing_ids=[], expect_partial_ids_success=True):
-    sc = stiffness_checker(json_file_path=frame_file_path)
+    sc = StiffnessChecker(json_file_path=frame_file_path)
     sc.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
     assert not sc.has_stored_result()
 
@@ -72,7 +72,7 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
     # reinit
     st_time = time.time()
     for _ in range(n_attempts):
-        sc_new = stiffness_checker(json_file_path=frame_file_path)
+        sc_new = StiffnessChecker(json_file_path=frame_file_path)
         sc_new.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
 
         sol_success = sc_new.solve(existing_ids)
@@ -92,7 +92,6 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
 
 
 # @pytest.mark.skip(reason=None)
-@pytest.mark.wip
 @pytest.mark.parametrize("test_case, load_case", 
     [('tower', 'self_weight'), ('tower', 'point_load'), ('tower', 'self_weight+point_load'),
      ('topopt-100', 'self_weight'), ('topopt-100', 'point_load'), ('topopt-100', 'self_weight+point_load')])
@@ -153,14 +152,14 @@ def test_init_stiffness_checker():
     here = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(here, 'test_data', file_name)
 
-    print('init stiffness_checker from json file path...')
-    # this is the same as: sc_from_json = stiffness_checker(file_path)
-    sc_from_json = stiffness_checker.from_json(file_path, verbose=False)
+    print('init StiffnessChecker from json file path...')
+    # this is the same as: sc_from_json = StiffnessChecker(file_path)
+    sc_from_json = StiffnessChecker.from_json(file_path, verbose=False)
 
-    print('init stiffness_checker from frame data...')
+    print('init StiffnessChecker from frame data...')
     nodes, elements, fixed_node_ids, fix_specs, model_type, material_dict, model_name = \
         read_frame_json(file_path, verbose=True)
-    sc_from_data = stiffness_checker.from_frame_data(nodes, elements, fixed_node_ids, material_dict, 
+    sc_from_data = StiffnessChecker.from_frame_data(nodes, elements, fixed_node_ids, material_dict, 
         fixity_specs=fix_specs, unit='meter', model_type=model_type, model_name=model_name, verbose=False)
 
     assert sc_from_json.model_name == sc_from_data.model_name
@@ -177,7 +176,6 @@ def test_init_stiffness_checker():
         assert_equal(spec, sc_from_data.fix_specs[vid])
 
 
-# @pytest.mark.wip
 def test_frame_file_io():
     file_name = 'tower_3D_broken_lines.json'
 
@@ -215,7 +213,7 @@ def test_get_nodal_loads():
     json_path = os.path.join(root_dir, 'test_data', file_name)
     load_json_path = os.path.join(root_dir, 'test_data', load_file_name)
 
-    sc = stiffness_checker(json_file_path=json_path)
+    sc = StiffnessChecker(json_file_path=json_path)
     sc.set_self_weight_load(False)
     parsed_pt_loads, _, _ = read_load_case_json(load_json_path)
 
@@ -233,7 +231,7 @@ def test_neighnor_query():
     root_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(root_dir, 'test_data', file_name)
 
-    sc = stiffness_checker(json_file_path=json_path)
+    sc = StiffnessChecker(json_file_path=json_path)
     assert_equal(sc.fix_element_ids, [0,1,2,3,8,9,10,11,12,13,14,15])
     assert_equal(sc.get_element_connected_node_ids(fix_node_only=True), [0,1,2,3]) 
     assert_equal(sc.get_element_connected_node_ids(existing_ids=[0,3], fix_node_only=True), [1,2]) 
@@ -244,7 +242,7 @@ def test_neighnor_query():
 #     file_name = 'topopt-100.json'
 #     root_dir = os.path.dirname(os.path.abspath(__file__))
 #     json_path = os.path.join(root_dir, 'test_data', file_name)
-#     sc = stiffness_checker(json_file_path=json_path)
+#     sc = StiffnessChecker(json_file_path=json_path)
 #     ids = []
 
 #     failed_existing_ids = [125, 126, 115, 122, 111, 108, 23, 22, 98, 75, 64, 34, 61, 65, 59, 60, 39, 36, 44, 67]

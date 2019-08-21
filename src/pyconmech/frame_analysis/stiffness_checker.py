@@ -15,7 +15,7 @@ import numpy as np
 from _pystiffness_checker import _stiffness_checker
 from pyconmech.frame_analysis.frame_file_io import read_frame_json, write_frame_json
 
-class stiffness_checker(object):
+class StiffnessChecker(object):
     """stiffness checking instance for 3D frame deformation analysis
 
     Calculating elastic deformation given a 3D frame shape specified in a json file.

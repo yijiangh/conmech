@@ -8,6 +8,11 @@ conmech
     :target: https://travis-ci.com/yijiangh/conmech
     :alt: Travis CI
 
+
+.. image:: https://readthedocs.org/projects/conmech/badge/?version=latest
+    :target: https://conmech.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
 .. image:: https://img.shields.io/github/license/yijiangh/conmech
     :target: ./LICENSE
     :alt: License MIT
@@ -38,7 +43,8 @@ Demo
 
 (A cool gif should come here :satisfied:)
 
-For examples of interactive usage in python (analysis for complete or partial structure in a construction sequence), see [stiffness_checker_test.ipynb](tests/notebook_demo/demo.ipynb).
+For examples of interactive usage in python (analysis for complete or partial structure in a construction sequence), 
+see `stiffness_checker_test.ipynb <./tests/notebook_demo/demo.ipynb>`_.
 
 Build from source
 -----------------

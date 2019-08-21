@@ -1,3 +1,4 @@
+
 =========
 Changelog
 =========
@@ -17,9 +18,18 @@ Changelog
 0.1.3
 -----
 
-Added
-^^^^^
+Changed
+^^^^^^^
 
 - The original ``stiffness_checker`` extension module is wrapper as ``_stiffness_checker``.
   All the cpp modules are wrapper under a top-level python classes/functions, to give more
-  flexibility. However, users should be able to use the APIs from version ``0.1.1-0.1.2``.
+  flexibility.
+
+- **API change**: ``stiffness_checker`` class is renamed to ``StiffnessChecker`` to conform
+    to the class naming convention. All other APIs within this class are left unchanged.
+
+Added
+^^^^^
+
+- documentation is hosted on readthedocs!
+

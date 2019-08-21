@@ -64,17 +64,18 @@ PYBIND11_MODULE(_pystiffness_checker, m)
     // https://arne-mertz.de/2015/11/lambdas-part-2-capture-lists-and-stateful-closures/
     // Get all lumped nodal load at the node 
     .def("get_lumped_nodal_loads",
-    [](conmech::stiffness_checker::Stiffness &cm, std::vector<int> &existing_ids = std::vector<int>())
+    [](conmech::stiffness_checker::Stiffness &cm, const std::vector<int> &existing_ids = std::vector<int>())
     {
+      std::vector<int> tmp_existing_ids = existing_ids;
       // TODO: sanity check existing_ids within range
-      if (existing_ids.empty()) {
-        for (int i=1;i<cm.getTotalNumOfElements();i++) existing_ids.push_back(i);
+      if (tmp_existing_ids.empty()) {
+        for (int i=1;i<cm.getTotalNumOfElements();i++) tmp_existing_ids.push_back(i);
       }
       Eigen::VectorXd tot_pt_load;
       cm.getExternalNodalLoad(tot_pt_load);
       if (cm.isIncludeSelfWeightLoad()) {
         Eigen::VectorXd sw_nodal_loads;
-        cm.getSelfWeightNodalLoad(existing_ids, sw_nodal_loads);
+        cm.getSelfWeightNodalLoad(tmp_existing_ids, sw_nodal_loads);
         tot_pt_load += sw_nodal_loads;
       }
       return tot_pt_load;
@@ -82,14 +83,15 @@ PYBIND11_MODULE(_pystiffness_checker, m)
     py::arg("existing_ids") = std::vector<int>())
 
     .def("get_gravity_nodal_loads",
-    [](conmech::stiffness_checker::Stiffness &cm, std::vector<int> &existing_ids = std::vector<int>())
+    [](conmech::stiffness_checker::Stiffness &cm, const std::vector<int> &existing_ids = std::vector<int>())
     {
+      std::vector<int> tmp_existing_ids = existing_ids;
       // TODO: sanity check existing_ids within range
       if (existing_ids.empty()) {
-        for (int i=1;i<cm.getTotalNumOfElements();i++) existing_ids.push_back(i);
+        for (int i=1;i<cm.getTotalNumOfElements();i++) tmp_existing_ids.push_back(i);
       }
       Eigen::VectorXd sw_nodal_loads;
-      cm.getSelfWeightNodalLoad(existing_ids, sw_nodal_loads);
+      cm.getSelfWeightNodalLoad(tmp_existing_ids, sw_nodal_loads);
       return sw_nodal_loads;
     },
     py::arg("existing_ids") = std::vector<int>())

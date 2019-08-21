@@ -14,7 +14,7 @@ import os
 import sys
 import decimal
 
-from .frame_analysis import stiffness_checker
+from .frame_analysis import StiffnessChecker
 from .database import *
 
 from .__version__ import __author__, __author_email__, __copyright__, __description__, __license__, __title__, __url__, __version__

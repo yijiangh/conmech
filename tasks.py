@@ -23,6 +23,7 @@ except NameError:
 BASE_FOLDER = os.path.dirname(__file__)
 PACKAGE_NAME = 'pyconmech'
 
+
 class Log(object):
     def __init__(self, out=sys.stdout, err=sys.stderr):
         self.out = out
@@ -212,10 +213,14 @@ def test(ctx, checks=True, build=False):
         if build:
             log.write('Checking build')
             ctx.run('python setup.py clean --all sdist') #bdist_wheel
-            # ctx.run('pip install --verbose dist/*.tar.gz') #bdist_wheel
+            if sys.platform == 'win32':
+                ctx.run('powershell -Command "& pip install --verbose $(ls dist/*.tar.gz | % {$_.FullName})"')
+            else:
+                ctx.run('pip install --verbose dist/*.tar.gz')
 
         log.write('Running pytest')
         ctx.run('pytest --doctest-module')
+
 
 @task(help={
       'release_type': 'Type of release follows semver rules. Must be one of: major, minor, patch.',
