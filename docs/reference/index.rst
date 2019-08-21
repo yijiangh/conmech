@@ -1,8 +1,14 @@
+.. _reference:
+
+*************
 API Reference
-=============
+*************
 
 .. testsetup::
 
     from pyconmech import *
 
-.. automodule:: pyconmech
+.. toctree::
+    :maxdepth: 2
+
+    pyconmech

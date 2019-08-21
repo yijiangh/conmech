@@ -68,7 +68,7 @@ not only the axial elongation (see picture below).
 
 .. image:: ../images/frame_equation.png
 
-image source: `MIT 1.571 lecture note <../references/MIT_1.571_L11_Displacement_Method.pdf>`__, page 11 (Pierre Ghisbain)
+image source: `MIT 1.571 lecture note <https://github.com/yijiangh/conmech/blob/master/docs/literature/MIT_1.571_L11_Displacement_Method.pdf>`__, page 11 (Pierre Ghisbain)
 
 But since some elements are sharing a node, these elements' reaction must relate to 
 each other so that 

@@ -33,6 +33,22 @@ extlinks = {
     'issue': ('https://github.com/yijiangh/conmech/issues/%s', '#'),
     'pr': ('https://github.com/yijiangh/conmech/pulls/%s', 'PR #'),
 }
+
+# autodoc options
+autodoc_default_options = {
+    'member-order': 'bysource',
+    'special-members': '__init__',
+    'exclude-members': '__weakref__',
+    'undoc-members': True,
+    'private-members': True,
+    'show-inheritance': True,
+}
+
+autodoc_member_order = 'alphabetical'
+
+# autosummary options
+autosummary_generate = True
+
 # on_rtd is whether we are on readthedocs.org
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 html_theme = 'alabaster'

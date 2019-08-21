@@ -1,6 +1,14 @@
 Self-weight gravity load
 ------------------------
 
+The main load case of construction sequencing is self-weight, 
+i.e. the gravity force that acts *along the span of the frame element*, 
+which is a distributed load. One common idea in Finite Element Analysis 
+(FEM) is to "lump" these distributed load to its boundary. 
+In our context, the boundary of our elements is two end points, 
+so we calculate the equivalent point load acting at the element 
+end points.
+
 .. image:: ../images/fixed_ends_uniform_loaded_beam.png
 
 We lump the uniformly distributed load caused by gravity to the two ends of the beam.

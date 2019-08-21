@@ -2,11 +2,19 @@
 ********************************************************************************
 pyconmech
 ********************************************************************************
+
 .. currentmodule:: pyconmech
+
+This library provides python wrappers for efficient evaluation of construction mechanics.
+
+
 .. toctree::
-    :maxdepth: 1
-    pyconmech.stiffness_checker
+    :maxdepth: 2
+
+    pyconmech.frame_analysis
+
 """
+
 
 from __future__ import print_function
 
