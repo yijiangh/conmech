@@ -72,7 +72,7 @@ before_install:
       echo "PATH=$PATH";
       # pip3 install --disable-pip-version-check --user --upgrade pip setuptools
       python --version
-      pip install setuptools pytest numpy
+      pip install setuptools pytest numpy backports.tempfile
     fi
   elif [ -n "$CONDA" ]; then
     if [ "$TRAVIS_OS_NAME" == "linux" ]; then OS=Linux-x86_64; else OS=MacOSX-x86_64; fi

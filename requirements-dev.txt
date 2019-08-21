@@ -12,4 +12,5 @@ scp
 sphinx>=1.5
 twine
 numpy
+backports.tempfile # needed for test file_io
 -e .

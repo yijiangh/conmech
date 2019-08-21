@@ -1,6 +1,10 @@
 from __future__ import print_function
 import os
-from tempfile import TemporaryDirectory
+import sys
+if sys.version_info[0] < 3:
+    from backports.tempfile import TemporaryDirectory
+else:
+    from tempfile import TemporaryDirectory
 
 import pytest
 import numpy as np
