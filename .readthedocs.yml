@@ -1,0 +1,22 @@
+version: 2
+
+# conda:
+#   environment: docs/environment.yaml
+
+# python:
+#   version: 3.6
+#   install:
+#     - method: pip
+#       path: .
+#       extra_requirements:
+#           - rtd
+
+python:
+   version: 3.7
+   install:
+      - method: pip
+        path: .
+        extra_requirements:
+           - cmake
+      - method: setuptools
+        path: .

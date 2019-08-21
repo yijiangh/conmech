@@ -1,7 +1,0 @@
-# python:
-#   version: 3
-# requirements_file: docs/requirements.txt
-# TODO: sphinx - doxygen: https://breathe.readthedocs.io/en/latest/
-
-conda:
-  environment: doc_conda_env.yml
