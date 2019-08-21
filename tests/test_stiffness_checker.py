@@ -29,8 +29,9 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
     sol_success = sc.solve(existing_ids, eid_sanity_check=True)
 
     trans_tol, rot_tol = sc.get_nodal_deformation_tol()
+    max_trans, max_rot, max_t_id, max_r_id = sc.get_max_nodal_deformation()
     print('sol benchmark: max_trans {0} / tol {4}, max_rot {1} / tol {5}, max_trans_id {2}, max_rot_id {3}'.format(\
-        *sc.get_max_nodal_deformation(), trans_tol, rot_tol))
+        max_trans, max_rot, max_t_id, max_r_id, trans_tol, rot_tol))
 
     if expect_partial_ids_success:
         assert sol_success, 'max_trans {}, max_rot {}, max_trans_id {}, max_rot_id {}'.format(*sc.get_max_nodal_deformation())
