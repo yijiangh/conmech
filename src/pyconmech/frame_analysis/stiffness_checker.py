@@ -6,7 +6,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tempfile import TemporaryDirectory
+import sys
+if sys.version_info[0] < 3:
+    from backports import tempfile
+else:
+    import tempfile
 
 import os
 from collections import defaultdict
@@ -65,7 +69,7 @@ class StiffnessChecker(object):
 
         # here = os.path.dirname(os.path.abspath(__file__))
         # tmp_path = os.path.join(here, 'pyconmech_frame_temp.json')
-        with TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory() as temp_dir:
             tmp_path = os.path.join(temp_dir, 'pyconmech_frame_temp.json')
             write_frame_json(tmp_path, nodes, elements, fixed_node_ids, material_dict, 
             fixity_specs=fixity_specs, model_type=model_type, model_name=model_name)
