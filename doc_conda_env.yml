@@ -1,0 +1,11 @@
+name: pyconmech_doc
+channels:
+    - anaconda
+dependencies:
+   - python=3.6
+   - pip=19.0.1
+   - numpy
+   - cmake
+   - pytest
+  #  - pip:
+  #    - git+https://github.com/yijiangh/ikfast_pybind.git@master#egg=ikfast_pybind

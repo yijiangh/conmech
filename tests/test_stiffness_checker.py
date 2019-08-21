@@ -2,9 +2,9 @@ from __future__ import print_function
 import os
 import sys
 if sys.version_info[0] < 3:
-    from backports.tempfile import TemporaryDirectory
+    from backports import tempfile
 else:
-    from tempfile import TemporaryDirectory
+    import tempfile
 
 import pytest
 import numpy as np
@@ -190,7 +190,7 @@ def test_frame_file_io():
         read_frame_json(file_path, verbose=True)
 
     # temp_fp = os.path.join(here, 'tmp.json')
-    with TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         temp_fp = os.path.join(temp_dir, file_name)
         write_frame_json(temp_fp, node_points, element_vids, fix_node_ids, material_dict, 
         fixity_specs=fix_specs, model_type=model_type, model_name = model_name)
