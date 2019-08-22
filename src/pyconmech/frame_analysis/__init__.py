@@ -7,8 +7,8 @@ pyconmech.frame_analysis
 
 Package with functionality to compute elastic deformation of frame structures.
 
-Main Classes
---------------
+StiffnessChecker
+-----------------
 
 .. autosummary::
     :toctree: generated/

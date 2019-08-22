@@ -13,6 +13,8 @@ This library provides python wrappers for efficient evaluation of construction m
 
     pyconmech.frame_analysis
 
+    pyconmech.database
+
 """
 
 
