@@ -284,10 +284,6 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
     assert len(nodal_loads) == len(existing_node_ids)
     all_node_e_neighbors = sc.get_node_neighbors(return_e_id=True)
 
-    from random import shuffle
-    # shuffle(existing_e_ids)
-    # shuffle(existing_node_ids)
-
     #########################
     # element level checks
     #########################
@@ -330,22 +326,16 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
             fixity_reaction = fR[n_id]
         else:
             fixity_reaction = 0
-            # continue
 
         connected_e_id_set = all_node_e_neighbors[n_id]
         connected_e_ids = list(connected_e_id_set.intersection(existing_e_ids))
         assert connected_e_ids, 'existing node should at least has one element connected!'
-        # print('before: {}, after: {}'.format(connected_e_id_set, connected_e_ids))
         for e_id in connected_e_ids:
             e = sc.elements[e_id]
             local_id = e.index(n_id) 
             eR_LG = eR_LG_mats[e_id]
             eR_L = np.hstack([ eR[e_id][0], eR[e_id][1] ])
             internal_force += eR_LG.transpose().dot(eR_L)[local_id*6 : local_id*6 + 6]
-
-        # print('node #{}, fixed: {}, connected elements {}, fixity reaction {}, internal force {}, nodal_load {}, eq_diff {}'.format(
-        #     n_id, n_id in sc.fix_node_ids, e, 
-        #     fixity_reaction, internal_force, nodal_loads[n_id], norm(fixity_reaction + nodal_loads[n_id] - internal_force)))
         
         if debug:
             try:
@@ -359,20 +349,6 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
         else:
             assert_almost_equal(fixity_reaction + nodal_loads[n_id], internal_force)
 
-    # tower error, eq_diff:
-    # node 2, e 0, 13, 14
-    # [ 4.44089210e-16 -4.44089210e-16  8.00905782e-01 -2.66968594e-01 -2.66968594e-01 -1.04083409e-17]
-    # node 6, e [0, 4, 7, 12, 15, 17, 22]
-    # [ 1.13797860e-15  7.21644966e-16  8.00905782e-01  2.66968594e-01 2.66968594e-01 -1.11022302e-16]
-
-    # topopt error eq_diff:
-    # node 42, e 0, 89, 88, not fixed
-    # [-7.62329653e-21 -1.27054942e-20  2.59944330e-06  6.61744490e-24 -6.61744490e-24 -9.60537572e-25]
-    # [-4.33680869e-19  8.67361738e-19  4.62403169e-03 -6.77626358e-21 1.15196481e-19 -2.24195101e-20]
-    # node 0, e 0, 131, 91, 93, 94, not fixed
-    # [ 1.38966343e-21 -5.08219768e-21  2.59944330e-06 -9.92616735e-24 -2.64697796e-23  8.27180613e-25]
-    # [-2.25514052e-17 -1.25767452e-17  4.62403169e-03 -6.77626358e-20 -5.48877350e-19 -4.06575815e-20]
-
     # test nodal force equilibrium, from nodal deformation
     print('testing nodal equilibrium, from nodal deformation')
     local_stiffness_mats = sc.get_element_stiffness_matrices(in_local_coordinate=True)
@@ -382,11 +358,9 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
             fixity_reaction = fR[n_id]
         else:
             fixity_reaction = 0
-            # continue
 
         connected_e_id_set = all_node_e_neighbors[n_id]
         connected_e_ids = list(connected_e_id_set.intersection(existing_e_ids))
-        # print('before: {}, after: {}'.format(connected_e_id_set, connected_e_ids))
         e_reaction_node_sum = 0
         for e_id in connected_e_ids:
             e = sc.elements[e_id]
@@ -405,10 +379,6 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
             e_reaction_node = e_reaction[local_id*6 : local_id*6 + 6]
             e_reaction_node_sum += e_reaction_node
 
-        # print('node #{}, fixed: {}, connected elements {}, fixity reaction {}, internal force {}, nodal_load {}, eq_diff {}'.format(
-            # n_id, n_id in sc.fix_node_ids, e, 
-            # fixity_reaction, internal_force, nodal_loads[n_id], norm(fixity_reaction + nodal_loads[n_id] - internal_force)))
-
         if debug:
             try:
                 assert_almost_equal(fixity_reaction + nodal_loads[n_id], e_reaction_node_sum)
@@ -423,12 +393,9 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
 
 
 @pytest.mark.equil_check
-# @pytest.mark.parametrize("test_case, load_case", 
-#     [('tower', 'self_weight'), ('tower', 'point_load'), ('tower', 'self_weight+point_load'),
-#      ('topopt-100', 'self_weight'), ('topopt-100', 'point_load'), ('topopt-100', 'self_weight+point_load')])
 @pytest.mark.parametrize("test_case, load_case", 
-    # [('topopt-100', 'self_weight'), ('topopt-100', 'point_load'), ('topopt-100', 'self_weight+point_load')])
-    [('tower', 'self_weight'), ('topopt-100', 'self_weight')])
+    [('tower', 'self_weight'), ('tower', 'point_load'), ('tower', 'self_weight+point_load'),
+     ('topopt-100', 'self_weight'), ('topopt-100', 'point_load'), ('topopt-100', 'self_weight+point_load')])
 def test_nodal_equilibrium(test_case, load_case):
     if test_case == 'tower':
         file_name = 'tower_3D.json'

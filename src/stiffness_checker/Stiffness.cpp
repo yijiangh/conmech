@@ -194,15 +194,11 @@ void Stiffness::createSelfWeightNodalLoad(const std::vector<int> &exist_e_ids, E
   int N_vert = frame_.sizeOfVertList();
   self_weight_load_P = Eigen::VectorXd::Zero(N_vert * node_dof_);
 
-  // assuming solid circular cross sec for now
-  double Ax = M_PI * std::pow(material_parm_.radius_, 2);
-
   for (const int e_id : exist_e_ids)
   {
     assert(0 <= e_id && e_id < element_gravity_nload_list_.size());
     auto Qe = element_gravity_nload_list_[e_id];
-
-    assert(Qe.size() == id_map_.cols());
+    // assert(Qe.size() == id_map_.cols());
 
     for (int j = 0; j < id_map_.cols(); j++)
     {
@@ -385,6 +381,7 @@ void Stiffness::createElementSelfWeightNodalLoad()
 
     // uniform force density along the element
     // due to gravity
+    // density kN / m^3 * m^2
     double q_sw = material_parm_.density_ * Ax;
 
     if (model_type_ == "frame")
@@ -789,7 +786,7 @@ bool Stiffness::getElementLocal2GlobalRotationMatrices(std::vector<Eigen::Matrix
 
 bool Stiffness::getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load)
 {
-  try{
+  try {
       createSelfWeightNodalLoad(exist_e_ids, self_weight_load);
       return true;
   }

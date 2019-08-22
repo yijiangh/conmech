@@ -69,7 +69,7 @@ PYBIND11_MODULE(_pystiffness_checker, m)
       std::vector<int> tmp_existing_ids = existing_ids;
       // TODO: sanity check existing_ids within range
       if (tmp_existing_ids.empty()) {
-        for (int i=1;i<cm.getTotalNumOfElements();i++) tmp_existing_ids.push_back(i);
+        for (int i=0;i<cm.getTotalNumOfElements();i++) tmp_existing_ids.push_back(i);
       }
       Eigen::VectorXd tot_pt_load;
       cm.getExternalNodalLoad(tot_pt_load);
@@ -88,7 +88,7 @@ PYBIND11_MODULE(_pystiffness_checker, m)
       std::vector<int> tmp_existing_ids = existing_ids;
       // TODO: sanity check existing_ids within range
       if (existing_ids.empty()) {
-        for (int i=1;i<cm.getTotalNumOfElements();i++) tmp_existing_ids.push_back(i);
+        for (int i=0;i<cm.getTotalNumOfElements();i++) tmp_existing_ids.push_back(i);
       }
       Eigen::VectorXd sw_nodal_loads;
       cm.getSelfWeightNodalLoad(tmp_existing_ids, sw_nodal_loads);
