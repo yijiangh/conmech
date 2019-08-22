@@ -19,7 +19,8 @@
     "poisson_ratio": -0.27083,
     "radius": 0.15,
     "radius_unit": "centimeter"
-  },  "node_list": [
+  },  
+  "node_list": [
     {
       "point": {
         "X": 75.0,

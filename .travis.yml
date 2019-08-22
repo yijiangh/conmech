@@ -64,7 +64,8 @@ before_install:
       source venv/bin/activate;
       pip install pytest numpy backports.tempfile
     elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
-      tools/travis-cache-windows.sh restore;
+      # TODO: do virtualenv here as well
+      # tools/travis-cache-windows.sh restore;
       # cinst -y --no-progress python3;
       export PATH="$(powershell -Command '("Process", "Machine" | % {
         [Environment]::GetEnvironmentVariable("PATH", $_) -Split ";" -Replace "\\$", ""

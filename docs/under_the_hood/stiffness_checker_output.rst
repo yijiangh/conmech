@@ -169,7 +169,9 @@ at this node :math:`v` is:
     RM^{v}_{Gx} \\ 
     RM^{v}_{Gx} \\ 
     RM^{v}_{Gz} 
-    \end{pmatrix}
+    \end{pmatrix} + 
+    \sum_{e \in \{e | e \sim v\}} 
+    (F_{v, \textrm{e self-w load}}) + F_{v, \textrm{pt load}}
 
 Where :math:`R_{e, GL}` is the :math:`3 \times 3` 
 global to local rotation matrix of element :math:`e`. 

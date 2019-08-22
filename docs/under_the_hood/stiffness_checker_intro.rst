@@ -97,6 +97,9 @@ Thus, at each node :math:`v`, we have first the equilibrium equation:
   \sum_{e \in \{e | e \sim v\}} (F_{v, \textrm{e self-w load}}) + 
   F_{v, \textrm{pt load}}
 
+Where :math:`R_{e, GL}` represents the element's local-to-global :math:`3 \times 3`
+transformation matrix.
+
 The RHS of the equation above represents all the loads (gravity, external point load) 
 at node :math:`v`. I will come back to loads in the section "The relationship between 
 `fixities_reaction` and `element_reaction`" in later sections. Notice that we have to 
@@ -111,23 +114,27 @@ equilibrium equation becomes:
 
   (\sum_{e \in \{e | e \sim v\}} 
   \begin{pmatrix}
-  R_{e, GL} & 0 \\ 
-  0 & R_{e, GL}\\
+  R_{e, GL} & 0 & 0 & 0\\ 
+  0 & R_{e, GL} & 0 & 0\\
+  0 & 0 & R_{e, GL} & 0\\ 
+  0 & 0 & 0 & R_{e, GL}
   \end{pmatrix} \mathbf{K_e} 
   \begin{pmatrix}
-  R_{e, GL} & 0 \\ 
-  0 & R_{e, GL}\\
+  R_{e, GL} & 0 & 0 & 0\\ 
+  0 & R_{e, GL} & 0 & 0\\
+  0 & 0 & R_{e, GL} & 0\\ 
+  0 & 0 & 0 & R_{e, GL}
   \end{pmatrix}^T) 
   \begin{pmatrix} 
-  u^{e-n1}_{G} \\ 
-  u^{e-n2}_{G} 
+  u^{n1}_{G}\\
+  u^{n2}_{G}\\
   \end{pmatrix} = 
   \sum_{e \in \{e | e \sim v\}} 
   (F_{v, \textrm{e self-w load}}) + F_{v, \textrm{pt load}}
 
 Notice that we are enforcing the nodal deformation compatibility by having all the 
 connected elements share the same nodal deformation 
-:math:`\begin{pmatrix} u^{e-n1}_{G}, u^{e-n2}_{G} \end{pmatrix}` **in global coordinate**.
+:math:`\begin{pmatrix} u^{n1}_{G}, u^{n2}_{G} \end{pmatrix}` **in global coordinate**.
 
 The equation above must be satisfied by all the nodes in the structure, and we have to solve all of them together by *assembling* the global stiffness matrix.
 

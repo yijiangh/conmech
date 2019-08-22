@@ -15,6 +15,7 @@ else:
 import os
 from collections import defaultdict
 import numpy as np
+from numpy.linalg import norm
 
 from _pystiffness_checker import _stiffness_checker
 from pyconmech.frame_analysis.frame_file_io import read_frame_json, write_frame_json
@@ -38,6 +39,7 @@ class StiffnessChecker(object):
             absolute path to the frame shape's json file
         verbose : bool, optional
             verbose screen outputs turned on/off, by default False
+
         """
         assert os.path.exists(json_file_path)
         self._sc_ins = _stiffness_checker(json_file_path=json_file_path, verbose=verbose)
@@ -143,6 +145,7 @@ class StiffnessChecker(object):
         -------
         bool
             success or not
+
         """
         if eid_sanity_check:
             e_id_range = list(range(len(self.elements)))
@@ -329,16 +332,20 @@ class StiffnessChecker(object):
         Returns
         -------
         dict (dof_flattened = False)
-            {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]} in global coordinate
+            {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]} in global coordinate, only nodes that exist in the partial structure
+            will be returned
         or np.array (dof_flattened = True)
-            [Fx, Fy, Fz, Mxx, Myy, Mzz, ...]
+            [Fx, Fy, Fz, Mxx, Myy, Mzz, ...], all nodal dofs will be returned, including nodes that do not
+            exist in the partial structure specified in ``existing_ids``
         """
         assert self.model_type == 'frame', 'this function assumes 6 dof each node for now!'
         nL_flat = self._sc_ins.get_gravity_nodal_loads(existing_ids)
+        existing_node_ids = self.get_element_connected_node_ids(existing_ids)
+        node2dof_map = self.get_node2dof_id_map()
         if not dof_flattened:
             nL = {}
-            for nid in range(len(self.node_points)):
-                nL[nid] = nL_flat[nid*6 : (nid+1)*6]
+            for nid in existing_node_ids:
+                nL[nid] = nL_flat[node2dof_map[nid]]
             return nL
         else:
             return nL_flat
@@ -358,16 +365,20 @@ class StiffnessChecker(object):
         Returns
         -------
         dict (dof_flattened = False)
-            {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]} in global coordinate
+            {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]} in global coordinate, only nodes that exist in the partial structure
+            will be returned
         or np.array (dof_flattened = True)
-            [Fx, Fy, Fz, Mxx, Myy, Mzz, ...]
+            [Fx, Fy, Fz, Mxx, Myy, Mzz, ...], all nodal dofs will be returned, including nodes that do not
+            exist in the partial structure specified in ``existing_ids``
         """
         assert self.model_type == 'frame', 'this function assumes 6 dof each node for now!'
         nL_flat = self._sc_ins.get_lumped_nodal_loads(existing_ids)
+        existing_node_ids = self.get_element_connected_node_ids(existing_ids)
+        node2dof_map = self.get_node2dof_id_map()
         if not dof_flattened:
             nL = {}
-            for nid in range(len(self.node_points)):
-                nL[nid] = nL_flat[nid*6 : (nid+1)*6]
+            for nid in existing_node_ids:
+                nL[nid] = nL_flat[node2dof_map[nid]]
             return nL
         else:
             return nL_flat
@@ -376,6 +387,11 @@ class StiffnessChecker(object):
         """Get all elemental stiffness matrices, each of which is 12 x 12
         in global coordinate (default): R_{LG}^T * K_{eL} * R_{LG}
         in local coordinate (default): K_{eL}
+
+        Parameters
+        ----------
+        in_local_coordinate : bool, optional
+            return stiffness matrix in the element's local coordinate or not, by default False
         
         Returns
         -------
@@ -387,14 +403,14 @@ class StiffnessChecker(object):
         if in_local_coordinate:
             R_lgs = self.get_element_local2global_rot_matrices()
 
-        for eid, eMg in enumerate(eMs_raw):
+        for eid, eM_G in enumerate(eMs_raw):
             if not in_local_coordinate:
-                eMs[eid] = eMg
+                eMs[eid] = eM_G
             else:
-                R_lg = R_lgs[eid]
-                eMs = np.transpose(R_lg).dot(eMg)
-                eMs = eMs.dot(R_lg)
-                eMs[eid] = eMg
+                R_LG = R_lgs[eid]
+                eM_L = R_LG.dot(eM_G)
+                eM_L = eM_L.dot(np.transpose(R_LG))
+                eMs[eid] = eM_L
         return eMs
 
     def get_element_local2global_rot_matrices(self):
@@ -420,7 +436,8 @@ class StiffnessChecker(object):
         Returns
         -------
         dict
-            {node_id : 12 x 12 np.array}
+            {element_id : 12 x 12 np.array}
+
         """
         return {nid : mat for nid, mat in enumerate(self._sc_ins.get_element_local2global_rot_matrices())}
 
@@ -467,19 +484,47 @@ class StiffnessChecker(object):
     # frame data query (TODO: moved to frame class)
     # ==========================================================================
 
-    def get_node_neighbors(self):
+    def get_element_local_node_id(self, element_id, point):
+        """Return a point's local id in an element's local coordinate, either 0 or 1
+        
+        Parameters
+        ----------
+        element_id : int`
+        point : 3-list of float
+        """
+        end_node_ids = self.elements[element_id]
+        if norm(point, self.node_points[end_node_ids[0]]):
+            return 0
+        elif norm(point, self.node_points[end_node_ids[1]]):
+            return 1
+        else:
+            return None
+
+    def get_node_neighbors(self, return_e_id=False):
         """Return all nodes' connected element ids
         
+        Parameters
+        ----------
+        return_e_ids : bool, optional
+            return element ids or the original tuples, by default False
+
         Returns
         -------
         node_neighbors : dict
-            {node_id : set(connected_element_ids)}
+            {node_id : set(connected element tuples (n1, n2))}
+            or
+            {node_id : set(connected element ids)}
         """
         node_neighbors = defaultdict(set)
         for e in self.elements:
             n1, n2 = e
-            node_neighbors[n1].add(e)
-            node_neighbors[n2].add(e)
+            if not return_e_id:
+                node_neighbors[n1].add(e)
+                node_neighbors[n2].add(e)
+            else:
+                e_id = self.elements.index(e)
+                node_neighbors[n1].add(e_id)
+                node_neighbors[n2].add(e_id)
         return node_neighbors
     
     def get_element_neighbors(self):
@@ -500,6 +545,19 @@ class StiffnessChecker(object):
         return element_neighbors
 
     def get_element_connected_node_ids(self, existing_ids=[], fix_node_only=False):
+        """return connected nodes' indices of the elements specified in ``existing_ids``
+        
+        Parameters
+        ----------
+        existing_ids : list of int, optional
+            element indices, by default [] (full structure)
+        fix_node_only : bool, optional
+            only return the nodes that are fixed, by default False
+        
+        Returns
+        -------
+        list
+        """
         if not existing_ids:
             existing_ids = list(range(len(self.elements)))
         connected_node_ids = set()
