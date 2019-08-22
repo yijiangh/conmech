@@ -1,0 +1,27 @@
+{
+  "applied_shape_file": "tower_3D.json",
+  "dimension": 3,
+  "force_unit": "kN",
+  "moment_unit": "kN-m",
+  "include_self_weight": false,
+  "point_load_list": [
+    {
+      "applied_node_id": 5,
+      "Fx": 0.0,
+      "Fy": 10,
+      "Fz": 0.0,
+      "Mx": 0.0,
+      "My": 0.0,
+      "Mz": 0.0
+    },
+    {
+      "applied_node_id": 7,
+      "Fx": 0.0,
+      "Fy": 10,
+      "Fz": 0.0,
+      "Mx": 0.0,
+      "My": 0.0,
+      "Mz": 0.0
+    }
+  ]
+}

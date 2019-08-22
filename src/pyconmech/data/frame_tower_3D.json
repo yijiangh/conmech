@@ -18,9 +18,9 @@
   "node_list": [
     {
       "point": {
-        "X": 1.0,
-        "Y": 1.0,
-        "Z": -0.1
+        "X": 10.0,
+        "Y": 0.0,
+        "Z": 0.0
       },
       "node_id": 0,
       "is_grounded": 1,
@@ -35,9 +35,9 @@
     },
     {
       "point": {
-        "X": 0.0,
-        "Y": 1.0,
-        "Z": -0.1
+        "X": 10.0,
+        "Y": 10.0,
+        "Z": 0.0
       },
       "node_id": 1,
       "is_grounded": 1,
@@ -52,9 +52,9 @@
     },
     {
       "point": {
-        "X": 1.0,
-        "Y": 0.0,
-        "Z": -0.1
+        "X": 0.0,
+        "Y": 10.0,
+        "Z": 0.0
       },
       "node_id": 2,
       "is_grounded": 1,
@@ -71,7 +71,7 @@
       "point": {
         "X": 0.0,
         "Y": 0.0,
-        "Z": -0.1
+        "Z": 0.0
       },
       "node_id": 3,
       "is_grounded": 1,
@@ -86,9 +86,9 @@
     },
     {
       "point": {
-        "X": 0.0,
-        "Y": 1.0,
-        "Z": 0.0
+        "X": 8.0,
+        "Y": 8.0,
+        "Z": 10.0
       },
       "node_id": 4,
       "is_grounded": 0,
@@ -96,9 +96,9 @@
     },
     {
       "point": {
-        "X": 0.0,
-        "Y": 0.0,
-        "Z": 0.0
+        "X": 2.0,
+        "Y": 2.0,
+        "Z": 10.0
       },
       "node_id": 5,
       "is_grounded": 0,
@@ -106,9 +106,9 @@
     },
     {
       "point": {
-        "X": 1.0,
-        "Y": 0.0,
-        "Z": 0.0
+        "X": 2.0,
+        "Y": 8.0,
+        "Z": 10.0
       },
       "node_id": 6,
       "is_grounded": 0,
@@ -116,9 +116,9 @@
     },
     {
       "point": {
-        "X": 1.0,
-        "Y": 1.0,
-        "Z": 0.0
+        "X": 8.0,
+        "Y": 2.0,
+        "Z": 10.0
       },
       "node_id": 7,
       "is_grounded": 0,
@@ -126,9 +126,9 @@
     },
     {
       "point": {
-        "X": 0.8,
-        "Y": 0.2,
-        "Z": 1.0
+        "X": 5.0,
+        "Y": 2.0,
+        "Z": 15.72497324684676
       },
       "node_id": 8,
       "is_grounded": 0,
@@ -136,51 +136,11 @@
     },
     {
       "point": {
-        "X": 0.2,
-        "Y": 0.2,
-        "Z": 1.0
+        "X": 5.0,
+        "Y": 8.0,
+        "Z": 15.72497324684676
       },
       "node_id": 9,
-      "is_grounded": 0,
-      "fixities": []
-    },
-    {
-      "point": {
-        "X": 0.2,
-        "Y": 0.8,
-        "Z": 1.0
-      },
-      "node_id": 10,
-      "is_grounded": 0,
-      "fixities": []
-    },
-    {
-      "point": {
-        "X": 0.8,
-        "Y": 0.8,
-        "Z": 1.0
-      },
-      "node_id": 11,
-      "is_grounded": 0,
-      "fixities": []
-    },
-    {
-      "point": {
-        "X": 0.5,
-        "Y": 0.2,
-        "Z": 1.5724973246846761
-      },
-      "node_id": 12,
-      "is_grounded": 0,
-      "fixities": []
-    },
-    {
-      "point": {
-        "X": 0.5,
-        "Y": 0.8,
-        "Z": 1.5724973246846761
-      },
-      "node_id": 13,
       "is_grounded": 0,
       "fixities": []
     }
@@ -188,194 +148,10 @@
   "element_list": [
     {
       "end_node_ids": [
-        4,
-        10
+        2,
+        6
       ],
       "element_id": 0,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        5,
-        9
-      ],
-      "element_id": 1,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        6,
-        8
-      ],
-      "element_id": 2,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        7,
-        11
-      ],
-      "element_id": 3,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        9,
-        10
-      ],
-      "element_id": 4,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        8,
-        9
-      ],
-      "element_id": 5,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        8,
-        11
-      ],
-      "element_id": 6,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        10,
-        11
-      ],
-      "element_id": 7,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        6,
-        9
-      ],
-      "element_id": 8,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        5,
-        8
-      ],
-      "element_id": 9,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        7,
-        8
-      ],
-      "element_id": 10,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        6,
-        11
-      ],
-      "element_id": 11,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        5,
-        10
-      ],
-      "element_id": 12,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        4,
-        9
-      ],
-      "element_id": 13,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        4,
-        11
-      ],
-      "element_id": 14,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        7,
-        10
-      ],
-      "element_id": 15,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        11,
-        13
-      ],
-      "element_id": 16,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        10,
-        13
-      ],
-      "element_id": 17,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        8,
-        12
-      ],
-      "element_id": 18,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        9,
-        12
-      ],
-      "element_id": 19,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        9,
-        13
-      ],
-      "element_id": 20,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        8,
-        13
-      ],
-      "element_id": 21,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        10,
-        12
-      ],
-      "element_id": 22,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        11,
-        12
-      ],
-      "element_id": 23,
       "layer_id": 0
     },
     {
@@ -383,15 +159,7 @@
         3,
         5
       ],
-      "element_id": 24,
-      "layer_id": 0
-    },
-    {
-      "end_node_ids": [
-        2,
-        6
-      ],
-      "element_id": 25,
+      "element_id": 1,
       "layer_id": 0
     },
     {
@@ -399,7 +167,7 @@
         0,
         7
       ],
-      "element_id": 26,
+      "element_id": 2,
       "layer_id": 0
     },
     {
@@ -407,7 +175,167 @@
         1,
         4
       ],
-      "element_id": 27,
+      "element_id": 3,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        5,
+        6
+      ],
+      "element_id": 4,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        5,
+        7
+      ],
+      "element_id": 5,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        4,
+        7
+      ],
+      "element_id": 6,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        4,
+        6
+      ],
+      "element_id": 7,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        0,
+        5
+      ],
+      "element_id": 8,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        3,
+        7
+      ],
+      "element_id": 9,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        1,
+        7
+      ],
+      "element_id": 10,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        0,
+        4
+      ],
+      "element_id": 11,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        3,
+        6
+      ],
+      "element_id": 12,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        2,
+        5
+      ],
+      "element_id": 13,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        2,
+        4
+      ],
+      "element_id": 14,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        1,
+        6
+      ],
+      "element_id": 15,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        4,
+        9
+      ],
+      "element_id": 16,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        6,
+        9
+      ],
+      "element_id": 17,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        7,
+        8
+      ],
+      "element_id": 18,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        5,
+        8
+      ],
+      "element_id": 19,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        5,
+        9
+      ],
+      "element_id": 20,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        7,
+        9
+      ],
+      "element_id": 21,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        6,
+        8
+      ],
+      "element_id": 22,
+      "layer_id": 0
+    },
+    {
+      "end_node_ids": [
+        4,
+        8
+      ],
+      "element_id": 23,
       "layer_id": 0
     }
   ]

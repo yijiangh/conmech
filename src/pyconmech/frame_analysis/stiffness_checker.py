@@ -18,7 +18,7 @@ import numpy as np
 from numpy.linalg import norm
 
 from _pystiffness_checker import _stiffness_checker
-from pyconmech.frame_analysis.frame_file_io import read_frame_json, write_frame_json
+from pyconmech.frame_analysis.frame_file_io import read_frame_json, write_frame_json, write_analysis_result_to_json
 
 class StiffnessChecker(object):
     """stiffness checking instance for 3D frame deformation analysis
@@ -468,6 +468,8 @@ class StiffnessChecker(object):
     # ==========================================================================
 
     def set_output_json(self, do_output=True, output_dir=None, file_name=None):
+        """DEPRECATED
+        """
         self._sc_ins.set_output_json(do_output)
         if do_output:
             if not output_dir:
@@ -479,7 +481,10 @@ class StiffnessChecker(object):
             if not file_name:
                 file_name = self.model_name + '_result' + '.json'
             self._sc_ins.set_output_json_path(output_dir, file_name)
-    
+
+    def write_result_to_json(self, file_path):
+        write_analysis_result_to_json(self, file_path)
+
     # ==========================================================================
     # frame data query (TODO: moved to frame class)
     # ==========================================================================

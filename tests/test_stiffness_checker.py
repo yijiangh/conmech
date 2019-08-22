@@ -298,8 +298,6 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
         eD_G = np.hstack([ nD[e[0]],    nD[e[1]] ])
         eD_L = eR_LG_mats[e_id].dot(eD_G)
         eR_L = np.hstack([ eR[e_id][0], eR[e_id][1] ])
-        # print('---\nelement #{}: {}, local beam equation diff {}'.format(e_id, e, norm(K_eL.dot(eD_L) - eR_L)))
-        # element's internal reaction = elastic deformation caused by nodal displacements (in local coordinate)
         assert_almost_equal(K_eL.dot(eD_L), eR_L)
 
     print('testing per-element beam equation in global coordinate.')
@@ -310,8 +308,6 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
         eD_G = np.hstack([ nD[e[0]],    nD[e[1]] ])
         eR_L = np.hstack([ eR[e_id][0], eR[e_id][1] ])
         eR_G = eR_LG_mats[e_id].transpose().dot(eR_L)
-        # print('---\nelement #{}: {}, global beam equation diff {}'.format(e_id, e, norm(K_eG.dot(eD_G) - eR_G)))
-        # element's internal reaction = elastic deformation caused by nodal displacements (in global coordinate)
         assert_almost_equal(K_eG.dot(eD_G), eR_G)
 
     #########################

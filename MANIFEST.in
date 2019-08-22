@@ -11,11 +11,6 @@ prune ext/eigen/Eigen/failtest
 
 prune docs
 prune tests
-prune tests/compare_compas_fea
-prune tests/assembly_instances
-prune tests/notebook_demo
-prune src/stiffness_checker/matlab
-prune src/stiffness_checker/test
 prune .github
 
 include AUTHORS.rst

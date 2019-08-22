@@ -47,7 +47,7 @@ setup(
     ),
     packages=find_packages('src'),
     package_dir={'': 'src'},
-    # package_data={},
+    package_data={'pyconmech': ['data/*.json']},
     ext_modules=ext_modules,
     cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
