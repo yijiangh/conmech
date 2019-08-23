@@ -26,10 +26,11 @@ def test_get_material_from_database():
 
 
 def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, include_sw=False,
-    n_attempts=50, existing_ids=[], expect_partial_ids_success=True):
+    n_attempts=50, existing_ids=[], expect_partial_ids_success=True, trans_tol=2e-3):
     sc = StiffnessChecker(json_file_path=frame_file_path)
     sc.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
     assert not sc.has_stored_result()
+    sc.set_nodal_displacement_tol(trans_tol=trans_tol)
 
     sol_success = sc.solve(existing_ids, eid_sanity_check=True)
 
@@ -80,6 +81,7 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
     for _ in range(n_attempts):
         sc_new = StiffnessChecker(json_file_path=frame_file_path)
         sc_new.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
+        sc_new.set_nodal_displacement_tol(trans_tol=trans_tol)
 
         sol_success = sc_new.solve(existing_ids)
         tmp_success, tmp_nD, tmp_fR, tmp_eR = sc_new.get_solved_results()
@@ -109,16 +111,24 @@ def test_stiffness_checker_solve_consistency(test_case, load_case):
         # some parts are floating in this partial ids
         failed_existing_ids = [0, 4, 7, 8, 9] 
         if load_case == 'self_weight' or load_case == 'self_weight+point_load':
-            success_existing_ids = list(range(24))
+            success_existing_ids = [1, 12, 5, 10, 4, 11, 13, 3, 2, 0, 7]
+            trans_tol = 0.04
         else:
             success_existing_ids = [0,1,2,3,8,9,10,11,12,13,14,15]
+            trans_tol = 0.001
     elif test_case == 'topopt-100':
         file_name = 'topopt-100.json'
         load_file_name = 'topopt-100_load_case.json'
 
         # a big cantilever are floating in this partial ids
         failed_existing_ids = [125, 126, 115, 122, 111, 108, 23, 22, 98, 75, 64, 34, 61, 65, 59, 60, 39, 36, 44, 67]
-        success_existing_ids = list(range(132)) # full structure for now...
+
+        success_existing_ids = [0, 1, 2, 3, 4, 5, 6, 8, 11, 14, 15, 19, 20, 21, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+                34, 35, 36, 37, 38, 41, 42, 43, 44, 46, 51, 52, 53, 54, 55, 76, 88, 89, 90, 91, 92,
+                93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 
+                114, 115, 117, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131]
+
+        trans_tol = 0.002
     else:
         assert False, 'not supported test case!'
 
@@ -141,15 +151,15 @@ def test_stiffness_checker_solve_consistency(test_case, load_case):
     
     print('################\nfull solve success checks')
     repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
-        n_attempts=n_attempts, existing_ids=[], expect_partial_ids_success=True)
+        n_attempts=n_attempts, existing_ids=[], expect_partial_ids_success=True, trans_tol=trans_tol)
 
     print('################\npartial solve success checks')
     repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
-        n_attempts=n_attempts, existing_ids=success_existing_ids, expect_partial_ids_success=True)
+        n_attempts=n_attempts, existing_ids=success_existing_ids, expect_partial_ids_success=True, trans_tol=trans_tol)
 
     print('################\npartial solve failure checks')
     repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
-        n_attempts=n_attempts, existing_ids=failed_existing_ids, expect_partial_ids_success=False)
+        n_attempts=n_attempts, existing_ids=failed_existing_ids, expect_partial_ids_success=False, trans_tol=trans_tol)
 
 
 def test_init_stiffness_checker():
@@ -400,7 +410,7 @@ def test_nodal_equilibrium(test_case, load_case):
         # some parts are floating in this partial ids
         failed_existing_ids = [0, 4, 7, 8, 9] 
         if load_case == 'self_weight' or load_case == 'self_weight+point_load':
-            success_existing_ids = list(range(24))
+            success_existing_ids = [0, 1, 2, 3, 4, 5, 6, 10, 13]
         else:
             success_existing_ids = [0,1,2,3,8,9,10,11,12,13,14,15]
     elif test_case == 'topopt-100':
@@ -409,7 +419,9 @@ def test_nodal_equilibrium(test_case, load_case):
 
         # a big cantilever are floating in this partial ids
         failed_existing_ids = [125, 126, 115, 122, 111, 108, 23, 22, 98, 75, 64, 34, 61, 65, 59, 60, 39, 36, 44, 67]
-        success_existing_ids = list(range(132)) # full structure for now...
+        success_existing_ids = [0, 1, 2, 3, 4, 5, 8, 11, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, \
+        43, 44, 51, 52, 53, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, \
+        108, 109, 110, 111, 112, 113, 114, 115, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131]
     else:
         assert False, 'not supported test case!'
 
@@ -493,13 +505,14 @@ def test_self_weight_validity(test_case):
         file_name = 'tower_3D.json'
         load_file_name = 'tower_3D_load_case.json'
         
-        success_existing_ids = list(range(24))
+        success_existing_ids = list(range(8))
     elif test_case == 'topopt-100':
         file_name = 'topopt-100.json'
         load_file_name = 'topopt-100_load_case.json'
 
-        # a big cantilever are floating in this partial ids
-        success_existing_ids = list(range(132)) # full structure for now...
+        success_existing_ids = [0, 1, 2, 3, 4, 5, 8, 11, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, \
+        43, 44, 51, 52, 53, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, \
+        108, 109, 110, 111, 112, 113, 114, 115, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131]
     else:
         assert False, 'not supported test case!'
 
