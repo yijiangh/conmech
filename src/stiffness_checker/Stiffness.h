@@ -34,11 +34,18 @@ public:
    * n_desire is the number of nodes that you wants to prescribe
    *    nodal_forces[i, :] = [node_id, Fx, Fy, Fz, Mx, My, Mz]
    *    described in global (world) frame. 0 <= node_id < N_vert.
-   * @param include_self_weight
-   *    boolean flag for include element's self weight.
-   *    default to be false.
    */
   void setLoad(const Eigen::MatrixXd &nodal_forces);
+
+  /**
+   * @brief Set the Uniformly Distributed Load
+   * 
+   * @param element_load_density 
+   * (n_desired_elements x 4) matrix
+   *  element_load_density[i, :] = [e_id, wx, wy, wz]
+   *  described in global frame, wx, wy, wz are load densities in kN/m
+   */
+  void setUniformlyDistributedLoad(const Eigen::MatrixXd &element_load_density);
 
   void setSelfWeightNodalLoad(bool include_sw) { include_self_weight_load_ = include_sw; }
 
@@ -116,11 +123,7 @@ public:
   // for now, these load vectors contain all the nodes in the full structure
   // no index column
   bool getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load);
-  bool getExternalNodalLoad(Eigen::VectorXd& ext_point_load) 
-  { 
-    ext_point_load = nodal_load_P_; 
-    return true; 
-  }
+  bool getExternalNodalLoad(Eigen::VectorXd& ext_point_load) { ext_point_load = nodal_load_P_; return true; }
   bool isIncludeSelfWeightLoad() const { return include_self_weight_load_; }
 
   bool hasStoredResults() const { return has_stored_deformation_; }
@@ -189,23 +192,55 @@ private:
   void createExternalNodalLoad(const Eigen::MatrixXd &nodal_forces, Eigen::VectorXd &ext_load);
 
   /**
-   * create a list of element stiffness matrix (in global frame),
-   * and store it to the class var local_K_list_.
+   * @brief Create a Uniformly Distributed Load
+   * 
+   * NOTE: this will erase previously assigned elemental loads!
+   * 
+   * @param element_load_density 
+   * (n_loaded_elements x (1+3)) matrix,
+   * n_loaded_elements is the number of prescribed loaded elements
+   *    nodal_forces[i, :] = [element_id, wx, wy, wz] (3D)
+   *    described in global (world) frame. 0 <= element_id < N_vert.
+   * @param[out] ext_load lumped equivalent nodal load (full dofs)
    */
-  void createElementStiffnessMatrixList();
-  void createElementSelfWeightNodalLoad();
+  void precomputeElementUniformlyDistributedLumpedLoad(const Eigen::MatrixXd &element_load_density);
 
   /**
-   * assemble global stiffness matrix from all elements,
-   * i.e. (dof x dof) K_assembled, dof = n_Node*6
+   * @brief Create lumped nodal loads for external element-wise loads, this is called
+   * when ``solve`` is called.
+   * 
+   * @param exist_e_ids : existing elements' indices
+   * @param[out] ext_load lumped equivalent nodal load (full dofs)
    */
-  void createCompleteGlobalStiffnessMatrix(const std::vector<int> &exist_e_ids);
+  void createUniformlyDistributedLumpedLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd &ext_load);
+
+
+  /**
+   * @brief Precompute lumped nodal loads for element self weight load.
+   * 
+   */
+  void precomputeElementSelfWeightLumpedLoad();
 
   /**
    * convert self-weight load (between nodal points) to nodal
    * loads and save it to the class var self_weight_load_P.
+   * 
+   * This function is called whenever ``solve`` is called.
    */
-  void createSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load);
+  void createSelfWeightLumpedLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load);
+
+  /**
+   * create a list of element stiffness matrix (in global frame),
+   * and store it to the class var local_K_list_.
+   */
+  void precomputeElementStiffnessMatrixList();
+
+  /**
+   * assemble global stiffness matrix from all elements,
+   * i.e. (dof x dof) K_assembled, dof = n_Node*6
+   * This is called at solve-time.
+   */
+  void createCompleteGlobalStiffnessMatrix(const std::vector<int> &exist_e_ids);
 
 protected:
   Frame frame_;
@@ -283,8 +318,25 @@ private:
    */
   std::vector<Eigen::MatrixXd> element_K_list_;
 
+  /**
+   * @brief a list of 3x3 global-to-local coordinate transformation matrix
+   * (N_all_element x (3x3)) list
+   */
   std::vector<Eigen::MatrixXd> rot_m_list_;
 
+  /**
+   * @brief a list of (6 + 6) vectors in global frame
+   * (N_all_element x (12)) list
+   */
+  std::vector<Eigen::VectorXd> element_lumped_nload_list_;
+
+  /**
+   * @brief a list of (6 + 6) vectors in global frame
+   * 
+   * Note: for now, we separate gravity and other element-wise loads
+   * 
+   * (N_all_element x (12)) list
+   */
   std::vector<Eigen::VectorXd> element_gravity_nload_list_;
 
   /**

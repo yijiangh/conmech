@@ -213,7 +213,7 @@ def read_load_case_json(file_path):
     point_load : dict 
         {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]}, in global coordinate
     uniform_element_load : dict 
-        {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]}, in global coordinate
+        {node_id : [wx, wy, wz]}, in global coordinate
     include_self_weight : bool 
         include self-weight or not, now only supports gravity in global z direction
     """
@@ -231,8 +231,13 @@ def read_load_case_json(file_path):
     uniform_element_load = {}
     include_self_weight = json_data['include_self_weight'] if 'include_self_weight' in json_data else False
     for pl_data in json_data['point_load_list']:
-       point_load[pl_data['applied_node_id']] = [pl_data['Fx'], pl_data['Fy'], pl_data['Fz'], 
+        point_load[pl_data['applied_node_id']] = [pl_data['Fx'], pl_data['Fy'], pl_data['Fz'], 
                                                  pl_data['Mx'], pl_data['My'], pl_data['Mz']]
+
+    if 'uniformly_distributed_element_load_list' in json_data:
+        for el_data in json_data['uniformly_distributed_element_load_list']:
+            assert el_data['description_frame'] == 'global'
+            uniform_element_load[el_data['applied_element_id']] = [el_data['wx'], el_data['wy'], el_data['wz']]
     
     return point_load, uniform_element_load, include_self_weight
 
