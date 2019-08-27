@@ -28,6 +28,8 @@ PYBIND11_MODULE(_pystiffness_checker, m)
     // L[i,1:7] = [0,0,-1,0,0,0]
     .def("set_load", &conmech::stiffness_checker::Stiffness::setLoad, py::arg("nodal_forces"))
 
+    .def("set_uniformly_distributed_loads", &conmech::stiffness_checker::Stiffness::setUniformlyDistributedLoad, py::arg("element_load_density"))
+
     // note: file_path must be attached with a path separator
     .def("set_output_json_path", &conmech::stiffness_checker::Stiffness::setOutputJsonPath,
     py::arg("file_path"), py::arg("file_name"))
@@ -39,7 +41,6 @@ PYBIND11_MODULE(_pystiffness_checker, m)
     // trans unit: meter, rot unit: rad
     .def("set_nodal_displacement_tol", &conmech::stiffness_checker::Stiffness::setNodalDisplacementTolerance,
     py::arg("transl_tol"), py::arg("rot_tol"))
-
 
     // element length L: m
     // E, G: kN/m^2
@@ -71,8 +72,14 @@ PYBIND11_MODULE(_pystiffness_checker, m)
       if (tmp_existing_ids.empty()) {
         for (int i=0;i<cm.getTotalNumOfElements();i++) tmp_existing_ids.push_back(i);
       }
+
       Eigen::VectorXd tot_pt_load;
       cm.getExternalNodalLoad(tot_pt_load);
+
+      Eigen::VectorXd element_lumped_load;
+      cm.getUniformlyDistributedLumpedLoad(tmp_existing_ids, element_lumped_load);
+      tot_pt_load += element_lumped_load;
+
       if (cm.isIncludeSelfWeightLoad()) {
         Eigen::VectorXd sw_nodal_loads;
         cm.getSelfWeightNodalLoad(tmp_existing_ids, sw_nodal_loads);

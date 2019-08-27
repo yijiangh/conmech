@@ -169,11 +169,7 @@ class StiffnessChecker(object):
             include gravity load or not, by default False
         uniform_distributed_load : dict, optional
             elemental uniformly distributed load, by default {}
-        
-        Raises
-        ------
-        NotImplementedError
-            uniform loads input not supported for now
+            {element_id : [wx, wy, wz]}, in global cooridinate
         """
         self._sc_ins.set_self_weight_load(include_self_weight)
         if point_loads:
@@ -182,7 +178,10 @@ class StiffnessChecker(object):
                 pt_loads.append([vid] + vload)
             self._sc_ins.set_load(np.array(pt_loads))
         if uniform_distributed_load:
-            raise NotImplementedError('uniform loads input not supported for now')
+            ud_loads = []
+            for eid, eload in uniform_distributed_load.items():
+                ud_loads.append([eid] + eload)
+            self._sc_ins.set_uniformly_distributed_loads(np.array(ud_loads))
 
     def set_self_weight_load(self, include_self_weight):
         """Turn on/off self-weight load.

@@ -122,8 +122,10 @@ public:
 
   // for now, these load vectors contain all the nodes in the full structure
   // no index column
-  bool getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load);
   bool getExternalNodalLoad(Eigen::VectorXd& ext_point_load) { ext_point_load = nodal_load_P_; return true; }
+  bool getUniformlyDistributedLumpedLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& lumped_load);
+  bool getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load);
+
   bool isIncludeSelfWeightLoad() const { return include_self_weight_load_; }
 
   bool hasStoredResults() const { return has_stored_deformation_; }

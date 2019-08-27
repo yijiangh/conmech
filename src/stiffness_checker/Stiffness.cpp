@@ -425,25 +425,30 @@ void Stiffness::precomputeElementUniformlyDistributedLumpedLoad(const Eigen::Mat
 
     // node 0, 1 local moment
     Eigen::Vector3d M_0_l(3);
-    M_0_l << 0, -w_l(2)*std::pow(Le,2)/2.0, w_l(1)*std::pow(Le,2)/2.0;
+    M_0_l << 0, w_l(2)*std::pow(Le,2)/12.0, - w_l(1)*std::pow(Le,2)/12.0;
     Eigen::Vector3d M_1_l = - M_0_l;
 
     // transform local moment back to global
     fixed_end_lumped_load.segment(3, 3) = R_LG.transpose() * M_0_l;
     fixed_end_lumped_load.segment(9, 3) = R_LG.transpose() * M_1_l;
-
-    element_lumped_nload_list_[i] = fixed_end_lumped_load;
+    
+    // std::cout << fixed_end_lumped_load << std::endl;
+    element_lumped_nload_list_[e_id] = fixed_end_lumped_load;
   }
 }
 
 void Stiffness::createUniformlyDistributedLumpedLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd &ext_load)
 {
   // solve-time calculation
-  assert(is_init_);
-  assert(id_map_.cols() == 2 * node_dof_);
-
   int N_vert = frame_.sizeOfVertList();
   ext_load = Eigen::VectorXd::Zero(N_vert * node_dof_);
+
+  if (element_lumped_nload_list_.size() != frame_.sizeOfElementList()) {
+    return;
+  }
+
+  assert(is_init_);
+  assert(id_map_.cols() == 2 * node_dof_);
 
   for (const int e_id : exist_e_ids) {
     assert(0 <= e_id && e_id < element_lumped_nload_list_.size());
@@ -457,6 +462,7 @@ void Stiffness::createUniformlyDistributedLumpedLoad(const std::vector<int>& exi
 
 void Stiffness::precomputeElementSelfWeightLumpedLoad()
 {
+  // TODO: reuse element uniformly distributed load?
   // gravity - Precomputation
   // refer [MSA McGuire et al.] P111
   // Loads between nodal points
@@ -668,6 +674,11 @@ bool Stiffness::solve(
   auto K_fm = K_perm.block(n_Free, 0, n_Fixities, n_Free);
 
   Eigen::VectorXd nodal_load_P_tmp = nodal_load_P_;
+
+  Eigen::VectorXd element_lumped_load;
+  createUniformlyDistributedLumpedLoad(exist_element_ids, element_lumped_load);
+  nodal_load_P_tmp += element_lumped_load;
+
   if (include_self_weight_load_)
   {
     Eigen::VectorXd load_sw;
@@ -878,6 +889,17 @@ bool Stiffness::getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eige
   }
 }
 
+bool Stiffness::getUniformlyDistributedLumpedLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& lumped_load)
+{
+  try {
+      createUniformlyDistributedLumpedLoad(exist_e_ids, lumped_load);
+      return true;
+  }
+  catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s", e.what());
+    return false;
+  }
+}
 
 int Stiffness::getTotalNumOfElements()
 {
