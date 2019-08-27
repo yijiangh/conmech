@@ -26,7 +26,6 @@ exec(read('src', 'pyconmech', '__version__.py'), about)
 
 requirements = read('requirements.txt').split('\n')
 
-
 ext_modules = [
     CMakeExtension('_pystiffness_checker'),
     ]
@@ -67,7 +66,7 @@ setup(
         'Programming Language :: Python :: 3.6',
     ],
     keywords=['3D frame analysis', 'Finite Element Analysis', 'Structural Analysis'],
-    # install_requires=requirements,
+    install_requires=requirements,
     # extras_require={},
     # entry_points={},
 )

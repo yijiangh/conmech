@@ -225,17 +225,14 @@ void Stiffness::precomputeElementStiffnessMatrixList()
 
     // material properties
     double A = material_parms_[i].cross_sec_area_;
-    double Jx = material_parms_[i].Jx;
-    double Iy = material_parms_[i].Iy;
-    double Iz = material_parms_[i].Iz;
-    // double Jx = 0.5 * M_PI * std::pow(material_parm_.radius_, 4);
-    // double Iy = M_PI * std::pow(material_parm_.radius_, 4) / 4;
-    // double Iz = Iy;
+    double Jx = material_parms_[i].Jx_;
+    double Iy = material_parms_[i].Iy_;
+    double Iz = material_parms_[i].Iz_;
 
     // E,G: MPa; mu (poisson ratio): unitless
     double E = material_parms_[i].youngs_modulus_;
     double mu = material_parms_[i].poisson_ratio_;
-    double G = 0.5 * E / (1 + mu);
+    double G = material_parms_[i].shear_modulus_;
 
     // assert(std::abs((material_parm_.shear_modulus_ - G) / G) < 1e-6
     //        && "input poisson ratio not compatible with shear and Young's modulus!");
@@ -287,10 +284,6 @@ void Stiffness::precomputeElementStiffnessMatrixList()
     element_K_list_.push_back(K_loc);
     rot_m_list_.push_back(R_LG_diag);
   }
-
-  // std::clock_t c_end = std::clock();
-  // std::cout << "create elemental stiffness matrix: "
-  // << 1e3 * (c_end - c_start) / CLOCKS_PER_SEC << " ms" << std::endl;
 }
 
 void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exist_e_ids)
@@ -458,9 +451,6 @@ void Stiffness::precomputeElementSelfWeightLumpedLoad()
   int N_vert = frame_.sizeOfVertList();
   int N_element = frame_.sizeOfElementList();
 
-  // assuming solid circular cross sec for now
-  double Ax = M_PI * std::pow(material_parm_.radius_, 2);
-
   element_gravity_nload_list_.clear();
   element_gravity_nload_list_.resize(N_element);
 
@@ -475,7 +465,7 @@ void Stiffness::precomputeElementSelfWeightLumpedLoad()
     // uniform force density along the element
     // due to gravity
     // density kN / m^3 * m^2
-    double q_sw = material_parm_.density_ * Ax;
+    double q_sw = material_parms_[i].density_ * material_parms_[i].cross_sec_area_;
 
     if (model_type_ == "frame")
     {
