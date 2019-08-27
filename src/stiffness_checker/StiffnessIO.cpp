@@ -87,7 +87,7 @@ namespace conmech
 {
 namespace stiffness_checker
 {
-bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &frame_parm)
+bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<StiffnessParm> &frame_parms)
 {
   using namespace rapidjson;
 
@@ -113,59 +113,87 @@ bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &fr
     CursorStreamWrapper<FileReadStream> csw(is);
 		while(1) {
         document.ParseStream<rapidjson::kParseStopWhenDoneFlag,rapidjson::UTF8<>>(csw);
-        // document.ParseStream(csw);
-
 				if(document.HasParseError()) {
-	    		// fprintf(stderr, "\nError(line %u, col %u, char %u): %s\n",
-          //   	(unsigned)csw.GetLine(), // get line number
-	        //     (unsigned)csw.GetColumn(), // get column number
-	        //     (unsigned)document.GetErrorOffset(), // get number of chars (last parsing error)
-	        //     GetParseError_En(document.GetParseError()));
 					break;
 				}
     }
 		fclose(fp);
-    // std::cout <<  "Size:" << alloc.Size() << "\n";
-    // std::cout <<  "Capacity:" << alloc.Capacity() << "\n";
+    
+    frame_parms.clear();
 
-    // TODO: convert all these assertions to throw / catch
-    // assert(document.HasMember("material_properties"));
-    double unit_conversion;
+    if (document["uniform_cross_section"].GetBool() && document["uniform_material_properties"].GetBool()) {
+      StiffnessParm frame_parm;
+      double unit_conversion;
 
-    // TODO: check unit
-    // kN/cm^2 -> kN/m^2
-    // assert(document["material_properties"].HasMember("youngs_modulus_unit"));
-    // assert(document["material_properties"].HasMember("youngs_modulus"));
-  //  unit_conversion = convertModulusScale(document["material_properties"]["youngs_modulus_unit"].GetString());
-    unit_conversion = 1e4;
-    frame_parm.youngs_modulus_ = unit_conversion * document["material_properties"]["youngs_modulus"].GetDouble();
+      // TODO: check unit
+      // kN/cm^2 -> kN/m^2
+      unit_conversion = 1e4;
+      frame_parm.youngs_modulus_ = unit_conversion * document["material_properties"]["youngs_modulus"].GetDouble();
 
-    // assert(document["material_properties"].HasMember("shear_modulus_unit"));
-    // assert(document["material_properties"].HasMember("shear_modulus"));
-  //  unit_conversion = convertModulusScale(document["material_properties"]["shear_modulus_unit"].GetString());
-    unit_conversion = 1e4;
-    frame_parm.shear_modulus_ = unit_conversion * document["material_properties"]["shear_modulus"].GetDouble();
+      unit_conversion = 1e4;
+      frame_parm.shear_modulus_ = unit_conversion * document["material_properties"]["shear_modulus"].GetDouble();
 
-    // kN/cm^2 -> kN/m^2
-    // unit_conversion = 1e4;
-    // frame_parm.tensile_yeild_stress_ = unit_conversion * document["material_properties"]["tensile_yeild_stress"].GetDouble();
+      // kN/cm^2 -> kN/m^2
+      // unit_conversion = 1e4;
+      // frame_parm.tensile_yeild_stress_ = unit_conversion * document["material_properties"]["tensile_yeild_stress"].GetDouble();
+      frame_parm.poisson_ratio_ = document["material_properties"]["poisson_ratio"].GetDouble();
 
-    // assert(document["material_properties"].HasMember("poisson_ratio"));
-    frame_parm.poisson_ratio_ = document["material_properties"]["poisson_ratio"].GetDouble();
+      // kN/m^3
+      unit_conversion = convertDensityScale(document["material_properties"]["density_unit"].GetString());
+      frame_parm.density_ = unit_conversion * document["material_properties"]["density"].GetDouble();
 
-    // kN/m^3
-    // assert(document["material_properties"].HasMember("density_unit"));
-    // assert(document["material_properties"].HasMember("density"));
-    unit_conversion = convertDensityScale(document["material_properties"]["density_unit"].GetString());
-    frame_parm.density_ = unit_conversion * document["material_properties"]["density"].GetDouble();
+      // cm -> m
+      // unit_conversion = 1e-2;
+      // frame_parm.radius_ = unit_conversion * document["material_properties"]["radius"].GetDouble();
 
-    // cm -> m
-    // assert(document["material_properties"].HasMember("radius_unit"));
-    // assert(document["material_properties"].HasMember("radius"));
-  //  unit_conversion = convertDensityScale(document["material_properties"]["radius_unit"].GetString());
-    unit_conversion = 1e-2;
-    frame_parm.radius_ = unit_conversion * document["material_properties"]["radius"].GetDouble();
+      // cm^2 -> m^2
+      unit_conversion = 1e-4;
+      frame_parm.cross_sec_area_ = unit_conversion * document["material_properties"]["cross_sec_area"].GetDouble();
+      
+      int element_num = document["element_num"].GetInt();
+      for (int i=0; i<element_num; i++) {
+        frame_parms.push_back(frame_parm);
+      }
+    }
+    else {
+      for(int i=0; i<document["element_list"].Size(); i++) {
+        StiffnessParm frame_parm;
+        double unit_conversion;
 
+        // TODO: check unit
+        // kN/cm^2 -> kN/m^2
+        unit_conversion = 1e4;
+        frame_parm.youngs_modulus_ = unit_conversion * document["element_list"][i]["material_properties"]["youngs_modulus"].GetDouble();
+
+        unit_conversion = 1e4;
+        frame_parm.shear_modulus_ = unit_conversion * document["element_list"][i]["material_properties"]["shear_modulus"].GetDouble();
+
+        // kN/cm^2 -> kN/m^2
+        // unit_conversion = 1e4;
+        // frame_parm.tensile_yeild_stress_ = unit_conversion * document["material_properties"]["tensile_yeild_stress"].GetDouble();
+        frame_parm.poisson_ratio_ = document["element_list"][i]["material_properties"]["poisson_ratio"].GetDouble();
+        
+        // cm^4 -> m^4
+        unit_conversion = 1e-8;
+        frame_parm.Iy = unit_conversion * document["element_list"][i]["material_properties"]["torsion_constant_Jx"].GetDouble();
+        frame_parm.Iy = unit_conversion * document["element_list"][i]["material_properties"]["are_moment_of_inertia_Iy"].GetDouble();
+        frame_parm.Iz = unit_conversion * document["element_list"][i]["material_properties"]["are_moment_of_inertia_Iz"].GetDouble();
+
+        // kN/m^3
+        unit_conversion = convertDensityScale(document["element_list"][i]["material_properties"]["density_unit"].GetString());
+        frame_parm.density_ = unit_conversion * document["element_list"][i]["material_properties"]["density"].GetDouble();
+
+        // cm -> m
+        unit_conversion = 1e-2;
+        frame_parm.radius_ = unit_conversion * document["element_list"][i]["material_properties"]["radius"].GetDouble();
+
+        // cm^2 -> m^2
+        unit_conversion = 1e-4;
+        frame_parm.cross_sec_area_ = unit_conversion * document["element_list"][i]["material_properties"]["cross_sec_area"].GetDouble();
+      
+        frame_parms.push_back(frame_parm);
+      }
+    }
   } catch (const std::runtime_error &e) {
 		fclose(fp);
     fprintf(stderr, "%s\n", e.what());

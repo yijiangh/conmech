@@ -246,7 +246,7 @@ private:
 
 protected:
   Frame frame_;
-  StiffnessParm material_parm_;
+  std::vector<StiffnessParm> material_parms_;
   StiffnessSolver stiff_solver_;
 
   Timer create_k_;

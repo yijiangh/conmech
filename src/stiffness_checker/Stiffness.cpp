@@ -44,7 +44,7 @@ Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std:
     if(!frame_.loadFromJson(json_file_path)) {
       throw std::runtime_error("Parsing frame json files failed\n");
     }
-    if(!parseMaterialPropertiesJson(json_file_path, material_parm_))
+    if(!parseMaterialPropertiesJson(json_file_path, material_parms_))
     {
       throw std::runtime_error("Parsing material json files failed\n");
     }
@@ -108,6 +108,8 @@ bool Stiffness::init()
     }
   }
   assert(xyz_dof_id_.size() == node_dof_ * 2);
+
+  // init per-element material properties
 
   precomputeElementStiffnessMatrixList();
   precomputeElementSelfWeightLumpedLoad();
@@ -188,8 +190,6 @@ void Stiffness::setNodalDisplacementTolerance(double transl_tol, double rot_tol)
 
 void Stiffness::precomputeElementStiffnessMatrixList()
 {
-  // std::clock_t c_start = std::clock();
-
   // TODO: clean the units in the comments here
   // check the complete element stiffness matrix
   // in local frame: [MSA McGuire et al.] P73
@@ -204,41 +204,13 @@ void Stiffness::precomputeElementStiffnessMatrixList()
   // Force: kN
   // Moment: kN m
 
-  // assuming all the elements have the same cross section
-  // and all of them are solid circular shape
-  // cross section area: assuming solid circular, unit: m^2
-  double A = M_PI * std::pow(material_parm_.radius_, 2);
-//  double Asy = Ax * (6 + 12 * material_parm_.poisson_ratio_ + 6 * std::pow(material_parm_.poisson_ratio_,2))
-//      / (7 + 12 * material_parm_.poisson_ratio_ + 4 * std::pow(material_parm_.poisson_ratio_,2));
-//  double Asz = Asy;
-
-  // torsion constant (around local x axis)
-  // for solid circle: (1/2)pi*r^4, unit: m^4
-  // see: https://en.wikipedia.org/wiki/Torsion_constant#Circle
-  double Jx = 0.5 * M_PI * std::pow(material_parm_.radius_, 4);
-//  double Jx = (2.0/3.0) * pi * std::pow(material_parm_.radius_, 4);
-
-  // area moment of inertia (bending about local y,z-axis)
-  // assuming solid circular area of radius r, unit: m^4
-  // see: https://en.wikipedia.org/wiki/List_of_area_moments_of_inertia
-  // note this is slender rod of length L and Mass M, spinning around end
-  double Iy = M_PI * std::pow(material_parm_.radius_, 4) / 4;
-  double Iz = Iy;
-
-  // E,G: MPa; mu (poisson ratio): unitless
-  double E = material_parm_.youngs_modulus_;
-  double mu = material_parm_.poisson_ratio_;
-  // double G = material_parm_.shear_modulus_;
-  double G = 0.5 * E / (1 + mu);
-
-  assert(std::abs((material_parm_.shear_modulus_ - G) / G) < 1e-6
-         && "input poisson ratio not compatible with shear and Young's modulus!");
-
   int N_element = frame_.sizeOfElementList();
   assert(N_element > 0);
 
   using namespace std;
 
+  element_K_list_.clear();
+  rot_m_list_.clear();
   element_K_list_.reserve(N_element);
   rot_m_list_.reserve(N_element);
 
@@ -250,6 +222,23 @@ void Stiffness::precomputeElementStiffnessMatrixList()
 
     // element length, unit: m
     double L = (end_v->position() - end_u->position()).norm();
+
+    // material properties
+    double A = material_parms_[i].cross_sec_area_;
+    double Jx = material_parms_[i].Jx;
+    double Iy = material_parms_[i].Iy;
+    double Iz = material_parms_[i].Iz;
+    // double Jx = 0.5 * M_PI * std::pow(material_parm_.radius_, 4);
+    // double Iy = M_PI * std::pow(material_parm_.radius_, 4) / 4;
+    // double Iz = Iy;
+
+    // E,G: MPa; mu (poisson ratio): unitless
+    double E = material_parms_[i].youngs_modulus_;
+    double mu = material_parms_[i].poisson_ratio_;
+    double G = 0.5 * E / (1 + mu);
+
+    // assert(std::abs((material_parm_.shear_modulus_ - G) / G) < 1e-6
+    //        && "input poisson ratio not compatible with shear and Young's modulus!");
 
     Eigen::Matrix3d R_LG;
     getGlobal2LocalRotationMatrix(end_u->position(), end_v->position(), R_LG);
