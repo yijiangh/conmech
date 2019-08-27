@@ -14,8 +14,18 @@
     "density": 78.5,
     "density_unit": "kN/m3",
     "poisson_ratio": 0.300149,
-    "radius": 2.5,
-    "radius_unit": "centimeter"
+    "cross_sec_area": 19.634954084936208,
+    "cross_sec_area_unit": "centimeter^2",
+    "_cross_sec_area_note": "round_shape, radius 2.5 cm",
+    "Jx": 61.35923151542565,
+    "Jx_unit": "centimeter^4",
+    "_Jx_note": "0.5 * pi * r^4",
+    "Iy": 30.679615757712824,
+    "Iy_unit": "centimeter^4",
+    "_Iy_note": "0.25 * pi * r^4",
+    "Iz": 30.679615757712824,
+    "Iz_unit": "centimeter^4",
+    "_Iz_note": "0.25 * pi * r^4"
   },
   "node_list": [
     {
