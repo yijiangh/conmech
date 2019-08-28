@@ -368,6 +368,31 @@ void Stiffness::createExternalNodalLoad(
   }
 }
 
+void Stiffness::computeLumpedUniformlyDistributedLoad(const Eigen::Vector3d &w_G, const Eigen::Matrix3d &R_LG, const double &Le, 
+  Eigen::VectorXd &fixed_end_lumped_load)
+{
+  fixed_end_lumped_load = Eigen::VectorXd::Zero(2 * node_dof_);
+
+  // node 0,1 force
+  fixed_end_lumped_load.segment(0, 3) = - w_G * Le / 2.0;
+  fixed_end_lumped_load.segment(6, 3) = - w_G * Le / 2.0;
+
+  // transform global load density to local density
+  Eigen::Vector3d w_l = - R_LG * w_G;
+
+  // node 0, 1 local moment
+  Eigen::Vector3d M_0_l(3);
+  M_0_l << 0, - w_l(2)*std::pow(Le,2)/12.0, w_l(1)*std::pow(Le,2)/12.0;
+  Eigen::Vector3d M_1_l = - M_0_l;
+
+  // transform local moment back to global
+  fixed_end_lumped_load.segment(3, 3) = R_LG.transpose() * M_0_l;
+  fixed_end_lumped_load.segment(9, 3) = R_LG.transpose() * M_1_l;
+
+  // equivalent nodal load P_e = - P_fixed_end
+  fixed_end_lumped_load *= -1;
+}
+
 void Stiffness::precomputeElementUniformlyDistributedLumpedLoad(const Eigen::MatrixXd &element_load_density)
 {
   // refer [MSA McGuire et al.] P111
@@ -396,25 +421,9 @@ void Stiffness::precomputeElementUniformlyDistributedLumpedLoad(const Eigen::Mat
       e->endVertU()->position(),
       e->endVertV()->position(), R_LG);
 
-    Eigen::VectorXd fixed_end_lumped_load = Eigen::VectorXd::Zero(2 * node_dof_);
+    Eigen::VectorXd fixed_end_lumped_load;
+    computeLumpedUniformlyDistributedLoad(w_g, R_LG, Le, fixed_end_lumped_load);
 
-    // node 0,1 force
-    fixed_end_lumped_load.segment(0, 3) = - w_g * Le / 2.0;
-    fixed_end_lumped_load.segment(6, 3) = - w_g * Le / 2.0;
-
-    // transform global load density to local density
-    Eigen::Vector3d w_l = R_LG * w_g;
-
-    // node 0, 1 local moment
-    Eigen::Vector3d M_0_l(3);
-    M_0_l << 0, w_l(2)*std::pow(Le,2)/12.0, - w_l(1)*std::pow(Le,2)/12.0;
-    Eigen::Vector3d M_1_l = - M_0_l;
-
-    // transform local moment back to global
-    fixed_end_lumped_load.segment(3, 3) = R_LG.transpose() * M_0_l;
-    fixed_end_lumped_load.segment(9, 3) = R_LG.transpose() * M_1_l;
-    
-    // std::cout << fixed_end_lumped_load << std::endl;
     element_lumped_nload_list_[e_id] = fixed_end_lumped_load;
   }
 }
@@ -471,34 +480,18 @@ void Stiffness::precomputeElementSelfWeightLumpedLoad()
     {
       if (3 == dim_)
       {
-        Eigen::Matrix3d R_eG;
+        Eigen::Vector3d w_g(3);
+        w_g << 0, 0, -q_sw;
+    
+        Eigen::Matrix3d R_LG;
         getGlobal2LocalRotationMatrix(
           e->endVertU()->position(),
-          e->endVertV()->position(), R_eG);
-        // gravity in local frame
-        // https://github.mit.edu/yijiangh/frame3dd/blob/master/frame3dd_io.c#L905
+          e->endVertV()->position(), R_LG);
 
-        Eigen::VectorXd fixed_end_sw_load = Eigen::VectorXd::Zero(2 * node_dof_);
+        Eigen::VectorXd fixed_end_lumped_load;
+        computeLumpedUniformlyDistributedLoad(w_g, R_LG, Le, fixed_end_lumped_load);
 
-        // according to fixed-end force diagram
-        // uniform load on a beam with both ends fixed ([MSA] p111.)
-        // fixed-end fictitious reaction
-        // "mass lumping"
-        fixed_end_sw_load[2] = -q_sw * Le / 2.0;
-        fixed_end_sw_load[3] =
-          q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
-        fixed_end_sw_load[4] =
-          q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 1) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 1)) * (-1));
-        fixed_end_sw_load[5] = 0;
-
-        fixed_end_sw_load[8] = -q_sw * Le / 2.0;
-        fixed_end_sw_load[9] =
-          -q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
-        fixed_end_sw_load[10] =
-          -q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 1) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 1)) * (-1));
-        fixed_end_sw_load[11] = 0;
-
-        element_gravity_nload_list_[i] = fixed_end_sw_load;
+        element_gravity_nload_list_[i] = fixed_end_lumped_load;
       }
       else
       {

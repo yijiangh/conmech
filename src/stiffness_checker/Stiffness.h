@@ -164,6 +164,9 @@ public:
   int getTotalNumOfElements();
   int getTotalNumOfVertices();
 
+  void computeLumpedUniformlyDistributedLoad(const Eigen::Vector3d &w_G, const Eigen::Matrix3d &R_LG, const double &Le, 
+    Eigen::VectorXd &eq_nodal_load);
+
   /* Check condition number */
 //  bool CheckIllCondition(IllCondDetector &stiff_inspector);
 //  bool CheckError(IllCondDetector &stiff_inspector, Eigen::VectorXd &D);

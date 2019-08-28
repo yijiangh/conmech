@@ -553,7 +553,7 @@ def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids):
         assert material_dicts[e_id]['cross_sec_area_unit'] == 'centimeter^2' and material_dicts[e_id]["density_unit"] == "kN/m3"
         A = material_dicts[e_id]['cross_sec_area'] * 1e-4 # convert to meter^2
         rho = material_dicts[e_id]['density']
-        uniform_distributed_load[e_id] = [0, 0, rho * A]
+        uniform_distributed_load[e_id] = [0, 0, - rho * A]
 
     # existing_e_ids = list(range(len(sc.elements)))
     sc.set_loads(uniform_distributed_load=uniform_distributed_load, include_self_weight=False)
@@ -579,7 +579,7 @@ def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids):
         assert_almost_equal(ul_eR[e_id][0], sw_eR[e_id][0])
         assert_almost_equal(ul_eR[e_id][1], sw_eR[e_id][1])
 
-
+@pytest.mark.ignore(reason='not fully developed')
 @pytest.mark.uniform_load_check
 def test_uniformly_distributed_load_with_analytical_solution():
     """ analytical example in 
@@ -603,18 +603,23 @@ def test_uniformly_distributed_load_with_analytical_solution():
     sc.set_loads(point_loads=point_load, uniform_distributed_load=uniform_element_load, include_self_weight=include_sw)
 
     sc.solve()
-    success, nD, fR, eR = sc.get_solved_results()
-    print(nD)
-    print(fR)
-    print(eR)
+    pass_criteria, nD, fR, eR = sc.get_solved_results()
 
-    assert not success
-    assert_almost_equal(fR[0], [0, 0, 14.74, -6.45*1e-3, -36.21, 0])
-    assert_almost_equal(fR[2], [0, 0, 5.25, -41.94, -17.11*1e-3, 0])
-
+    nodal_loads = sc.get_nodal_loads()
+    assert_equal(nodal_loads[1][2], -12.5)
+    assert_equal(nodal_loads[1][3], 0.0)
+    assert_equal(nodal_loads[1][4], -6.250)
+    
+    check_decimal = 2
+    assert not pass_criteria
     assert_equal(nD[0], [0] * 6)
-    assert_almost_equal(nD[1], [0, 0, -0.02237, 4.195*1e-3, 5.931*1e-3, 0])
+    assert_almost_equal(nD[1], [0, 0, -0.02237, 4.195*1e-3, 5.931*1e-3, 0], decimal=check_decimal)
     assert_equal(nD[2], [0] * 6)
+
+    check_decimal = 1
+    assert_almost_equal(fR[0], [0, 0, 14.74, -6.45*1e-3, -36.21, 0], decimal=check_decimal)
+    assert_almost_equal(fR[2], [0, 0, 5.25, -41.94, -17.11*1e-3, 0], decimal=check_decimal)
+
 
 # @pytest.mark.ii
 # def test_helpers():
