@@ -45,7 +45,7 @@ class StiffnessChecker(object):
         self._sc_ins = _stiffness_checker(json_file_path=json_file_path, verbose=verbose)
         self._sc_ins.set_self_weight_load(True)
         
-        node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dict, model_name = \
+        node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name = \
         read_frame_json(json_file_path, verbose=verbose)
         if model_type == 'truss':
             raise NotImplementedError('truss model is not supported now...')
@@ -57,7 +57,7 @@ class StiffnessChecker(object):
         self._fix_node_ids = fix_node_ids
         self._fix_specs = fix_specs
         self._model_type = model_type
-        self._material_dict = material_dict
+        self._material_dicts = material_dicts
         
         self.set_nodal_displacement_tol()
 
@@ -66,14 +66,14 @@ class StiffnessChecker(object):
         return cls(json_file_path, verbose=verbose)
 
     @classmethod
-    def from_frame_data(cls, nodes, elements, fixed_node_ids, material_dict, 
+    def from_frame_data(cls, nodes, elements, fixed_node_ids, material_dicts, 
         fixity_specs={}, unit='meter', model_type='frame', model_name=None, verbose=False):
 
         # here = os.path.dirname(os.path.abspath(__file__))
         # tmp_path = os.path.join(here, 'pyconmech_frame_temp.json')
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_path = os.path.join(temp_dir, 'pyconmech_frame_temp.json')
-            write_frame_json(tmp_path, nodes, elements, fixed_node_ids, material_dict, 
+            write_frame_json(tmp_path, nodes, elements, fixed_node_ids, material_dicts, 
             fixity_specs=fixity_specs, model_type=model_type, model_name=model_name)
             instance = cls.from_json(tmp_path, verbose)
         return instance
@@ -115,8 +115,8 @@ class StiffnessChecker(object):
         return self._model_type
 
     @property
-    def material(self):
-        return self._material_dict
+    def materials(self):
+        return self._material_dicts
 
     # ==========================================================================
     # solve functions
@@ -169,11 +169,7 @@ class StiffnessChecker(object):
             include gravity load or not, by default False
         uniform_distributed_load : dict, optional
             elemental uniformly distributed load, by default {}
-        
-        Raises
-        ------
-        NotImplementedError
-            uniform loads input not supported for now
+            {element_id : [wx, wy, wz]}, in global cooridinate
         """
         self._sc_ins.set_self_weight_load(include_self_weight)
         if point_loads:
@@ -182,7 +178,10 @@ class StiffnessChecker(object):
                 pt_loads.append([vid] + vload)
             self._sc_ins.set_load(np.array(pt_loads))
         if uniform_distributed_load:
-            raise NotImplementedError('uniform loads input not supported for now')
+            ud_loads = []
+            for eid, eload in uniform_distributed_load.items():
+                ud_loads.append([eid] + eload)
+            self._sc_ins.set_uniformly_distributed_loads(np.array(ud_loads))
 
     def set_self_weight_load(self, include_self_weight):
         """Turn on/off self-weight load.

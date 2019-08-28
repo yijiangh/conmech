@@ -122,8 +122,10 @@ public:
 
   // for now, these load vectors contain all the nodes in the full structure
   // no index column
-  bool getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load);
   bool getExternalNodalLoad(Eigen::VectorXd& ext_point_load) { ext_point_load = nodal_load_P_; return true; }
+  bool getUniformlyDistributedLumpedLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& lumped_load);
+  bool getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load);
+
   bool isIncludeSelfWeightLoad() const { return include_self_weight_load_; }
 
   bool hasStoredResults() const { return has_stored_deformation_; }
@@ -161,6 +163,9 @@ public:
 
   int getTotalNumOfElements();
   int getTotalNumOfVertices();
+
+  void computeLumpedUniformlyDistributedLoad(const Eigen::Vector3d &w_G, const Eigen::Matrix3d &R_LG, const double &Le, 
+    Eigen::VectorXd &eq_nodal_load);
 
   /* Check condition number */
 //  bool CheckIllCondition(IllCondDetector &stiff_inspector);
@@ -244,7 +249,7 @@ private:
 
 protected:
   Frame frame_;
-  StiffnessParm material_parm_;
+  std::vector<StiffnessParm> material_parms_;
   StiffnessSolver stiff_solver_;
 
   Timer create_k_;

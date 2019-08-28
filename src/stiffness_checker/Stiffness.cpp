@@ -44,7 +44,7 @@ Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std:
     if(!frame_.loadFromJson(json_file_path)) {
       throw std::runtime_error("Parsing frame json files failed\n");
     }
-    if(!parseMaterialPropertiesJson(json_file_path, material_parm_))
+    if(!parseMaterialPropertiesJson(json_file_path, material_parms_))
     {
       throw std::runtime_error("Parsing material json files failed\n");
     }
@@ -108,6 +108,8 @@ bool Stiffness::init()
     }
   }
   assert(xyz_dof_id_.size() == node_dof_ * 2);
+
+  // init per-element material properties
 
   precomputeElementStiffnessMatrixList();
   precomputeElementSelfWeightLumpedLoad();
@@ -188,8 +190,6 @@ void Stiffness::setNodalDisplacementTolerance(double transl_tol, double rot_tol)
 
 void Stiffness::precomputeElementStiffnessMatrixList()
 {
-  // std::clock_t c_start = std::clock();
-
   // TODO: clean the units in the comments here
   // check the complete element stiffness matrix
   // in local frame: [MSA McGuire et al.] P73
@@ -204,41 +204,13 @@ void Stiffness::precomputeElementStiffnessMatrixList()
   // Force: kN
   // Moment: kN m
 
-  // assuming all the elements have the same cross section
-  // and all of them are solid circular shape
-  // cross section area: assuming solid circular, unit: m^2
-  double A = M_PI * std::pow(material_parm_.radius_, 2);
-//  double Asy = Ax * (6 + 12 * material_parm_.poisson_ratio_ + 6 * std::pow(material_parm_.poisson_ratio_,2))
-//      / (7 + 12 * material_parm_.poisson_ratio_ + 4 * std::pow(material_parm_.poisson_ratio_,2));
-//  double Asz = Asy;
-
-  // torsion constant (around local x axis)
-  // for solid circle: (1/2)pi*r^4, unit: m^4
-  // see: https://en.wikipedia.org/wiki/Torsion_constant#Circle
-  double Jx = 0.5 * M_PI * std::pow(material_parm_.radius_, 4);
-//  double Jx = (2.0/3.0) * pi * std::pow(material_parm_.radius_, 4);
-
-  // area moment of inertia (bending about local y,z-axis)
-  // assuming solid circular area of radius r, unit: m^4
-  // see: https://en.wikipedia.org/wiki/List_of_area_moments_of_inertia
-  // note this is slender rod of length L and Mass M, spinning around end
-  double Iy = M_PI * std::pow(material_parm_.radius_, 4) / 4;
-  double Iz = Iy;
-
-  // E,G: MPa; mu (poisson ratio): unitless
-  double E = material_parm_.youngs_modulus_;
-  double mu = material_parm_.poisson_ratio_;
-  // double G = material_parm_.shear_modulus_;
-  double G = 0.5 * E / (1 + mu);
-
-  assert(std::abs((material_parm_.shear_modulus_ - G) / G) < 1e-6
-         && "input poisson ratio not compatible with shear and Young's modulus!");
-
   int N_element = frame_.sizeOfElementList();
   assert(N_element > 0);
 
   using namespace std;
 
+  element_K_list_.clear();
+  rot_m_list_.clear();
   element_K_list_.reserve(N_element);
   rot_m_list_.reserve(N_element);
 
@@ -250,6 +222,20 @@ void Stiffness::precomputeElementStiffnessMatrixList()
 
     // element length, unit: m
     double L = (end_v->position() - end_u->position()).norm();
+
+    // material properties
+    double A = material_parms_[i].cross_sec_area_;
+    double Jx = material_parms_[i].Jx_;
+    double Iy = material_parms_[i].Iy_;
+    double Iz = material_parms_[i].Iz_;
+
+    // E,G: MPa; mu (poisson ratio): unitless
+    double E = material_parms_[i].youngs_modulus_;
+    double mu = material_parms_[i].poisson_ratio_;
+    double G = material_parms_[i].shear_modulus_;
+
+    // assert(std::abs((material_parm_.shear_modulus_ - G) / G) < 1e-6
+    //        && "input poisson ratio not compatible with shear and Young's modulus!");
 
     Eigen::Matrix3d R_LG;
     getGlobal2LocalRotationMatrix(end_u->position(), end_v->position(), R_LG);
@@ -298,10 +284,6 @@ void Stiffness::precomputeElementStiffnessMatrixList()
     element_K_list_.push_back(K_loc);
     rot_m_list_.push_back(R_LG_diag);
   }
-
-  // std::clock_t c_end = std::clock();
-  // std::cout << "create elemental stiffness matrix: "
-  // << 1e3 * (c_end - c_start) / CLOCKS_PER_SEC << " ms" << std::endl;
 }
 
 void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exist_e_ids)
@@ -386,6 +368,31 @@ void Stiffness::createExternalNodalLoad(
   }
 }
 
+void Stiffness::computeLumpedUniformlyDistributedLoad(const Eigen::Vector3d &w_G, const Eigen::Matrix3d &R_LG, const double &Le, 
+  Eigen::VectorXd &fixed_end_lumped_load)
+{
+  fixed_end_lumped_load = Eigen::VectorXd::Zero(2 * node_dof_);
+
+  // node 0,1 force
+  fixed_end_lumped_load.segment(0, 3) = - w_G * Le / 2.0;
+  fixed_end_lumped_load.segment(6, 3) = - w_G * Le / 2.0;
+
+  // transform global load density to local density
+  Eigen::Vector3d w_l = - R_LG * w_G;
+
+  // node 0, 1 local moment
+  Eigen::Vector3d M_0_l(3);
+  M_0_l << 0, - w_l(2)*std::pow(Le,2)/12.0, w_l(1)*std::pow(Le,2)/12.0;
+  Eigen::Vector3d M_1_l = - M_0_l;
+
+  // transform local moment back to global
+  fixed_end_lumped_load.segment(3, 3) = R_LG.transpose() * M_0_l;
+  fixed_end_lumped_load.segment(9, 3) = R_LG.transpose() * M_1_l;
+
+  // equivalent nodal load P_e = - P_fixed_end
+  fixed_end_lumped_load *= -1;
+}
+
 void Stiffness::precomputeElementUniformlyDistributedLumpedLoad(const Eigen::MatrixXd &element_load_density)
 {
   // refer [MSA McGuire et al.] P111
@@ -414,36 +421,25 @@ void Stiffness::precomputeElementUniformlyDistributedLumpedLoad(const Eigen::Mat
       e->endVertU()->position(),
       e->endVertV()->position(), R_LG);
 
-    Eigen::VectorXd fixed_end_lumped_load = Eigen::VectorXd::Zero(2 * node_dof_);
+    Eigen::VectorXd fixed_end_lumped_load;
+    computeLumpedUniformlyDistributedLoad(w_g, R_LG, Le, fixed_end_lumped_load);
 
-    // node 0,1 force
-    fixed_end_lumped_load.segment(0, 3) = - w_g * Le / 2.0;
-    fixed_end_lumped_load.segment(6, 3) = - w_g * Le / 2.0;
-
-    // transform global load density to local density
-    Eigen::Vector3d w_l = R_LG * w_g;
-
-    // node 0, 1 local moment
-    Eigen::Vector3d M_0_l(3);
-    M_0_l << 0, -w_l(2)*std::pow(Le,2)/2.0, w_l(1)*std::pow(Le,2)/2.0;
-    Eigen::Vector3d M_1_l = - M_0_l;
-
-    // transform local moment back to global
-    fixed_end_lumped_load.segment(3, 3) = R_LG.transpose() * M_0_l;
-    fixed_end_lumped_load.segment(9, 3) = R_LG.transpose() * M_1_l;
-
-    element_lumped_nload_list_[i] = fixed_end_lumped_load;
+    element_lumped_nload_list_[e_id] = fixed_end_lumped_load;
   }
 }
 
 void Stiffness::createUniformlyDistributedLumpedLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd &ext_load)
 {
   // solve-time calculation
-  assert(is_init_);
-  assert(id_map_.cols() == 2 * node_dof_);
-
   int N_vert = frame_.sizeOfVertList();
   ext_load = Eigen::VectorXd::Zero(N_vert * node_dof_);
+
+  if (element_lumped_nload_list_.size() != frame_.sizeOfElementList()) {
+    return;
+  }
+
+  assert(is_init_);
+  assert(id_map_.cols() == 2 * node_dof_);
 
   for (const int e_id : exist_e_ids) {
     assert(0 <= e_id && e_id < element_lumped_nload_list_.size());
@@ -457,14 +453,12 @@ void Stiffness::createUniformlyDistributedLumpedLoad(const std::vector<int>& exi
 
 void Stiffness::precomputeElementSelfWeightLumpedLoad()
 {
+  // TODO: reuse element uniformly distributed load?
   // gravity - Precomputation
   // refer [MSA McGuire et al.] P111
   // Loads between nodal points
   int N_vert = frame_.sizeOfVertList();
   int N_element = frame_.sizeOfElementList();
-
-  // assuming solid circular cross sec for now
-  double Ax = M_PI * std::pow(material_parm_.radius_, 2);
 
   element_gravity_nload_list_.clear();
   element_gravity_nload_list_.resize(N_element);
@@ -480,40 +474,24 @@ void Stiffness::precomputeElementSelfWeightLumpedLoad()
     // uniform force density along the element
     // due to gravity
     // density kN / m^3 * m^2
-    double q_sw = material_parm_.density_ * Ax;
+    double q_sw = material_parms_[i].density_ * material_parms_[i].cross_sec_area_;
 
     if (model_type_ == "frame")
     {
       if (3 == dim_)
       {
-        Eigen::Matrix3d R_eG;
+        Eigen::Vector3d w_g(3);
+        w_g << 0, 0, -q_sw;
+    
+        Eigen::Matrix3d R_LG;
         getGlobal2LocalRotationMatrix(
           e->endVertU()->position(),
-          e->endVertV()->position(), R_eG);
-        // gravity in local frame
-        // https://github.mit.edu/yijiangh/frame3dd/blob/master/frame3dd_io.c#L905
+          e->endVertV()->position(), R_LG);
 
-        Eigen::VectorXd fixed_end_sw_load = Eigen::VectorXd::Zero(2 * node_dof_);
+        Eigen::VectorXd fixed_end_lumped_load;
+        computeLumpedUniformlyDistributedLoad(w_g, R_LG, Le, fixed_end_lumped_load);
 
-        // according to fixed-end force diagram
-        // uniform load on a beam with both ends fixed ([MSA] p111.)
-        // fixed-end fictitious reaction
-        // "mass lumping"
-        fixed_end_sw_load[2] = -q_sw * Le / 2.0;
-        fixed_end_sw_load[3] =
-          q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
-        fixed_end_sw_load[4] =
-          q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 1) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 1)) * (-1));
-        fixed_end_sw_load[5] = 0;
-
-        fixed_end_sw_load[8] = -q_sw * Le / 2.0;
-        fixed_end_sw_load[9] =
-          -q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 0) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 0)) * (-1));
-        fixed_end_sw_load[10] =
-          -q_sw * std::pow(Le, 2) / 12.0 * ((-R_eG(1, 1) * R_eG(2, 2) + R_eG(1, 2) * R_eG(2, 1)) * (-1));
-        fixed_end_sw_load[11] = 0;
-
-        element_gravity_nload_list_[i] = fixed_end_sw_load;
+        element_gravity_nload_list_[i] = fixed_end_lumped_load;
       }
       else
       {
@@ -668,6 +646,11 @@ bool Stiffness::solve(
   auto K_fm = K_perm.block(n_Free, 0, n_Fixities, n_Free);
 
   Eigen::VectorXd nodal_load_P_tmp = nodal_load_P_;
+
+  Eigen::VectorXd element_lumped_load;
+  createUniformlyDistributedLumpedLoad(exist_element_ids, element_lumped_load);
+  nodal_load_P_tmp += element_lumped_load;
+
   if (include_self_weight_load_)
   {
     Eigen::VectorXd load_sw;
@@ -878,6 +861,17 @@ bool Stiffness::getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eige
   }
 }
 
+bool Stiffness::getUniformlyDistributedLumpedLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& lumped_load)
+{
+  try {
+      createUniformlyDistributedLumpedLoad(exist_e_ids, lumped_load);
+      return true;
+  }
+  catch (const std::runtime_error &e) {
+    fprintf(stderr, "%s", e.what());
+    return false;
+  }
+}
 
 int Stiffness::getTotalNumOfElements()
 {

@@ -117,9 +117,9 @@ Transforming it back to the global coordinate:
   \end{pmatrix}
   \begin{pmatrix}
   0\\
-  -w_{Lz} L^2/2\\
-  w_{Ly} L^2/2\\
+  -w_{Lz} L^2/12\\
+  w_{Ly} L^2/12\\
   0\\
-  w_{Lz} L^2/2\\
-  -w_{Ly} L^2/2
+  w_{Lz} L^2/12\\
+  -w_{Ly} L^2/12
   \end{pmatrix}
