@@ -7,50 +7,29 @@
   "dimension": 3,
   "node_num": 16,
   "element_num": 36,
-  "base_frame_in_rob_base": {
-    "Origin": {
-      "X": 600.0,
-      "Y": 0.0,
-      "Z": 23.5
-    },
-    "OriginX": 600.0,
-    "OriginY": 0.0,
-    "OriginZ": 23.5,
-    "XAxis": {
-      "X": 1.0,
-      "Y": 0.0,
-      "Z": 0.0
-    },
-    "YAxis": {
-      "X": 0.0,
-      "Y": 1.0,
-      "Z": 0.0
-    },
-    "ZAxis": {
-      "X": 0.0,
-      "Y": 0.0,
-      "Z": 1.0
-    },
-    "Normal": {
-      "X": 0.0,
-      "Y": 0.0,
-      "Z": 1.0
-    },
-    "IsValid": true
-  },
+  "uniform_cross_section": true,
+  "uniform_material_properties": true,
   "material_properties": {
     "material_name": "Steel-S235",
     "youngs_modulus": 21000.0,
     "youngs_modulus_unit": "kN/cm2",
     "shear_modulus": 8076.0,
     "shear_modulus_unit": "kN/cm2",
-    "tensile_yeild_stress": 23.5,
-    "tensile_yeild_stress_unit": "kN/cm2",
     "density": 78.5,
     "density_unit": "kN/m3",
     "poisson_ratio": 0.300149,
-    "radius": 2.5,
-    "radius_unit": "centimeter"
+    "cross_sec_area": 19.634954084936208,
+    "cross_sec_area_unit": "centimeter^2",
+    "_cross_sec_area_note": "round_shape, radius 2.5 cm",
+    "Jx": 61.35923151542565,
+    "Jx_unit": "centimeter^4",
+    "_Jx_note": "0.5 * pi * r^4",
+    "Iy": 30.679615757712824,
+    "Iy_unit": "centimeter^4",
+    "_Iy_note": "0.25 * pi * r^4",
+    "Iz": 30.679615757712824,
+    "Iz_unit": "centimeter^4",
+    "_Iz_note": "0.25 * pi * r^4"
   },
   "node_list": [
     {

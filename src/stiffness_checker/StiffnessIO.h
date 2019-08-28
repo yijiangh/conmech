@@ -11,10 +11,10 @@ namespace stiffness_checker
 /**
  * Parse material properties from a json file.
  * @param file_path target json file path
- * @param[out] frame_parm
+ * @param[out] a list of frame_parm
  * @return boolean flag for success
  */
-bool parseMaterialPropertiesJson(const std::string &file_path, StiffnessParm &frame_parm);
+bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<StiffnessParm> &frame_parms);
 
 /**
  *

@@ -61,15 +61,21 @@ def check_material_dict(mat_dict):
     "material_name": "Steel-S235",
     "youngs_modulus": 21000.0,
     "youngs_modulus_unit": "kN/cm2",
-    "shear_modulus": 8076.0,
-    "shear_modulus_unit": "kN/cm2",
-    "tensile_yeild_stress": 23.5,
-    "tensile_yeild_stress_unit": "kN/cm2",
     "density": 78.5,
     "density_unit": "kN/m3",
     "poisson_ratio": 0.300149,
-    "radius": 2.5,
-    "radius_unit": "centimeter"}
+    "cross_sec_area": 19.634954084936208,
+    "cross_sec_area_unit": "centimeter^2",
+    "_cross_sec_area_note": "round_shape, radius 2.5 cm",
+    "Jx": 61.35923151542565,
+    "Jx_unit": "centimeter^4",
+    "_Jx_note": "0.5 * pi * r^4",
+    "Iy": 30.679615757712824,
+    "Iy_unit": "centimeter^4",
+    "_Iy_note": "0.25 * pi * r^4",
+    "Iz": 30.679615757712824,
+    "Iz_unit": "centimeter^4",
+    "_Iz_note": "0.25 * pi * r^4"}
 
     Parameters
     ----------
@@ -83,20 +89,21 @@ def check_material_dict(mat_dict):
     """
     valid = "youngs_modulus" in mat_dict and \
             "youngs_modulus_unit" in mat_dict and \
-            "shear_modulus" in mat_dict and \
-            "shear_modulus_unit" in mat_dict and \
             "density" in mat_dict and \
             "density_unit" in mat_dict and \
             "poisson_ratio" in mat_dict and \
-            "radius" in mat_dict and \
-            "radius_unit" in mat_dict
-    # TODO: element radius should be given to element-level
+            "cross_sec_area" in mat_dict and \
+            "Jx" in mat_dict and \
+            "Iy" in mat_dict and \
+            "Iz" in mat_dict
 
     # TODO: do other unit conversions
     unit_valid = mat_dict["youngs_modulus_unit"] == 'kN/cm2' and \
-                 mat_dict["shear_modulus_unit"] == 'kN/cm2' and \
                  mat_dict["density_unit"] == 'kN/m3' and \
-                 mat_dict["radius_unit"] == 'centimeter'
+                 mat_dict["cross_sec_area_unit"] == 'centimeter^2' and \
+                 mat_dict["Jx_unit"] == 'centimeter^4' and \
+                 mat_dict["Iy_unit"] == 'centimeter^4' and \
+                 mat_dict["Iz_unit"] == 'centimeter^4'
     return valid and unit_valid
 
 
@@ -129,10 +136,18 @@ def read_frame_json(file_path, verbose=False):
     else:
         raise ValueError('model type not supported! Must be frame or truss.')
 
-    material_dict = json_data['material_properties']
     element_vids = parse_elements(json_data)
     node_points = parse_node_points(json_data, scale=scale, dim=dim)
     fix_node_ids, fix_specs = parse_fixed_nodes(json_data, dim)
+
+    if 'uniform_cross_section' in json_data and \
+       'uniform_material_properties' in json_data and \
+       'material_properties' in json_data and \
+       json_data["uniform_cross_section"] and \
+       json_data["uniform_material_properties"]:
+        material_dicts = [json_data['material_properties']] * len(element_vids)
+    else:
+        material_dicts = [json_element['material_properties'] for json_element in json_data['element_list']]
 
     if 'node_num' in json_data:
         num_node = json_data['node_num']
@@ -149,10 +164,10 @@ def read_frame_json(file_path, verbose=False):
         print('Nodes: {} | Ground: {} | Elements: {}'.format(
             len(node_points), len(fix_node_ids), len(element_vids)))
    
-    return node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dict, model_name
+    return node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name
 
 
-def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dict, 
+def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dicts, 
     fixity_specs={}, unit=None, model_type='frame', model_name=None):
     data = OrderedDict()
     data['model_name'] = model_name if model_name else extract_model_name_from_path(file_path)
@@ -167,8 +182,9 @@ def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dict,
     data['dimension'] = len(nodes[0])
     data['node_num'] = len(nodes)
     data['element_num'] = len(elements)
-    assert(check_material_dict(material_dict))
-    data['material_properties'] = material_dict
+    for mat_dict in material_dicts:
+        assert(check_material_dict(mat_dict))
+    assert(len(material_dicts) == len(elements))
 
     data['node_list'] = []
     for i, node in enumerate(nodes):
@@ -191,6 +207,7 @@ def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dict,
         element_data = OrderedDict()
         element_data['end_node_ids'] = list(element)
         element_data['element_id'] = i
+        element_data['material_properties'] = material_dicts[i]
         data['element_list'].append(element_data)
     with open(file_path, 'w+') as outfile:
         json.dump(data, outfile, indent=4)
@@ -213,7 +230,7 @@ def read_load_case_json(file_path):
     point_load : dict 
         {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]}, in global coordinate
     uniform_element_load : dict 
-        {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]}, in global coordinate
+        {node_id : [wx, wy, wz]}, in global coordinate
     include_self_weight : bool 
         include self-weight or not, now only supports gravity in global z direction
     """
@@ -231,8 +248,13 @@ def read_load_case_json(file_path):
     uniform_element_load = {}
     include_self_weight = json_data['include_self_weight'] if 'include_self_weight' in json_data else False
     for pl_data in json_data['point_load_list']:
-       point_load[pl_data['applied_node_id']] = [pl_data['Fx'], pl_data['Fy'], pl_data['Fz'], 
+        point_load[pl_data['applied_node_id']] = [pl_data['Fx'], pl_data['Fy'], pl_data['Fz'], 
                                                  pl_data['Mx'], pl_data['My'], pl_data['Mz']]
+
+    if 'uniformly_distributed_element_load_list' in json_data:
+        for el_data in json_data['uniformly_distributed_element_load_list']:
+            assert el_data['description_frame'] == 'global', 'only description in the global frame supported now!'
+            uniform_element_load[el_data['applied_element_id']] = [el_data['wx'], el_data['wy'], el_data['wz']]
     
     return point_load, uniform_element_load, include_self_weight
 

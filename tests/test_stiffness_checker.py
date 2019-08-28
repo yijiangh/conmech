@@ -26,10 +26,11 @@ def test_get_material_from_database():
 
 
 def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, include_sw=False,
-    n_attempts=50, existing_ids=[], expect_partial_ids_success=True):
+    n_attempts=50, existing_ids=[], expect_partial_ids_success=True, trans_tol=2e-3):
     sc = StiffnessChecker(json_file_path=frame_file_path)
     sc.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
     assert not sc.has_stored_result()
+    sc.set_nodal_displacement_tol(trans_tol=trans_tol)
 
     sol_success = sc.solve(existing_ids, eid_sanity_check=True)
 
@@ -80,6 +81,7 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
     for _ in range(n_attempts):
         sc_new = StiffnessChecker(json_file_path=frame_file_path)
         sc_new.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
+        sc_new.set_nodal_displacement_tol(trans_tol=trans_tol)
 
         sol_success = sc_new.solve(existing_ids)
         tmp_success, tmp_nD, tmp_fR, tmp_eR = sc_new.get_solved_results()
@@ -109,16 +111,24 @@ def test_stiffness_checker_solve_consistency(test_case, load_case):
         # some parts are floating in this partial ids
         failed_existing_ids = [0, 4, 7, 8, 9] 
         if load_case == 'self_weight' or load_case == 'self_weight+point_load':
-            success_existing_ids = list(range(24))
+            success_existing_ids = [1, 12, 5, 10, 4, 11, 13, 3, 2, 0, 7]
+            trans_tol = 0.04
         else:
             success_existing_ids = [0,1,2,3,8,9,10,11,12,13,14,15]
+            trans_tol = 0.001
     elif test_case == 'topopt-100':
         file_name = 'topopt-100.json'
         load_file_name = 'topopt-100_load_case.json'
 
         # a big cantilever are floating in this partial ids
         failed_existing_ids = [125, 126, 115, 122, 111, 108, 23, 22, 98, 75, 64, 34, 61, 65, 59, 60, 39, 36, 44, 67]
-        success_existing_ids = list(range(132)) # full structure for now...
+
+        success_existing_ids = [0, 1, 2, 3, 4, 5, 6, 8, 11, 14, 15, 19, 20, 21, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+                34, 35, 36, 37, 38, 41, 42, 43, 44, 46, 51, 52, 53, 54, 55, 76, 88, 89, 90, 91, 92,
+                93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 
+                114, 115, 117, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131]
+
+        trans_tol = 0.002
     else:
         assert False, 'not supported test case!'
 
@@ -141,15 +151,15 @@ def test_stiffness_checker_solve_consistency(test_case, load_case):
     
     print('################\nfull solve success checks')
     repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
-        n_attempts=n_attempts, existing_ids=[], expect_partial_ids_success=True)
+        n_attempts=n_attempts, existing_ids=[], expect_partial_ids_success=True, trans_tol=trans_tol)
 
     print('################\npartial solve success checks')
     repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
-        n_attempts=n_attempts, existing_ids=success_existing_ids, expect_partial_ids_success=True)
+        n_attempts=n_attempts, existing_ids=success_existing_ids, expect_partial_ids_success=True, trans_tol=trans_tol)
 
     print('################\npartial solve failure checks')
     repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
-        n_attempts=n_attempts, existing_ids=failed_existing_ids, expect_partial_ids_success=False)
+        n_attempts=n_attempts, existing_ids=failed_existing_ids, expect_partial_ids_success=False, trans_tol=trans_tol)
 
 
 def test_init_stiffness_checker():
@@ -163,14 +173,15 @@ def test_init_stiffness_checker():
     sc_from_json = StiffnessChecker.from_json(file_path, verbose=False)
 
     print('init StiffnessChecker from frame data...')
-    nodes, elements, fixed_node_ids, fix_specs, model_type, material_dict, model_name = \
+    nodes, elements, fixed_node_ids, fix_specs, model_type, material_dicts, model_name = \
         read_frame_json(file_path, verbose=True)
-    sc_from_data = StiffnessChecker.from_frame_data(nodes, elements, fixed_node_ids, material_dict, 
+    sc_from_data = StiffnessChecker.from_frame_data(nodes, elements, fixed_node_ids, material_dicts, 
         fixity_specs=fix_specs, unit='meter', model_type=model_type, model_name=model_name, verbose=False)
 
     assert sc_from_json.model_name == sc_from_data.model_name
     assert sc_from_json.model_type == sc_from_data.model_type
-    assert sc_from_json.material == sc_from_json.material
+    for mat1, mat2 in zip(sc_from_json.materials, sc_from_json.materials):
+        assert mat1 == mat2
     for n1, n2 in zip(sc_from_json.node_points, sc_from_data.node_points):
         assert_equal(n1, n2)
     for e1, e2 in zip(sc_from_json.elements, sc_from_data.elements):
@@ -187,15 +198,15 @@ def test_frame_file_io():
 
     here = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(here, 'test_data', file_name)
-    node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dict, model_name = \
+    node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name = \
         read_frame_json(file_path, verbose=True)
 
     # temp_fp = os.path.join(here, 'tmp.json')
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_fp = os.path.join(temp_dir, file_name)
-        write_frame_json(temp_fp, node_points, element_vids, fix_node_ids, material_dict, 
+        write_frame_json(temp_fp, node_points, element_vids, fix_node_ids, material_dicts, 
         fixity_specs=fix_specs, model_type=model_type, model_name = model_name)
-        back_node_points, back_element_vids, back_fix_node_ids, back_fix_specs, back_model_type, back_material_dict, back_model_name = \
+        back_node_points, back_element_vids, back_fix_node_ids, back_fix_specs, back_model_type, back_material_dicts, back_model_name = \
             read_frame_json(temp_fp, verbose=True)
 
     for n1, n2 in zip(node_points, back_node_points):
@@ -208,7 +219,8 @@ def test_frame_file_io():
         assert vid in back_fix_specs
         assert_equal(spec, back_fix_specs[vid])
     assert model_type == back_model_type
-    assert material_dict == back_material_dict
+    for mat1, mat2 in zip(material_dicts, back_material_dicts):
+        assert mat1 == mat2
     assert model_name == back_model_name
 
 
@@ -400,7 +412,7 @@ def test_nodal_equilibrium(test_case, load_case):
         # some parts are floating in this partial ids
         failed_existing_ids = [0, 4, 7, 8, 9] 
         if load_case == 'self_weight' or load_case == 'self_weight+point_load':
-            success_existing_ids = list(range(24))
+            success_existing_ids = [0, 1, 2, 3, 4, 5, 6, 10, 13]
         else:
             success_existing_ids = [0,1,2,3,8,9,10,11,12,13,14,15]
     elif test_case == 'topopt-100':
@@ -409,7 +421,9 @@ def test_nodal_equilibrium(test_case, load_case):
 
         # a big cantilever are floating in this partial ids
         failed_existing_ids = [125, 126, 115, 122, 111, 108, 23, 22, 98, 75, 64, 34, 61, 65, 59, 60, 39, 36, 44, 67]
-        success_existing_ids = list(range(132)) # full structure for now...
+        success_existing_ids = [0, 1, 2, 3, 4, 5, 8, 11, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, \
+        43, 44, 51, 52, 53, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, \
+        108, 109, 110, 111, 112, 113, 114, 115, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131]
     else:
         assert False, 'not supported test case!'
 
@@ -456,19 +470,19 @@ def repetitive_check_gravity_validity(frame_file_path, existing_ids=[], expect_p
     assert len(nodal_loads) == len(existing_node_ids)
     # all_node_e_neighbors = sc.get_node_neighbors(return_e_id=True)
 
-    node_points, element_vids, _, _, _, material_dict, _ = \
+    node_points, element_vids, _, _, _, material_dicts, _ = \
         read_frame_json(frame_file_path)
-    assert material_dict['radius_unit'] == 'centimeter' and material_dict["density_unit"] == "kN/m3"
-    r = material_dict['radius'] * 1e-2 # convert to meter
-    rho = material_dict['density'] 
-    total_weight_force = 0
 
     # direct total gravity calculation
+    total_weight_force = 0
     for e_id in existing_e_ids:
         n1, n2 = sc.elements[e_id]
         e_len = norm(np.array(node_points[n1]) - np.array(node_points[n2]))
-        # L * A * \rho
-        total_weight_force += e_len * np.pi * (r**2) * rho
+
+        assert material_dicts[e_id]['cross_sec_area_unit'] == 'centimeter^2' and material_dicts[e_id]["density_unit"] == "kN/m3"
+        rho = material_dicts[e_id]['density'] 
+        A = material_dicts[e_id]['cross_sec_area'] * 1e-4 # convert to meter^2
+        total_weight_force += e_len * A * rho
     
     # total gravity from nodal loads
     total_nodal_weight_load = 0
@@ -482,7 +496,7 @@ def repetitive_check_gravity_validity(frame_file_path, existing_ids=[], expect_p
         if n_id in existing_node_ids:
             total_z_fixity_reaction += n_fr[2]
 
-    assert_almost_equal(total_weight_force,       total_z_fixity_reaction)
+    assert_almost_equal(total_weight_force, total_z_fixity_reaction)
     assert_almost_equal(-total_nodal_weight_load, total_z_fixity_reaction)
 
 @pytest.mark.gravity_check
@@ -491,26 +505,120 @@ def repetitive_check_gravity_validity(frame_file_path, existing_ids=[], expect_p
 def test_self_weight_validity(test_case):
     if test_case == 'tower':
         file_name = 'tower_3D.json'
-        load_file_name = 'tower_3D_load_case.json'
-        
-        success_existing_ids = list(range(24))
+        success_existing_ids = list(range(8))
     elif test_case == 'topopt-100':
         file_name = 'topopt-100.json'
-        load_file_name = 'topopt-100_load_case.json'
-
-        # a big cantilever are floating in this partial ids
-        success_existing_ids = list(range(132)) # full structure for now...
+        success_existing_ids = [0, 1, 2, 3, 4, 5, 8, 11, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, \
+        43, 44, 51, 52, 53, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, \
+        108, 109, 110, 111, 112, 113, 114, 115, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131]
     else:
         assert False, 'not supported test case!'
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(root_dir, 'test_data', file_name)
 
-    print('\n################\nfull solve success gravity validity hecks')
+    print('\n################\nfull solve success gravity validity checks')
     repetitive_check_gravity_validity(json_path, existing_ids=[], expect_partial_ids_success=True)
 
     print('\n################\npartial solve success gravity validity checks')
     repetitive_check_gravity_validity(json_path, existing_ids=success_existing_ids, expect_partial_ids_success=True)
+
+
+@pytest.mark.uniform_load_check
+@pytest.mark.parametrize("test_case, existing_e_ids", 
+    [('tower', []), ('tower', list(range(8))), 
+     ('topopt-100', []), ('topopt-100', [0, 1, 2, 3, 4, 5, 8, 11, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, \
+        43, 44, 51, 52, 53, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, \
+        108, 109, 110, 111, 112, 113, 114, 115, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131])
+     ])
+def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids):
+    if test_case == 'tower':
+        file_name = 'tower_3D.json'
+    elif test_case == 'topopt-100':
+        file_name = 'topopt-100.json'
+    else:
+        assert False, 'not supported test case!'
+
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(root_dir, 'test_data', file_name)
+    sc = StiffnessChecker(json_file_path=json_path)
+
+    # gravity load agreement check
+    # _, uniform_element_load, _ = read_load_case_json(load_json_path)
+    node_points, element_vids, _, _, _, material_dicts, _ = \
+        read_frame_json(json_path)
+
+    uniform_distributed_load = {}
+    for e_id in range(len(element_vids)):
+        assert material_dicts[e_id]['cross_sec_area_unit'] == 'centimeter^2' and material_dicts[e_id]["density_unit"] == "kN/m3"
+        A = material_dicts[e_id]['cross_sec_area'] * 1e-4 # convert to meter^2
+        rho = material_dicts[e_id]['density']
+        uniform_distributed_load[e_id] = [0, 0, - rho * A]
+
+    # existing_e_ids = list(range(len(sc.elements)))
+    sc.set_loads(uniform_distributed_load=uniform_distributed_load, include_self_weight=False)
+
+    nodal_loads = sc.get_nodal_loads(existing_ids=existing_e_ids)
+    sw_loads = sc.get_self_weight_loads(existing_ids=existing_e_ids)
+    for n_id in nodal_loads.keys():
+        assert_almost_equal(nodal_loads[n_id], sw_loads[n_id])
+
+    sc.solve(exist_element_ids=existing_e_ids)
+    _, ul_nD, ul_fR, ul_eR = sc.get_solved_results()
+
+    sw_sc = StiffnessChecker(json_file_path=json_path)
+    sw_sc.set_loads(include_self_weight=True)
+    sw_sc.solve(exist_element_ids=existing_e_ids)
+    _, sw_nD, sw_fR, sw_eR = sw_sc.get_solved_results()
+
+    for n_id in ul_nD.keys():
+        assert_almost_equal(ul_nD[n_id], sw_nD[n_id])
+    for f_id in ul_fR.keys():
+        assert_almost_equal(ul_fR[f_id], sw_fR[f_id])
+    for e_id in ul_eR.keys():
+        assert_almost_equal(ul_eR[e_id][0], sw_eR[e_id][0])
+        assert_almost_equal(ul_eR[e_id][1], sw_eR[e_id][1])
+
+@pytest.mark.ignore(reason='not fully developed')
+@pytest.mark.uniform_load_check
+def test_uniformly_distributed_load_with_analytical_solution():
+    """ analytical example in 
+            Matrix Structural Analysis 2rd edition, McGuire, Gallagher, Ziemian
+            Example 5.8, Page 116 (p.137 in the PDF)
+        Material / cross sectional properties from Example 4.8, Page 79 (p.100 in the PDF)
+
+        For more info on the theory of uniformly distributed load lumping, see: 
+            Page 108, section 5.2 Loads between nodal points
+    """
+    file_name = 'uniform_load_analytical_model.json'
+    load_file_name = 'uniform_load_analytical_model_load_case.json'
+
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    json_path = os.path.join(root_dir, 'test_data', file_name)
+    load_json_path = os.path.join(root_dir, 'test_data', load_file_name)
+
+    sc = StiffnessChecker(json_file_path=json_path)
+    
+    point_load, uniform_element_load, include_sw = read_load_case_json(load_json_path)
+    sc.set_loads(point_loads=point_load, uniform_distributed_load=uniform_element_load, include_self_weight=include_sw)
+
+    sc.solve()
+    pass_criteria, nD, fR, eR = sc.get_solved_results()
+
+    nodal_loads = sc.get_nodal_loads()
+    assert_equal(nodal_loads[1][2], -12.5)
+    assert_equal(nodal_loads[1][3], 0.0)
+    assert_equal(nodal_loads[1][4], -6.250)
+    
+    check_decimal = 2
+    assert not pass_criteria
+    assert_equal(nD[0], [0] * 6)
+    assert_almost_equal(nD[1], [0, 0, -0.02237, 4.195*1e-3, 5.931*1e-3, 0], decimal=check_decimal)
+    assert_equal(nD[2], [0] * 6)
+
+    check_decimal = 1
+    assert_almost_equal(fR[0], [0, 0, 14.74, -6.45*1e-3, -36.21, 0], decimal=check_decimal)
+    assert_almost_equal(fR[2], [0, 0, 5.25, -41.94, -17.11*1e-3, 0], decimal=check_decimal)
 
 
 # @pytest.mark.ii

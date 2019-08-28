@@ -13,12 +13,8 @@ class StiffnessParm
   ~StiffnessParm(){};
 
  public:
-  // TODO: this radius should be associated with geometry
-  /**
-   * raidus of the cross section
-   * unit: meter
-   */
-  double radius_;
+  double getShearModulus(const double& E, const double& poisson_ratio) { return 0.5 * E / (1 + poisson_ratio); }
+  double getPoissonRatio(const double& E, const double& G) { return (E / (2.0*G) - 1); }
 
   /**
    * material density, unit: kN/m^3
@@ -48,12 +44,25 @@ class StiffnessParm
    */
   double poisson_ratio_;
 
-//  /**
-//   * gravity on Earth, unit: m/s^2 = N/kg
-//   * default value: 9.80665 m/s^2
-//   * see: https://en.wikipedia.org/wiki/Gravity_of_Earth
-//   */
-//  double g_;
+  // TODO: this radius should be associated with geometry
+  /**
+   * raidus of the cross section
+   * unit: meter
+   */
+  // double radius_;
+  double cross_sec_area_;
+
+  // torsion constant (around local x axis)
+  // for solid circle: (1/2)pi*r^4, unit: m^4
+  // see: https://en.wikipedia.org/wiki/Torsion_constant#Circle
+  double Jx_;
+
+  // area moment of inertia (bending about local y,z-axis)
+  // assuming solid circular area of radius r, unit: m^4
+  // see: https://en.wikipedia.org/wiki/List_of_area_moments_of_inertia
+  // note this is slender rod of length L and Mass M, spinning around end
+  double Iy_;
+  double Iz_;
 };
 
 } // ns stiffness_checker
