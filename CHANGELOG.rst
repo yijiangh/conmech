@@ -10,12 +10,7 @@ Changelog
 .. ^, for subsubsections
 .. ", for paragraphs
 
-0.1.2
------
-
-* Initial version
-
-0.1.3
+0.2.0
 -----
 
 Changed
@@ -36,3 +31,8 @@ Added
 - add grasshopper examples - parse/save files, karamba comparsion, solve/get result in GH via ghpython-remote
 - supports material / cross sectional properties for each element. 
 - supports uniformly distributed load
+
+0.1.0
+-----
+
+Initial version
