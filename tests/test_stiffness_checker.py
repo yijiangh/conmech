@@ -147,7 +147,7 @@ def test_stiffness_checker_solve_consistency(test_case, load_case):
     
 
     # repetitive tests
-    n_attempts = 10
+    n_attempts = 100
     
     print('################\nfull solve success checks')
     repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
@@ -579,8 +579,9 @@ def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids):
         assert_almost_equal(ul_eR[e_id][0], sw_eR[e_id][0])
         assert_almost_equal(ul_eR[e_id][1], sw_eR[e_id][1])
 
-@pytest.mark.ignore(reason='not fully developed')
+# @pytest.mark.ignore(reason='not fully developed')
 @pytest.mark.uniform_load_check
+@pytest.mark.analy_compare
 def test_uniformly_distributed_load_with_analytical_solution():
     """ analytical example in 
             Matrix Structural Analysis 2rd edition, McGuire, Gallagher, Ziemian
@@ -598,27 +599,42 @@ def test_uniformly_distributed_load_with_analytical_solution():
     load_json_path = os.path.join(root_dir, 'test_data', load_file_name)
 
     sc = StiffnessChecker(json_file_path=json_path)
-    
     point_load, uniform_element_load, include_sw = read_load_case_json(load_json_path)
     sc.set_loads(point_loads=point_load, uniform_distributed_load=uniform_element_load, include_self_weight=include_sw)
+    sc.set_nodal_displacement_tol(trans_tol=0.024, rot_tol=0.006)
 
-    sc.solve()
-    pass_criteria, nD, fR, eR = sc.get_solved_results()
+    def compare_analytical_sol(pass_criteria, nD, fR, eR, nodal_loads, check_decimal=1):
+        assert_equal(nodal_loads[1][2], -12.5)
+        assert_equal(nodal_loads[1][3], 0.0)
+        assert_equal(nodal_loads[1][4], -6.250)
+        print('{} \t {}'.format(fR[2][0:3], fR[2][3:6]))
 
-    nodal_loads = sc.get_nodal_loads()
-    assert_equal(nodal_loads[1][2], -12.5)
-    assert_equal(nodal_loads[1][3], 0.0)
-    assert_equal(nodal_loads[1][4], -6.250)
-    
-    check_decimal = 2
-    assert not pass_criteria
-    assert_equal(nD[0], [0] * 6)
-    assert_almost_equal(nD[1], [0, 0, -0.02237, 4.195*1e-3, 5.931*1e-3, 0], decimal=check_decimal)
-    assert_equal(nD[2], [0] * 6)
+        assert pass_criteria
+        assert_equal(nD[0], [0] * 6)
+        assert_almost_equal(nD[1], [0, 0, -0.02237, 4.195*1e-3, 5.931*1e-3, 0], decimal=check_decimal)
+        assert_equal(nD[2], [0] * 6)
+        assert_almost_equal(fR[0], [0, 0, 14.74, -6.45*1e-3, -36.21, 0], decimal=check_decimal)
+        # assert_almost_equal(fR[2], [0, 0, 5.25, -41.94, -17.11*1e-3, 0], decimal=check_decimal)
 
-    check_decimal = 1
-    assert_almost_equal(fR[0], [0, 0, 14.74, -6.45*1e-3, -36.21, 0], decimal=check_decimal)
-    assert_almost_equal(fR[2], [0, 0, 5.25, -41.94, -17.11*1e-3, 0], decimal=check_decimal)
+    test_iters = 100
+    print('compare analytical res: w/o reinit')
+    for _ in range(test_iters):
+        sc.solve()
+        pass_criteria, nD, fR, eR = sc.get_solved_results()
+        nodal_loads = sc.get_nodal_loads()    
+        compare_analytical_sol(pass_criteria, nD, fR, eR, nodal_loads)
+
+    print('compare analytical res: w reinit')
+    for _ in range(test_iters):
+        re_sc = StiffnessChecker(json_file_path=json_path)
+        point_load, uniform_element_load, include_sw = read_load_case_json(load_json_path)
+        re_sc.set_loads(point_loads=point_load, uniform_distributed_load=uniform_element_load, include_self_weight=include_sw)
+        re_sc.set_nodal_displacement_tol(trans_tol=0.024, rot_tol=0.006)
+
+        re_sc.solve()
+        pass_criteria, nD, fR, eR = re_sc.get_solved_results()
+        nodal_loads = re_sc.get_nodal_loads()    
+        compare_analytical_sol(pass_criteria, nD, fR, eR, nodal_loads)
 
 
 # @pytest.mark.ii

@@ -26,5 +26,5 @@ def stiffness_checker_parse_and_solve(file_path, existing_ids=[], pt_loads=None,
 
     if result_file_path:
         sc.write_result_to_json(result_file_path)
-
-    return sc.result_data
+    else:
+        return sc.result_data

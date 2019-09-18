@@ -483,7 +483,7 @@ class StiffnessChecker(object):
             self._sc_ins.set_output_json_path(output_dir, file_name)
 
     @property
-    def result_data(self):
+    def result_data(self, output_frame_transf=False):
         if not self.has_stored_result():
             print('no result to output!')
             return 
@@ -525,8 +525,9 @@ class StiffnessChecker(object):
             er_data['reaction'] = OrderedDict()
             er_data['reaction'][0] = er[0].tolist()
             er_data['reaction'][1] = er[1].tolist()
-            eR33 = eR_LG_mats[e_id][:3, :3]
-            er_data['local_to_global_transformation'] = eR33.tolist()
+            if output_frame_transf:
+                eR33 = eR_LG_mats[e_id][:3, :3]
+                er_data['local_to_global_transformation'] = eR33.tolist()
 
             eR_data.append(er_data)
         data['element_reaction'] = eR_data
