@@ -1,6 +1,6 @@
 from pyconmech.frame_analysis import StiffnessChecker
 
-def stiffness_checker_parse_file_and_save_result(file_path, result_file_path, existing_ids=[], pt_loads=None, include_sw=False):
+def stiffness_checker_parse_and_solve(file_path, existing_ids=[], pt_loads=None, include_sw=False, result_file_path=None):
     """Wrapper function call to create a StiffnessChecker, solve, and return results
     Mainly for the rpc call, since it doesn't support class creation.
     
@@ -24,13 +24,7 @@ def stiffness_checker_parse_file_and_save_result(file_path, result_file_path, ex
     sc.set_loads(point_loads=pt_loads, include_self_weight=include_sw)
     sc.solve(existing_ids, eid_sanity_check=True)
 
-    success, nD, fR, eR = sc.get_solved_results()
+    if result_file_path:
+        sc.write_result_to_json(result_file_path)
 
-    trans_tol, rot_tol = sc.get_nodal_deformation_tol()
-    # max_trans, max_rot, max_t_id, max_r_id = sc.get_max_nodal_deformation()
-
-    eR_LG_mats = sc.get_element_local2global_rot_matrices()
-
-    sc.write_result_to_json(result_file_path)
-
-    # return (success, nD, fR, eR), (trans_tol, rot_tol), eR_LG_mats
+    return sc.result_data

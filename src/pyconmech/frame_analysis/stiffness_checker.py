@@ -13,12 +13,13 @@ else:
     import tempfile
 
 import os
-from collections import defaultdict
+import json
+from collections import defaultdict, OrderedDict
 import numpy as np
 from numpy.linalg import norm
 
 from _pystiffness_checker import _stiffness_checker
-from pyconmech.frame_analysis.frame_file_io import read_frame_json, write_frame_json, write_analysis_result_to_json
+from pyconmech.frame_analysis.frame_file_io import read_frame_json, write_frame_json
 
 class StiffnessChecker(object):
     """stiffness checking instance for 3D frame deformation analysis
@@ -481,8 +482,71 @@ class StiffnessChecker(object):
                 file_name = self.model_name + '_result' + '.json'
             self._sc_ins.set_output_json_path(output_dir, file_name)
 
-    def write_result_to_json(self, file_path):
-        write_analysis_result_to_json(self, file_path)
+    @property
+    def result_data(self):
+        if not self.has_stored_result():
+            print('no result to output!')
+            return 
+
+        success, nD, fR, eR = self.get_solved_results()
+        trans_tol, rot_tol = self.get_nodal_deformation_tol()
+        max_trans, max_rot, max_t_id, max_r_id = self.get_max_nodal_deformation()
+        eR_LG_mats = self.get_element_local2global_rot_matrices()
+
+        data = OrderedDict()
+        data['model_name'] = self.model_name
+        data['model_type'] = self.model_type
+        data['solve_success'] = success
+        data['trans_tol'] = trans_tol
+        data['rot_tol'] = rot_tol
+
+        data['length_unit'] = 'meter'
+        data['angle_unit'] = 'rad'
+        data["force_unit"] =  "kN"
+        data["moment_unit"] = "kN-m"
+        data['compliance'] = self.get_compliance()
+        data['max_trans'] = {'node_id' : max_t_id, 'value': max_trans}
+        data['max_rot'] = {'node_id' : max_r_id, 'value': max_rot}
+    
+        nD_data = []
+        for n_id, nd in nD.items():
+            nd_data = OrderedDict()
+            nd_data['node_id'] = n_id
+            nd_data['node_pose'] = list(self.node_points[n_id])
+            nd_data['displacement'] = nd.tolist()
+            nD_data.append(nd_data)
+        data['node_displacement'] = nD_data
+
+        eR_data = []
+        for e_id, er in eR.items():
+            er_data = OrderedDict()
+            er_data['element_id'] = e_id
+            er_data['node_ids'] = self.elements[e_id]
+            er_data['reaction'] = OrderedDict()
+            er_data['reaction'][0] = er[0].tolist()
+            er_data['reaction'][1] = er[1].tolist()
+            eR33 = eR_LG_mats[e_id][:3, :3]
+            er_data['local_to_global_transformation'] = eR33.tolist()
+
+            eR_data.append(er_data)
+        data['element_reaction'] = eR_data
+
+        fR_data = []
+        for v_id, fr in fR.items():
+            fr_data = OrderedDict()
+            fr_data['node_id'] = v_id
+            fr_data['node_pose'] = list(self.node_points[v_id])
+            fr_data['reaction'] = fr.tolist()
+            fR_data.append(fr_data)
+        data['fixity_reaction'] = fR_data
+        return data
+
+    def write_result_to_json(self, file_path, formatted_json=False):
+        with open(file_path, 'w+') as outfile:
+            if formatted_json:
+                json.dump(self.result_data, outfile, indent=4)
+            else:
+                json.dump(self.result_data, outfile)
 
     # ==========================================================================
     # frame data query (TODO: moved to frame class)
