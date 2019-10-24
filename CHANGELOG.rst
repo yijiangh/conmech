@@ -31,6 +31,7 @@ Added
 - add grasshopper examples - parse/save files, karamba comparsion, solve/get result in GH via ghpython-remote
 - supports material / cross sectional properties for each element. 
 - supports uniformly distributed load
+- add gravity magnitude and direction
 
 0.1.0
 -----

@@ -18,8 +18,19 @@ PYBIND11_MODULE(_pystiffness_checker, m)
     py::arg("json_file_path"), py::arg("verbose") = false,
     py::arg("model_type") = "frame", py::arg("output_json") = false)
 
-    .def("set_self_weight_load", &conmech::stiffness_checker::Stiffness::setSelfWeightNodalLoad,
-    py::arg("include_sw") = false)
+    .def("set_self_weight_load", 
+    [](conmech::stiffness_checker::Stiffness &cm, 
+      const bool &include_self_weight = true, const std::vector<double> &gravity_direction = std::vector<double>{0,0,-1.0})
+    {
+      cm.setSelfWeightNodalLoad(include_self_weight);
+      Eigen::VectorXd gravity_direction_vec = Eigen::VectorXd(int(gravity_direction.size()));
+      for (int i=0; i<gravity_direction.size(); i++) {
+        gravity_direction_vec[i] = gravity_direction[i];
+      }
+      cm.setGravityDirection(gravity_direction_vec);
+    },
+    py::arg("include_self_weight") = true,
+    py::arg("gravity_direction") = std::vector<double>{0,0,-1.0})
 
     // input: 1 x 7 numpy matrix:
     // e.g.

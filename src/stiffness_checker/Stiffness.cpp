@@ -66,6 +66,14 @@ bool Stiffness::init()
   // TODO: generalize to 2D
   dim_ = 3;
 
+  if (3 == dim_) {
+    gravity_direction_ = Eigen::VectorXd(3);
+    gravity_direction_ << 0, 0, -1;
+  } else {
+    gravity_direction_ = Eigen::VectorXd(2);
+    gravity_direction_ << 0, -1;
+  }
+
   // set up dimension, node_dof
   if (3 == dim_)
   {
@@ -350,6 +358,13 @@ void Stiffness::setUniformlyDistributedLoad(const Eigen::MatrixXd &element_load_
   }
 }
 
+void Stiffness::setGravityDirection(const Eigen::VectorXd& gravity_direction) {
+    if (gravity_direction.size() == dim_) {
+      gravity_direction_ = gravity_direction;
+      precomputeElementSelfWeightLumpedLoad();
+    }
+  }
+
 void Stiffness::createExternalNodalLoad(
   const Eigen::MatrixXd &nodal_forces, Eigen::VectorXd &ext_load)
 {
@@ -480,8 +495,10 @@ void Stiffness::precomputeElementSelfWeightLumpedLoad()
     {
       if (3 == dim_)
       {
-        Eigen::Vector3d w_g(3);
-        w_g << 0, 0, -q_sw;
+        // Eigen::Vector3d w_g(3);
+        // w_g << 0, 0, -q_sw;
+        Eigen::Vector3d w_g = gravity_direction_ * q_sw;
+        // std::cout << "gravity force: " << w_g.transpose() << std::endl;
     
         Eigen::Matrix3d R_LG;
         getGlobal2LocalRotationMatrix(
@@ -685,7 +702,7 @@ bool Stiffness::solve(
     }
   }
 
-  stored_compliance_ = U_m.dot(Q_m);
+  stored_compliance_ = 0.5 * U_m.dot(Q_m);
 
   // reaction force
   Eigen::VectorXd R(dof);

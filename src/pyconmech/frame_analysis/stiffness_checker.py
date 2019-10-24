@@ -158,7 +158,7 @@ class StiffnessChecker(object):
     # load settings
     # ==========================================================================
 
-    def set_loads(self, point_loads=None, include_self_weight=False, uniform_distributed_load={}):
+    def set_loads(self, point_loads=None, include_self_weight=False, gravity_direction=[0,0,-1.0], uniform_distributed_load={}):
         """set load case for the stiffness checker.
         
         Parameters
@@ -172,7 +172,7 @@ class StiffnessChecker(object):
             elemental uniformly distributed load, by default {}
             {element_id : [wx, wy, wz]}, in global cooridinate
         """
-        self._sc_ins.set_self_weight_load(include_self_weight)
+        self._sc_ins.set_self_weight_load(include_self_weight=include_self_weight, gravity_direction=gravity_direction)
         if point_loads:
             pt_loads = []
             for vid, vload in point_loads.items():
@@ -184,14 +184,14 @@ class StiffnessChecker(object):
                 ud_loads.append([eid] + eload)
             self._sc_ins.set_uniformly_distributed_loads(np.array(ud_loads))
 
-    def set_self_weight_load(self, include_self_weight):
+    def set_self_weight_load(self, include_self_weight, gravity_direction=[0,0,-1.0]):
         """Turn on/off self-weight load.
         
         Parameters
         ----------
         include_self_weight : bool
         """
-        self._sc_ins.set_self_weight_load(include_self_weight)
+        self._sc_ins.set_self_weight_load(include_self_weight, gravity_direction=gravity_direction)
 
     # ==========================================================================
     # check criteria settings
@@ -483,10 +483,13 @@ class StiffnessChecker(object):
             self._sc_ins.set_output_json_path(output_dir, file_name)
 
     @property
-    def result_data(self, output_frame_transf=False):
+    def result_data(self):
+        return self.get_result_data(False)
+
+    def get_result_data(self, output_frame_transf=False):
         if not self.has_stored_result():
             print('no result to output!')
-            return 
+            return None
 
         success, nD, fR, eR = self.get_solved_results()
         trans_tol, rot_tol = self.get_nodal_deformation_tol()

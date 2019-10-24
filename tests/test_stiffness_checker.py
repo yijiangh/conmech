@@ -452,12 +452,21 @@ def test_nodal_equilibrium(test_case, load_case):
     repetitive_test_equilibrium(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
         existing_ids=failed_existing_ids, expect_partial_ids_success=False)
 
-
 def repetitive_check_gravity_validity(frame_file_path, existing_ids=[], expect_partial_ids_success=True):
     sc = StiffnessChecker(json_file_path=frame_file_path)
-    sc.set_loads(include_self_weight=True)
 
-    sol_success = sc.solve(existing_ids, eid_sanity_check=True)
+    print('\n################\n [0,0,-100] gravity direction')
+    sc.set_loads(include_self_weight=True, gravity_direction=[0,0,-100])
+    sc.solve(existing_ids, eid_sanity_check=True)
+    compliance_big = sc.get_compliance()
+
+    print('\n################\n [0,0,-1] gravity direction')
+    sc.set_loads(include_self_weight=True, gravity_direction=[0,0,-1])
+    sc.solve(existing_ids, eid_sanity_check=True)
+    compliance_small = sc.get_compliance()
+
+    print('big comp: {}, small comp: {}'.format(compliance_big, compliance_small))
+    assert_almost_equal(compliance_big, compliance_small * 1e4)
 
     success, nD, fR, eR = sc.get_solved_results()
 

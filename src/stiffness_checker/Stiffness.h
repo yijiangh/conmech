@@ -47,7 +47,8 @@ public:
    */
   void setUniformlyDistributedLoad(const Eigen::MatrixXd &element_load_density);
 
-  void setSelfWeightNodalLoad(bool include_sw) { include_self_weight_load_ = include_sw; }
+  void setSelfWeightNodalLoad(bool include_sw) { include_self_weight_load_ = include_sw;}
+  void setGravityDirection(const Eigen::VectorXd& gravity_direction);
 
   void setOutputJsonPath(const std::string& file_path, const std::string& file_name)
   {
@@ -381,6 +382,7 @@ private:
   bool is_init_;
 
   bool include_self_weight_load_;
+  Eigen::VectorXd gravity_direction_;
 
   bool has_stored_deformation_;
 };
