@@ -47,7 +47,8 @@ public:
    */
   void setUniformlyDistributedLoad(const Eigen::MatrixXd &element_load_density);
 
-  void setSelfWeightNodalLoad(bool include_sw) { include_self_weight_load_ = include_sw; }
+  void setSelfWeightNodalLoad(bool include_sw) { include_self_weight_load_ = include_sw;}
+  void setGravityDirection(const Eigen::VectorXd& gravity_direction);
 
   void setOutputJsonPath(const std::string& file_path, const std::string& file_name)
   {
@@ -140,6 +141,7 @@ public:
                               int &max_trans_vid, int &max_rot_id);
 
   bool getSolvedCompliance(double &compliance);
+  bool getSolvedAltCompliance(double &compliance);
 
   double getTransTol() const { return transl_tol_; }
   double getRotTol() const { return rot_tol_; }
@@ -374,6 +376,7 @@ private:
   Eigen::MatrixXd stored_element_reaction_;
   Eigen::MatrixXd stored_fixities_reaction_;
   double stored_compliance_;
+  double stored_alt_compliance_;
 
   /**
    * boolean flag for if the model is inited (1) or not (0).
@@ -381,6 +384,7 @@ private:
   bool is_init_;
 
   bool include_self_weight_load_;
+  Eigen::VectorXd gravity_direction_;
 
   bool has_stored_deformation_;
 };
