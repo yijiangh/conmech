@@ -128,7 +128,7 @@ bool Frame::loadFromJson(const std::string &file_path)
 
     if (!document.HasMember("unit"))
     {
-      fprintf(stdout, "WARNING: no unit is specified - using millimeter by default\n");
+      fprintf(stdout, "WARNING: no unit is specified - using millimeter by default");
     }
     else
     {
@@ -136,15 +136,15 @@ bool Frame::loadFromJson(const std::string &file_path)
       unit_scale_ = convertUnitScale(document["unit"].GetString());
     }
 
-    if(!document.HasMember("dimension")) { throw std::runtime_error("Json file does not have dimension entry\n"); }
+    if(!document.HasMember("dimension")) { throw std::runtime_error("Json file does not have dimension entry"); }
     int dim = document["dimension"].GetInt();
     if(!(dim == 2 || dim == 3)){
       throw std::runtime_error("dimension must be 2 or 3\n");
     }
 
     // read vertices
-    if(!document.HasMember("node_list")) { throw std::runtime_error("Json file does not have node_list entry\n"); };
-    assert(document["node_list"].Size() > 0);
+    if(!document.HasMember("node_list") && document["node_list"].Size() > 0) {
+      throw std::runtime_error("Json file does not have node_list entry"); }
 
     int full_node_dof = 0;
     if(dim == 3)
@@ -194,13 +194,13 @@ bool Frame::loadFromJson(const std::string &file_path)
     }
 
     if(fixed_vert_size_ == 0) {
-      throw std::runtime_error("there needs to be at least one support (fixed) vertex in the model!\n");
+      throw std::runtime_error("there needs to be at least one support (fixed) vertex in the model!");
     }
 
     // read edges (beams)
     // assert(document.HasMember("element_list"));
     if(!document.HasMember("element_list") || document["element_list"].Size() == 0){
-      throw std::runtime_error("there needs to be at least one element specified in the model's element list!\n");
+      throw std::runtime_error("there needs to be at least one element specified in the model's element list!");
     }
 
     for(int i=0; i<document["element_list"].Size(); i++)
@@ -218,7 +218,7 @@ bool Frame::loadFromJson(const std::string &file_path)
       if (e != NULL)
       {
         if(e->layer() != -1) {
-          throw std::runtime_error("Error: overwriting perviously assigned element's layer id\n");
+          throw std::runtime_error("Error: overwriting perviously assigned element's layer id");
         }
         e->setLayer(layer);
 

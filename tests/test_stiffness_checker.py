@@ -1,10 +1,5 @@
 from __future__ import print_function
 import os
-import sys
-if sys.version_info[0] < 3:
-    from backports import tempfile
-else:
-    import tempfile
 
 import pytest
 import numpy as np
@@ -152,7 +147,7 @@ def test_stiffness_checker_solve_consistency(test_case, load_case):
     
 
     # repetitive tests
-    n_attempts = 100
+    n_attempts = 10
     
     print('################\nfull solve success checks')
     repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
@@ -198,37 +193,7 @@ def test_init_stiffness_checker():
         assert_equal(spec, sc_from_data.fix_specs[vid])
 
 
-def test_frame_file_io():
-    file_name = 'tower_3D_broken_lines.json'
-
-    here = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(here, 'test_data', file_name)
-    node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name = \
-        read_frame_json(file_path, verbose=True)
-
-    # temp_fp = os.path.join(here, 'tmp.json')
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_fp = os.path.join(temp_dir, file_name)
-        write_frame_json(temp_fp, node_points, element_vids, fix_node_ids, material_dicts, 
-        fixity_specs=fix_specs, model_type=model_type, model_name = model_name)
-        back_node_points, back_element_vids, back_fix_node_ids, back_fix_specs, back_model_type, back_material_dicts, back_model_name = \
-            read_frame_json(temp_fp, verbose=True)
-
-    for n1, n2 in zip(node_points, back_node_points):
-        assert_equal(n1, n2)
-    for e1, e2 in zip(element_vids, back_element_vids):
-        assert_equal(e1, e2)
-    for fv1, fv2 in zip(fix_node_ids, back_fix_node_ids):
-        assert_equal(fv1, fv2)
-    for vid, spec in fix_specs.items():
-        assert vid in back_fix_specs
-        assert_equal(spec, back_fix_specs[vid])
-    assert model_type == back_model_type
-    for mat1, mat2 in zip(material_dicts, back_material_dicts):
-        assert mat1 == mat2
-    assert model_name == back_model_name
-
-
+@pytest.mark.nodal_load
 def test_get_nodal_loads():
     file_name = 'tower_3D.json'
     load_file_name = 'tower_3D_load_case.json'
@@ -621,7 +586,7 @@ def test_uniformly_distributed_load_with_analytical_solution():
         assert_equal(nodal_loads[1][2], -12.5)
         assert_equal(nodal_loads[1][3], 0.0)
         assert_equal(nodal_loads[1][4], -6.250)
-        print('{} \t {}'.format(fR[2][0:3], fR[2][3:6]))
+        # print('{} \t {}'.format(fR[2][0:3], fR[2][3:6]))
 
         assert pass_criteria
         assert_equal(nD[0], [0] * 6)

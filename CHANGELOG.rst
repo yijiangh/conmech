@@ -10,6 +10,18 @@ Changelog
 .. ^, for subsubsections
 .. ", for paragraphs
 
+TODO
+----
+- Even when applying the lumped nodal loads in Karamba, the results still look different to the ones from conmech. See `developer_notes/karamba_comparision` for more details.
+
+Unreleased
+----------
+
+Added
+^^^^^^^
+
+- Added unit tests for `std::throw` in parsing material properties
+
 0.3.0
 ----------
 

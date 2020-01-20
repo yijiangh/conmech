@@ -39,6 +39,7 @@ Contents
    readme
    under_the_hood/index
    reference/index
+   developer_notes/index
    contributing
    authors
    changelog

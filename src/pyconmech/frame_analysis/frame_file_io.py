@@ -169,7 +169,7 @@ def read_frame_json(file_path, verbose=False):
 
 def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dicts,
     unif_cross_sec=False, unif_material=False,
-    fixity_specs={}, unit=None, model_type='frame', model_name=None, indent=None):
+    fixity_specs=None, unit=None, model_type='frame', model_name=None, indent=None, check_material=True):
     data = OrderedDict()
     data['model_name'] = model_name if model_name else extract_model_name_from_path(file_path)
     data['model_type'] = model_type
@@ -187,10 +187,12 @@ def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dicts,
     data['uniform_material_properties'] = unif_material
     if unif_cross_sec and unif_material:
         data['material_properties'] = material_dicts[0] if isinstance(material_dicts, list) else material_dicts
+        if check_material: assert(check_material_dict(data['material_properties']))
     else:
         data['material_properties'] = {}
-        for mat_dict in material_dicts:
-            assert(check_material_dict(mat_dict))
+        if check_material:
+            for mat_dict in material_dicts:
+                assert(check_material_dict(mat_dict))
         assert(len(material_dicts) == len(elements))
 
     data['node_list'] = []

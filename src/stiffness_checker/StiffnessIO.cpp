@@ -123,39 +123,68 @@ bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<Stiff
     frame_parms.clear();
 
     if (!document.HasMember("uniform_cross_section") || !document.HasMember("uniform_material_properties")) { 
-      throw std::runtime_error("Frame json file uniform cross sec / mat properties flag not specified!\n");
+      throw std::runtime_error("Frame json file uniform cross sec / mat properties flag not specified!");
     }
 
+    // TODO: make parsing uniform properties and element-wise properties the same function
     if (document["uniform_cross_section"].GetBool() && document["uniform_material_properties"].GetBool()) {
       StiffnessParm frame_parm;
       double unit_conversion;
 
       // TODO: check unit
       // kN/cm^2 -> kN/m^2
+      if(!document["material_properties"].HasMember("youngs_modulus")) {
+        throw std::runtime_error("Young's modulus property value not specified!");
+      }
       unit_conversion = 1e4;
       frame_parm.youngs_modulus_ = unit_conversion * document["material_properties"]["youngs_modulus"].GetDouble();
 
       unit_conversion = 1e4;
       frame_parm.shear_modulus_ = unit_conversion * document["material_properties"]["shear_modulus"].GetDouble();
 
+      // TODO: add tensile strength
       // kN/cm^2 -> kN/m^2
       // unit_conversion = 1e4;
       // frame_parm.tensile_yeild_stress_ = unit_conversion * document["material_properties"]["tensile_yeild_stress"].GetDouble();
-      frame_parm.poisson_ratio_ = document["material_properties"]["poisson_ratio"].GetDouble();
+
+      if (document["material_properties"].HasMember("shear_modulus")){
+        unit_conversion = 1e4;
+        frame_parm.shear_modulus_ = unit_conversion * document["material_properties"]["shear_modulus"].GetDouble();
+        frame_parm.poisson_ratio_ = frame_parm.getPoissonRatio(frame_parm.youngs_modulus_, frame_parm.shear_modulus_);
+        if (document["material_properties"].HasMember("poisson_ratio")) {
+          double tmp_poisson_ratio = document["material_properties"]["poisson_ratio"].GetDouble();
+          if (std::abs(tmp_poisson_ratio - frame_parm.poisson_ratio_) > 1e-5) {
+              std::cout << "Warning: shear modulus and poission ratio not compatible! Diff: " <<  std::abs(tmp_poisson_ratio - frame_parm.poisson_ratio_) << ", check formula between E, G, mu. Given E & G are used." << std::endl;
+            }
+          }
+        } else {
+        if (!document["material_properties"].HasMember("poisson_ratio")){
+          throw std::runtime_error("Both shear modulus and poisson_ratio not specified!");
+        }
+        frame_parm.poisson_ratio_ = document["material_properties"]["poisson_ratio"].GetDouble();
+        frame_parm.shear_modulus_ = frame_parm.getShearModulus(frame_parm.youngs_modulus_, frame_parm.poisson_ratio_);
+      }
 
       // kN/m^3
+      if (!document["material_properties"].HasMember("density_unit") || !document["material_properties"].HasMember("density")){
+        throw std::runtime_error("Density not specified!");
+      }
       unit_conversion = convertDensityScale(document["material_properties"]["density_unit"].GetString());
       frame_parm.density_ = unit_conversion * document["material_properties"]["density"].GetDouble();
 
-      // cm -> m
-      // unit_conversion = 1e-2;
-      // frame_parm.radius_ = unit_conversion * document["material_properties"]["radius"].GetDouble();
-
       // cm^2 -> m^2
       unit_conversion = 1e-4;
+      if(!document["material_properties"].HasMember("cross_sec_area")) {
+        throw std::runtime_error("Cross section area property value not specified!");
+      }
       frame_parm.cross_sec_area_ = unit_conversion * document["material_properties"]["cross_sec_area"].GetDouble();
 
       // cm^4 -> m^4
+      if (!document["material_properties"].HasMember("Jx") || 
+          !document["material_properties"].HasMember("Iy") ||
+          !document["material_properties"].HasMember("Iz")){
+        throw std::runtime_error("Jx, Iy or Iz not specified!");
+      }
       unit_conversion = 1e-8;
       frame_parm.Jx_ = unit_conversion * document["material_properties"]["Jx"].GetDouble();
       frame_parm.Iy_ = unit_conversion * document["material_properties"]["Iy"].GetDouble();
@@ -173,6 +202,12 @@ bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<Stiff
 
         // TODO: check unit
         // kN/cm^2 -> kN/m^2
+
+        if(!document["element_list"][i]["material_properties"].HasMember("youngs_modulus")) {
+          char msg[100];
+          sprintf(msg, "Element %i: Young's modulus property value not specified!", i);
+          throw std::runtime_error(msg);
+        }
         unit_conversion = 1e4;
         frame_parm.youngs_modulus_ = unit_conversion * document["element_list"][i]["material_properties"]["youngs_modulus"].GetDouble();
 
@@ -183,36 +218,54 @@ bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<Stiff
         if (document["element_list"][i]["material_properties"].HasMember("shear_modulus")){
           unit_conversion = 1e4;
           frame_parm.shear_modulus_ = unit_conversion * document["element_list"][i]["material_properties"]["shear_modulus"].GetDouble();
-          frame_parm.poisson_ratio_ = frame_parm.getPoissonRatio(frame_parm.youngs_modulus_, frame_parm.poisson_ratio_);
+          frame_parm.poisson_ratio_ = frame_parm.getPoissonRatio(frame_parm.youngs_modulus_, frame_parm.shear_modulus_);
           if (document["element_list"][i]["material_properties"].HasMember("poisson_ratio")) {
             double tmp_poisson_ratio = document["element_list"][i]["material_properties"]["poisson_ratio"].GetDouble();
-            if (std::abs(tmp_poisson_ratio - frame_parm.poisson_ratio_) < 1e-5) {
-              fprintf(stderr, "element %i shear modulus and poission ratio not compatible! check formula between E, G, mu.", i);
+            if (std::abs(tmp_poisson_ratio - frame_parm.poisson_ratio_) > 1e-5) {
+              std::cout << "Warning: Element " << i << " shear modulus and poission ratio not compatible! Diff: " <<  std::abs(tmp_poisson_ratio - frame_parm.poisson_ratio_) << ", check formula between E, G, mu. Given E & G are used." << std::endl;
             }
           }
         } else {
+          if (!document["element_list"][i]["material_properties"].HasMember("poisson_ratio")){
+            char msg[100];
+            sprintf(msg, "Element %i: Both shear modulus and poisson_ratio not specified!", i);
+            throw std::runtime_error(msg);
+          }
           frame_parm.poisson_ratio_ = document["element_list"][i]["material_properties"]["poisson_ratio"].GetDouble();
           frame_parm.shear_modulus_ = frame_parm.getShearModulus(frame_parm.youngs_modulus_, frame_parm.poisson_ratio_);
         }
         
+        // kN/m^3
+        if (!document["element_list"][i]["material_properties"].HasMember("density_unit") || !document["element_list"][i]["material_properties"].HasMember("density")){
+          char msg[100];
+          sprintf(msg, "Element %i: Density not specified!", i);
+          throw std::runtime_error(msg);
+        }
+        unit_conversion = convertDensityScale(document["element_list"][i]["material_properties"]["density_unit"].GetString());
+        frame_parm.density_ = unit_conversion * document["element_list"][i]["material_properties"]["density"].GetDouble();
+
+        // cm^2 -> m^2
+        unit_conversion = 1e-4;
+        if(!document["element_list"][i]["material_properties"].HasMember("cross_sec_area")) {
+          char msg[100];
+          sprintf(msg, "Element %i: Cross section area property value not specified!", i);
+          throw std::runtime_error(msg);
+        }
+        frame_parm.cross_sec_area_ = unit_conversion * document["element_list"][i]["material_properties"]["cross_sec_area"].GetDouble();
+      
         // cm^4 -> m^4
         unit_conversion = 1e-8;
+        if (!document["element_list"][i]["material_properties"].HasMember("Jx") || 
+            !document["element_list"][i]["material_properties"].HasMember("Iy") ||
+            !document["element_list"][i]["material_properties"].HasMember("Iz")){
+          char msg[100];
+          sprintf(msg, "Element %i: Jx, Iy or Iz not specified!", i);
+          throw std::runtime_error(msg);
+        }
         frame_parm.Jx_ = unit_conversion * document["element_list"][i]["material_properties"]["Jx"].GetDouble();
         frame_parm.Iy_ = unit_conversion * document["element_list"][i]["material_properties"]["Iy"].GetDouble();
         frame_parm.Iz_ = unit_conversion * document["element_list"][i]["material_properties"]["Iz"].GetDouble();
 
-        // kN/m^3
-        unit_conversion = convertDensityScale(document["element_list"][i]["material_properties"]["density_unit"].GetString());
-        frame_parm.density_ = unit_conversion * document["element_list"][i]["material_properties"]["density"].GetDouble();
-
-        // cm -> m
-        // unit_conversion = 1e-2;
-        // frame_parm.radius_ = unit_conversion * document["element_list"][i]["material_properties"]["radius"].GetDouble();
-
-        // cm^2 -> m^2
-        unit_conversion = 1e-4;
-        frame_parm.cross_sec_area_ = unit_conversion * document["element_list"][i]["material_properties"]["cross_sec_area"].GetDouble();
-      
         frame_parms.push_back(frame_parm);
       }
     }
@@ -233,7 +286,7 @@ bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool
   // assert(fp);
   try {
     if(!fp) {
-      throw std::runtime_error("Load case json file not found!\n");
+      throw std::runtime_error("Load case json file not found!");
     }
   } catch (const std::runtime_error &e) {
     fprintf(stderr, "%s\n", e.what());
