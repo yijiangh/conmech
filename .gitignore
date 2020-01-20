@@ -37,3 +37,5 @@ abaqus.rpy
 .ropeproject
 .cache
 .tox
+
+.vscode

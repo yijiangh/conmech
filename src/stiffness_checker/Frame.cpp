@@ -94,7 +94,8 @@ bool Frame::loadFromJson(const std::string &file_path)
   } catch (const std::runtime_error &e) {
     fprintf(stderr, "%s\n", e.what());
     fclose(fp);
-    return false;
+    // return false;
+    throw;
   }
 
   // reset all existing vert and element list
@@ -231,7 +232,7 @@ bool Frame::loadFromJson(const std::string &file_path)
   } catch (const std::runtime_error &e) {
 		fclose(fp);
     fprintf(stderr, "%s\n", e.what());
-    return false;
+    throw;
   }
 
   return true;

@@ -167,8 +167,9 @@ def read_frame_json(file_path, verbose=False):
     return node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name
 
 
-def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dicts, 
-    fixity_specs={}, unit=None, model_type='frame', model_name=None):
+def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dicts,
+    unif_cross_sec=False, unif_material=False,
+    fixity_specs={}, unit=None, model_type='frame', model_name=None, indent=None):
     data = OrderedDict()
     data['model_name'] = model_name if model_name else extract_model_name_from_path(file_path)
     data['model_type'] = model_type
@@ -182,9 +183,15 @@ def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dicts,
     data['dimension'] = len(nodes[0])
     data['node_num'] = len(nodes)
     data['element_num'] = len(elements)
-    for mat_dict in material_dicts:
-        assert(check_material_dict(mat_dict))
-    assert(len(material_dicts) == len(elements))
+    data['uniform_cross_section'] = unif_cross_sec
+    data['uniform_material_properties'] = unif_material
+    if unif_cross_sec and unif_material:
+        data['material_properties'] = material_dicts[0] if isinstance(material_dicts, list) else material_dicts
+    else:
+        data['material_properties'] = {}
+        for mat_dict in material_dicts:
+            assert(check_material_dict(mat_dict))
+        assert(len(material_dicts) == len(elements))
 
     data['node_list'] = []
     for i, node in enumerate(nodes):
@@ -202,15 +209,20 @@ def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dicts,
         else:
             node_data['fixities'] = [1] * 6 if node_data['is_grounded'] else []
         data['node_list'].append(node_data)
+
     data['element_list'] = []
     for i, element in enumerate(elements):
         element_data = OrderedDict()
-        element_data['end_node_ids'] = list(element)
+        element_data['end_node_ids'] = list([int(v) for v in element])
         element_data['element_id'] = i
-        element_data['material_properties'] = material_dicts[i]
+        element_data['material_properties'] = {} if unif_cross_sec and unif_material else material_dicts[i]
         data['element_list'].append(element_data)
+
     with open(file_path, 'w+') as outfile:
-        json.dump(data, outfile, indent=4)
+        if indent:
+            json.dump(data, outfile, indent=indent)
+        else:
+            json.dump(data, outfile)
 
 
 def read_load_case_json(file_path):
@@ -257,59 +269,3 @@ def read_load_case_json(file_path):
             uniform_element_load[el_data['applied_element_id']] = [el_data['wx'], el_data['wy'], el_data['wz']]
     
     return point_load, uniform_element_load, include_self_weight
-
-def write_analysis_result_to_json(sc, res_file_path):
-    if not sc.has_stored_result():
-        print('no result to output!')
-        return 
-
-    success, nD, fR, eR = sc.get_solved_results()
-    trans_tol, rot_tol = sc.get_nodal_deformation_tol()
-    # max_trans, max_rot, max_t_id, max_r_id = sc.get_max_nodal_deformation()
-    eR_LG_mats = sc.get_element_local2global_rot_matrices()
-
-    data = OrderedDict()
-    data['model_name'] = sc.model_name
-    data['model_type'] = sc.model_type
-    data['solve_success'] = success
-    data['trans_tol'] = trans_tol
-    data['rot_tol'] = rot_tol
-
-    data['length_unit'] = 'meter'
-    data["force_unit"] =  "kN"
-    data["moment_unit"] = "kN-m"
-    
-    nD_data = []
-    for n_id, nd in nD.items():
-        nd_data = OrderedDict()
-        nd_data['node_id'] = n_id
-        nd_data['node_pose'] = list(sc.node_points[n_id])
-        nd_data['displacement'] = nd.tolist()
-        nD_data.append(nd_data)
-    data['node_displacement'] = nD_data
-
-    eR_data = []
-    for e_id, er in eR.items():
-        er_data = OrderedDict()
-        er_data['element_id'] = e_id
-        er_data['node_ids'] = sc.elements[e_id]
-        er_data['reaction'] = OrderedDict()
-        er_data['reaction'][0] = er[0].tolist()
-        er_data['reaction'][1] = er[1].tolist()
-        eR33 = eR_LG_mats[e_id][:3, :3]
-        er_data['local_to_global_transformation'] = eR33.tolist()
-
-        eR_data.append(er_data)
-    data['element_reaction'] = eR_data
-
-    fR_data = []
-    for v_id, fr in fR.items():
-        fr_data = OrderedDict()
-        fr_data['node_id'] = v_id
-        fr_data['node_pose'] = list(sc.node_points[v_id])
-        fr_data['reaction'] = fr.tolist()
-        fR_data.append(fr_data)
-    data['fixity_reaction'] = fR_data
-
-    with open(res_file_path, 'w+') as outfile:
-        json.dump(data, outfile, indent=4)

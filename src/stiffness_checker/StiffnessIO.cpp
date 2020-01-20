@@ -94,17 +94,18 @@ bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<Stiff
   FILE *fp = fopen(file_path.c_str(), "r");
 
   // assert(fp);
-  try {
-    if(!fp) {
-      throw std::runtime_error("Frame json file not found (material info should be included there)!\n");
-    }
-  } catch (const std::runtime_error &e) {
-    fprintf(stderr, "%s\n", e.what());
-    fclose(fp);
-    return false;
+  // try {
+  if(!fp) {
+    throw std::runtime_error("Frame json file not found (material info should be included there)!\n");
   }
+  // } catch (const std::runtime_error &e) {
+  //   fprintf(stderr, "%s\n", e.what());
+  //   fclose(fp);
+  //   // return false;
+  //   throw;
+  // }
 
-  try {
+  // try {
 	  char readBuffer[65536];
 	  rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
 	  rapidjson::MemoryPoolAllocator<> alloc;
@@ -120,6 +121,10 @@ bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<Stiff
 		fclose(fp);
     
     frame_parms.clear();
+
+    if (!document.HasMember("uniform_cross_section") || !document.HasMember("uniform_material_properties")) { 
+      throw std::runtime_error("Frame json file uniform cross sec / mat properties flag not specified!\n");
+    }
 
     if (document["uniform_cross_section"].GetBool() && document["uniform_material_properties"].GetBool()) {
       StiffnessParm frame_parm;
@@ -211,11 +216,11 @@ bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<Stiff
         frame_parms.push_back(frame_parm);
       }
     }
-  } catch (const std::runtime_error &e) {
-		fclose(fp);
-    fprintf(stderr, "%s\n", e.what());
-    return false;
-  }
+  // } catch (const std::runtime_error &e) {
+	// 	fclose(fp);
+  //   fprintf(stderr, "%s\n", e.what());
+  //   throw;
+  // }
   return true;
 }
 
