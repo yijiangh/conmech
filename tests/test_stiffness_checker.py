@@ -10,6 +10,7 @@ import pytest
 import numpy as np
 from numpy.linalg import norm, multi_dot
 import random
+from copy import copy
 import time
 from numpy.testing import assert_equal, assert_almost_equal
 
@@ -60,7 +61,7 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
     # without reinit
     st_time = time.time()
     for _ in range(n_attempts):
-        shuffled_existing_ids = existing_ids.copy()
+        shuffled_existing_ids = copy(existing_ids)
         random.shuffle(shuffled_existing_ids)
         sol_success = sc.solve(shuffled_existing_ids)
         tmp_success, tmp_nD, tmp_fR, tmp_eR = sc.get_solved_results()
@@ -85,7 +86,7 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
         sc_new.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
         sc_new.set_nodal_displacement_tol(trans_tol=trans_tol)
 
-        shuffled_existing_ids = existing_ids.copy()
+        shuffled_existing_ids = copy(existing_ids)
         random.shuffle(shuffled_existing_ids)
         sol_success = sc_new.solve(shuffled_existing_ids)
         tmp_success, tmp_nD, tmp_fR, tmp_eR = sc_new.get_solved_results()
