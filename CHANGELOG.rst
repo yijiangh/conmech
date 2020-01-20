@@ -14,7 +14,7 @@ TODO
 ----
 - Even when applying the lumped nodal loads in Karamba, the results still look different to the ones from conmech. See `developer_notes/karamba_comparision` for more details.
 
-Unreleased
+0.3.1
 ----------
 
 Added
