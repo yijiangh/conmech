@@ -10,7 +10,7 @@ Changelog
 .. ^, for subsubsections
 .. ", for paragraphs
 
-Unreleased
+0.3.0
 ----------
 
 Changed
