@@ -10,6 +10,14 @@ Changelog
 .. ^, for subsubsections
 .. ", for paragraphs
 
+Unreleased
+----------
+
+Changed
+^^^^^^^
+
+- Changed `try/catch` in the C++ file parsing to `std::throw` 
+
 0.2.0
 -----
 

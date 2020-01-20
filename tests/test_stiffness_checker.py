@@ -60,12 +60,14 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
     # without reinit
     st_time = time.time()
     for _ in range(n_attempts):
-        sol_success = sc.solve(existing_ids)
+        shuffled_existing_ids = existing_ids.copy()
+        random.shuffle(shuffled_existing_ids)
+        sol_success = sc.solve(shuffled_existing_ids)
         tmp_success, tmp_nD, tmp_fR, tmp_eR = sc.get_solved_results()
 
         assert tmp_success == success and sol_success == success, 'max_trans {}, max_rot {}, max_trans_id {}, max_rot_id {}'.format( \
             *sc.get_max_nodal_deformation())
-        for fnid in sc.get_element_connected_node_ids(existing_ids=existing_ids, fix_node_only=True):
+        for fnid in sc.get_element_connected_node_ids(existing_ids=shuffled_existing_ids, fix_node_only=True):
             assert_equal(tmp_nD[fnid], np.zeros(6))
 
         for i in nD.keys() : assert_almost_equal(nD[i], tmp_nD[i]) 
@@ -83,11 +85,13 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
         sc_new.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
         sc_new.set_nodal_displacement_tol(trans_tol=trans_tol)
 
-        sol_success = sc_new.solve(existing_ids)
+        shuffled_existing_ids = existing_ids.copy()
+        random.shuffle(shuffled_existing_ids)
+        sol_success = sc_new.solve(shuffled_existing_ids)
         tmp_success, tmp_nD, tmp_fR, tmp_eR = sc_new.get_solved_results()
         assert tmp_success == success and sol_success == success, 'max_trans {}, max_rot {}, max_trans_id {}, max_rot_id {}'.format( \
             *sc_new.get_max_nodal_deformation())
-        for fnid in sc_new.get_element_connected_node_ids(existing_ids=existing_ids, fix_node_only=True):
+        for fnid in sc_new.get_element_connected_node_ids(existing_ids=shuffled_existing_ids, fix_node_only=True):
             assert_equal(tmp_nD[fnid], np.zeros(6))
 
         for i in nD.keys() : assert_almost_equal(nD[i], tmp_nD[i]) 
@@ -108,7 +112,7 @@ def test_stiffness_checker_solve_consistency(test_case, load_case):
         file_name = 'tower_3D.json'
         load_file_name = 'tower_3D_load_case.json'
         
-        # some parts are floating in this partial ids
+        # ! some parts are floating in this partial ids
         failed_existing_ids = [0, 4, 7, 8, 9] 
         if load_case == 'self_weight' or load_case == 'self_weight+point_load':
             success_existing_ids = [1, 12, 5, 10, 4, 11, 13, 3, 2, 0, 7]
