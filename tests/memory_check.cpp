@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
-#include <unistd.h>
+// #include "unistd.h"
+
+#include "catch/catch.hpp"
 
 void process_mem_usage(double& vm_usage, double& resident_set)
 {
@@ -18,13 +20,13 @@ void process_mem_usage(double& vm_usage, double& resident_set)
                 >> ignore >> ignore >> vsize >> rss;
     }
 
-    long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; // in case x86-64 is configured to use 2MB pages
+    long page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024; 
+    // in case x86-64 is configured to use 2MB pages
     vm_usage = vsize / 1024.0;
     resident_set = rss * page_size_kb;
 }
 
-int main()
-{
+TEST_CASE( "memory check", "[single-file]" ) {
    using std::cout;
    using std::endl;
 
