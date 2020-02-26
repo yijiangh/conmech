@@ -1,11 +1,11 @@
 ################################################################################
 # Independent binaries
 ################################################################################
+# https://github.com/jpanetta/MeshFEM/blob/master/tests/CMakeLists.txt
 
 add_executable(unit_tests
 	main.cpp
-    hello_catch.cpp
-    # memory_check.cpp
+    test_memory_leak.cpp
 )
 
 target_link_libraries(unit_tests PUBLIC

@@ -35,6 +35,11 @@ namespace conmech
 namespace stiffness_checker
 {
 
+Frame::~Frame()
+{
+  this->clear();
+}
+
 const FrameVertPtr Frame::getVert(int vert_id) const
 {
   return (vert_id >= sizeOfVertList() || vert_id < 0) ? NULL : vert_list_[vert_id];
@@ -164,7 +169,9 @@ bool Frame::loadFromJson(const std::string &file_path)
                           p["Y"].GetDouble()*unit_scale_,
                           p["Z"].GetDouble()*unit_scale_));
 
-      if(document["node_list"][i]["is_grounded"].GetInt() || document["node_list"][i]["is_grounded"].GetBool())
+      // TODO: choose one type
+      // if(document["node_list"][i]["is_grounded"].GetInt() || document["node_list"][i]["is_grounded"].GetBool())
+      if(document["node_list"][i]["is_grounded"].GetInt())
       {
         vert->setFixed(true);
 
@@ -240,14 +247,14 @@ bool Frame::loadFromJson(const std::string &file_path)
 
 void Frame::clear()
 {
-  for(auto e : element_list_)
-  {
-    e.reset();
-  }
-  for(auto v : vert_list_)
-  {
-    v.reset();
-  }
+  // for(auto e : element_list_)
+  // {
+  //   e.reset();
+  // }
+  // for(auto v : vert_list_)
+  // {
+  //   v.reset();
+  // }
 
   element_list_.clear();
   vert_list_.clear();

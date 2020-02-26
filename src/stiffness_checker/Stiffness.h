@@ -16,7 +16,8 @@ class Stiffness
 public:
 //  Stiffness(Frame &frame, bool verbose = false, std::string model_type = "frame");
 
-  Stiffness(const std::string& json_file_path, bool verbose = false, const std::string& model_type = "frame", bool output_json = false);
+  Stiffness(const std::string& json_file_path, bool verbose = false, 
+            const std::string& model_type = "frame", bool output_json = false);
 
   ~Stiffness() {}
 
@@ -343,6 +344,7 @@ private:
    * Note: for now, we separate gravity and other element-wise loads
    * 
    * (N_all_element x (12)) list
+   * 
    */
   std::vector<Eigen::VectorXd> element_gravity_nload_list_;
 

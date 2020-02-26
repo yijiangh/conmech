@@ -1,10 +1,8 @@
+# https://github.com/jpanetta/MeshFEM/blob/master/src/lib/MeshFEM/CMakeLists.txt
+
 # add_definitions("-std=c++11")
 # TODO: lapack is needed for condition number checking
 #find_package(LAPACK REQUIRED)
-
-include_directories(${EIGEN_INCLUDE_DIRS} ${RAPIDJSON_INCLUDE_DIRS})
-
-# add_executable(sc_test test/stiffness_checker_test.cpp)
 
 add_library(stiffness_checker_lib
 	Frame.cpp
@@ -13,6 +11,15 @@ add_library(stiffness_checker_lib
 	StiffnessSolver.cpp
 	Timer.cpp
 	StiffnessIO.cpp
+	)
+
+# Include directories
+# include_directories(${EIGEN_INCLUDE_DIRS} ${RAPIDJSON_INCLUDE_DIRS})
+target_include_directories(stiffness_checker_lib 
+	PUBLIC 
+	..
+	${EIGEN_INCLUDE_DIRS} 
+	${RAPIDJSON_INCLUDE_DIRS}
 	)
 
 # auto deducing CXX features
@@ -25,4 +32,4 @@ target_compile_features(stiffness_checker_lib PRIVATE cxx_range_for)
 if(CONMECH_WITH_PYTHON)
 	message(STATUS "Building stiffness_checker's python bindings.")
 	add_subdirectory(bindings)
-endif(CONMECH_WITH_PYTHON)
+endif()

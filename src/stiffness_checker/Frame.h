@@ -63,6 +63,7 @@ class FrameVert
   const std::vector<FrameElementPtr>& getNghdElement() const { return p_nghd_element_list_; }
 
  private:
+  // ! should break cycles: https://www.quora.com/How-can-I-avoid-memory-leakage-when-using-a-smart-pointer-in-C++
   std::vector<FrameElementPtr> p_nghd_element_list_;
   Eigen::Vector3d position_;
 
@@ -125,7 +126,7 @@ class Frame
 {
  public:
   Frame(): layer_size_(0), fixed_vert_size_(0), unit_scale_(1.0) {}
-  ~Frame() {}
+  ~Frame();
 
  public:
   bool loadFromJson(const std::string& file_path);
