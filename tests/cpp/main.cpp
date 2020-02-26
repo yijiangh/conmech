@@ -3,4 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #define CATCH_CONFIG_MAIN
+#if _MSC_VER
+#define CATCH_CONFIG_WINDOWS_CRTDBG
+#endif
 #include "catch/catch.hpp"

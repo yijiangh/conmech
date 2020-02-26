@@ -4,6 +4,7 @@
 #include <fstream>
 #include <stdio.h>
 
+// TODO: replace with: https://github.com/nlohmann/json
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/filewritestream.h>

@@ -21,7 +21,7 @@ conmech
     :target: https://pypi.org/project/pyconmech/
     :alt: PyPI - Python Version
 
-.. image:: https://img.shields.io/badge/pypi-v0.1.1-orange
+.. .. image:: https://img.shields.io/badge/pypi-v0.3.1-orange
     :target: https://pypi.org/project/pyconmech/
     :alt: PyPI - Latest Release
 
@@ -29,7 +29,11 @@ conmech
 
 .. Write project description
 
-**conmech** is an open-source library to provide efficient stiffness checkers for architectural construction sequencing. It's written in C++11 and wrapped friendly with Python via `pybind11 <https://github.com/pybind/pybind11>`_.
+**conmech** is a stiffness checker that performs elastic deformation analysis for 3D frame structures. 
+It is designed for construction sequencing applications, which involves testing
+the partially assembled structure (subset of element permutation) many times.
+
+**conmech** is written in C++11 and wrapped friendly with Python via `pybind11 <https://github.com/pybind/pybind11>`_.
 
 Installation
 ------------
@@ -38,13 +42,6 @@ Installation
 
   pip install pyconmech
 
-Demo
-----
-
-(A cool gif should come here :satisfied:)
-
-For examples of interactive usage in python (analysis for complete or partial structure in a construction sequence), 
-see `stiffness_checker_test.ipynb <./tests/notebook_demo/demo.ipynb>`_.
 
 Build from source
 -----------------

@@ -3,7 +3,7 @@
 ################################################################################
 
 add_executable(unit_tests
-	# main.cpp
+	main.cpp
     hello_catch.cpp
     # memory_check.cpp
 )

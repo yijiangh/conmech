@@ -20,7 +20,7 @@ include(conmech)
 if(CONMECH_BUILD_TESTS)
 	include(CTest)
 	enable_testing()
-	add_subdirectory(tests)
+	add_subdirectory(tests/cpp)
 endif()
 
 # if(LIBIGL_WITH_PYTHON)
