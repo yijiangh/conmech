@@ -42,20 +42,6 @@ Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std:
 
   frame_.loadFromJson(json_file_path);
   parseMaterialPropertiesJson(json_file_path, material_parms_);
-  // try{
-  //   frame_.loadFromJson(json_file_path);
-  //   parseMaterialPropertiesJson(json_file_path, material_parms_);
-  //   // if(!frame_.loadFromJson(json_file_path)) {
-  //   //   throw std::runtime_error("Parsing frame json files failed\n");
-  //   // }
-  //   // if(!parseMaterialPropertiesJson(json_file_path, material_parms_))
-  //   // {
-  //   //   throw std::runtime_error("Parsing material json files failed\n");
-  //   // }
-  // } catch (const std::runtime_error &e) {
-  //   fprintf(stderr, "%s\n", e.what());
-  //   throw;
-  // }
 
   model_type_ = model_type;
 
@@ -695,6 +681,8 @@ bool Stiffness::solve(
   }
   else
   {
+    // TODO: what's the best solve strategy?
+    // TODO: Conjugate gradient, precondition? https://www.cs.cmu.edu/~baraff/papers/sig98.pdf
     if (!stiff_solver_.solveSparseSimplicialLDLT(K_mm, Q_m, U_m))
     {
       if (verbose_)

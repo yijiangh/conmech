@@ -16,6 +16,7 @@ class FrameVert;
 
 class FrameElement;
 
+// https://en.cppreference.com/w/cpp/memory/shared_ptr
 typedef std::shared_ptr<FrameVert> FrameVertPtr;
 typedef std::shared_ptr<FrameElement> FrameElementPtr;
 
@@ -30,7 +31,8 @@ class FrameVert
       : position_(p),
         id_(0), degree_(0),
         b_fixed_(false) {}
-  ~FrameVert() {}
+  ~FrameVert() {} 
+  // TODO: release memory of Vert, Edge
 
  public:
   Eigen::Vector3d position() const { return position_; }
