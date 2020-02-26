@@ -42,20 +42,6 @@ Stiffness::Stiffness(const std::string& json_file_path, bool verbose, const std:
 
   frame_.loadFromJson(json_file_path);
   parseMaterialPropertiesJson(json_file_path, material_parms_);
-  // try{
-  //   frame_.loadFromJson(json_file_path);
-  //   parseMaterialPropertiesJson(json_file_path, material_parms_);
-  //   // if(!frame_.loadFromJson(json_file_path)) {
-  //   //   throw std::runtime_error("Parsing frame json files failed\n");
-  //   // }
-  //   // if(!parseMaterialPropertiesJson(json_file_path, material_parms_))
-  //   // {
-  //   //   throw std::runtime_error("Parsing material json files failed\n");
-  //   // }
-  // } catch (const std::runtime_error &e) {
-  //   fprintf(stderr, "%s\n", e.what());
-  //   throw;
-  // }
 
   model_type_ = model_type;
 
@@ -695,6 +681,8 @@ bool Stiffness::solve(
   }
   else
   {
+    // TODO: what's the best solve strategy?
+    // TODO: Conjugate gradient, precondition? https://www.cs.cmu.edu/~baraff/papers/sig98.pdf
     if (!stiff_solver_.solveSparseSimplicialLDLT(K_mm, Q_m, U_m))
     {
       if (verbose_)
@@ -933,26 +921,28 @@ bool Stiffness::getSolvedResults(Eigen::MatrixXd &node_displ,
 bool Stiffness::getMaxNodalDeformation(double &max_trans, double &max_rot,
     int &max_trans_vid, int &max_rot_vid)
 {
-  // try {
     if (!hasStoredResults()) {
       throw std::runtime_error("no stored result found.\n");
     }
     const int nNode = stored_nodal_deformation_.rows();
     int mt_i, mt_j, mr_i, mr_j;
-    max_trans = stored_nodal_deformation_.block(0, 1, nNode, 3).cwiseAbs().maxCoeff(&mt_i, &mt_j);
-    max_rot = stored_nodal_deformation_.block(0, 4, nNode, 3).cwiseAbs().maxCoeff(&mr_i, &mr_j);
+
+    Eigen::VectorXd trans_norm(nNode);
+    for(int i = 0; i < nNode; i++){
+      for(int j = 1; j <= 3; j++){
+        trans_norm[i] += std::pow(stored_nodal_deformation_(i, j), 2);
+      }
+      trans_norm[i] = sqrt(trans_norm[i]);
+    }
+    max_trans = trans_norm.maxCoeff(&mt_i);
     max_trans_vid = stored_nodal_deformation_(mt_i, 0);
-    max_rot_vid = stored_nodal_deformation_(mt_j, 0);
+
+    // max_trans = stored_nodal_deformation_.block(0, 1, nNode, 3).cwiseAbs().maxCoeff(&mt_i, &mt_j);
+    // max_trans_vid = stored_nodal_deformation_(mt_i, 0);
+
+    max_rot = stored_nodal_deformation_.block(0, 4, nNode, 3).cwiseAbs().maxCoeff(&mr_i, &mr_j);
+    max_rot_vid = stored_nodal_deformation_(mr_j, 0);
     return true;
-  // }
-  // catch (const std::runtime_error &e) {
-  //   max_trans = 0;
-  //   max_rot = 0;
-  //   max_trans_vid = -1;
-  //   max_rot_vid = -1;
-  //   fprintf(stderr, "%s", e.what());
-  //   return false;
-  // }
 }
 
 bool Stiffness::getSolvedCompliance(double &compliance)
@@ -1202,24 +1192,38 @@ bool Stiffness::checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
   // stiffness check
   // nodal displacement check
   const int nNode = node_displ.rows();
-  const auto& max_trans = node_displ.block(0, 1, nNode, 3).cwiseAbs();
-  const auto& max_rot = node_displ.block(0, 4, nNode, 3).cwiseAbs();
 
-  if (verbose_)
-  {
-    std::cout << "max translation deformation: " << max_trans.maxCoeff()
-              << " / " << "tolerance " << transl_tol_ << std::endl;
-    std::cout << "max rotational deformation: " << max_rot.maxCoeff()
-              << " / " << "tolerance " << rot_tol_ << std::endl;
+  Eigen::VectorXd trans_norm(nNode);
+  for(int i = 0; i < nNode; i++){
+    for(int j = 1; j <= 3; j++){
+      trans_norm[i] += std::pow(node_displ(i, j), 2);
+    }
+    trans_norm[i] = sqrt(trans_norm[i]);
   }
-  if (max_trans.maxCoeff() > transl_tol_)
-  {
-    return false;
-  }
-  if (max_rot.maxCoeff() > rot_tol_)
+  double max_trans = trans_norm.maxCoeff();
+  if (max_trans > transl_tol_)
   {
     return false;
   }
+
+  // const auto& max_trans = node_displ.block(0, 1, nNode, 3).cwiseAbs();
+  // const auto& max_rot = node_displ.block(0, 4, nNode, 3).cwiseAbs();
+
+  // if (verbose_)
+  // {
+  //   std::cout << "max translation deformation: " << max_trans.maxCoeff()
+  //             << " / " << "tolerance " << transl_tol_ << std::endl;
+  //   std::cout << "max rotational deformation: " << max_rot.maxCoeff()
+  //             << " / " << "tolerance " << rot_tol_ << std::endl;
+  // }
+  // if (max_trans.maxCoeff() > transl_tol_)
+  // {
+  //   return false;
+  // }
+  // if (max_rot.maxCoeff() > rot_tol_)
+  // {
+  //   return false;
+  // }
 
   // TODO: not well tested yet
   // stability check
