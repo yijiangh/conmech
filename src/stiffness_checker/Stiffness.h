@@ -14,12 +14,11 @@ namespace stiffness_checker
 class Stiffness
 {
 public:
-//  Stiffness(Frame &frame, bool verbose = false, std::string model_type = "frame");
+  Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, 
+            Eigen::MatrixXd& BC, const std::vector<std::string>& materials,
+            bool verbose = false, const std::string& model_type = "frame", bool output_json = false);
 
-  Stiffness(const std::string& json_file_path, bool verbose = false, 
-            const std::string& model_type = "frame", bool output_json = false);
-
-  ~Stiffness() {}
+  ~Stiffness();
 
 public:
   /**
