@@ -31,7 +31,7 @@ bool repTestStiffness(const std::string file_path, bool solve_exist_id, bool ver
   using namespace conmech::stiffness_checker;
 
   std::cout << "Testing on file: " << file_path << std::endl;
-  Stiffness sf(file_path, verbose);
+  // Stiffness sf(file_path, verbose);
 
   // TODO: randomize element ids
   // partial structure ids

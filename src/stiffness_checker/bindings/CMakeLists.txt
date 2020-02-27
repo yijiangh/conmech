@@ -1,6 +1,8 @@
 # needed for pybind11 to find eigen path
 include_directories(${EIGEN_INCLUDE_DIRS})
 
+# https://github.com/libigl/libigl/blob/master/python/CMakeLists.txt
+
 pybind11_add_module(_pystiffness_checker
 	pybind_stiffness_checker.cpp
 	)

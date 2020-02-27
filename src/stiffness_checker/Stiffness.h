@@ -15,8 +15,8 @@ class Stiffness
 {
 public:
   Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, 
-            Eigen::MatrixXd& BC, const std::vector<std::string>& materials,
-            bool verbose = false, const std::string& model_type = "frame", bool output_json = false);
+            const Eigen::MatrixXd& BC, const std::vector<std::string>& materials,
+            const bool& verbose = false, const std::string& model_type = "frame", const bool& output_json = false);
 
   ~Stiffness();
 

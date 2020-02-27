@@ -32,7 +32,7 @@ namespace stiffness_checker
 
 Stiffness::Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, 
                      const Eigen::MatrixXd& BC, const std::vector<std::string>& materials,
-                     bool verbose, const std::string& model_type, bool output_json)
+                     const bool& verbose, const std::string& model_type, const bool& output_json)
   : verbose_(verbose), is_init_(false), include_self_weight_load_(false),
     transl_tol_(1e-3), rot_tol_(3 * (3.14 / 180)), write_result_(output_json),
     has_stored_deformation_(false), stored_compliance_(-1.0), stored_alt_compliance_(-1.0)
@@ -44,7 +44,7 @@ Stiffness::Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,
   // frame_.loadFromJson(json_file_path);
   
   // TODO: convert to parse json from strings
-  parseMaterialPropertiesJson(json_file_path, material_parms_);
+  // parseMaterialPropertiesJson(json_file_path, material_parms_);
 
   model_type_ = model_type;
 

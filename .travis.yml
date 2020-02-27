@@ -18,35 +18,32 @@ matrix:
   - name: OSX with py3.7
     os: osx
     env: PYTHON=3.7
-  # - os: osx
-  #   env: CONDA=2.7
-  # - os: osx
-  #   env: CONDA=3.7
-  - name: Windows (VS2017 x64) with py2.7
-    # adapted from: https://github.com/wireshark/wireshark/blob/master/.travis.yml
-    # Set a supported language, otherwise the Windows worker will not start.
-    language : shell
-    os : windows
-    env:
-      - PLATFORM: x64
-      - PYTHON=2.7
-    cache:
-      directories:
-        - travis-cache
-  - name: Windows (VS2017 Win32) with py2.7
-    language: shell
-    os: windows
-    env:
-      - PLATFORM: Win32
-      - PYTHON=2.7
-    cache:
-      directories:
-        - travis-cache
-  # Windows builds are experimental in Travis and are unreliable, do not force it.
-  # https://docs.travis-ci.com/user/reference/windows/
-  # https://blog.travis-ci.com/2018-10-11-windows-early-release
-  allow_failures:
-    - os: windows
+  # - name: Windows (VS2017 x64) with py2.7
+  #   # adapted from: https://github.com/wireshark/wireshark/blob/master/.travis.yml
+  #   # Set a supported language, otherwise the Windows worker will not start.
+  #   language : shell
+  #   os : windows
+  #   env:
+  #     - PLATFORM: x64
+  #     - PYTHON=2.7
+  #   cache:
+  #     directories:
+  #       - travis-cache
+  # - name: Windows (VS2017 Win32) with py2.7
+  #   language: shell
+  #   os: windows
+  #   env:
+  #     - PLATFORM: Win32
+  #     - PYTHON=2.7
+  #   cache:
+  #     directories:
+  #       - travis-cache
+  # # Windows builds are experimental in Travis and are unreliable, do not force it.
+  # # https://docs.travis-ci.com/user/reference/windows/
+  # # https://blog.travis-ci.com/2018-10-11-windows-early-release
+  # allow_failures:
+  #   - os: windows
+
 before_install:
 - |
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
@@ -75,17 +72,6 @@ before_install:
       python --version
       pip install setuptools pytest numpy backports.tempfile
     fi
-  elif [ -n "$CONDA" ]; then
-    if [ "$TRAVIS_OS_NAME" == "linux" ]; then OS=Linux-x86_64; else OS=MacOSX-x86_64; fi
-    wget -O miniconda.sh https://repo.continuum.io/miniconda/Miniconda${CONDA:0:1}-latest-$OS.sh
-    bash miniconda.sh -b -p $HOME/miniconda
-    export PATH="$HOME/miniconda/bin:$PATH"
-    conda config --set always_yes yes --set changeps1 no
-    conda config --add channels conda-forge
-    conda update -q conda
-    conda install -q conda-build
-    conda create -q -n test-environment python=$CONDA
-    source activate test-environment
   fi
 install:
 - |
@@ -99,9 +85,6 @@ install:
     #   powershell -Command "& ls"
     #   powershell -Command "& pip install --verbose $(ls dist/*.tar.gz | % {$_.FullName})"
     # fi
-  elif [ -n "$CONDA" ]; then
-    conda build conda.recipe
-    conda install --use-local pyconmech
   fi
 script:
 - pytest
