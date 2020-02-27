@@ -6,21 +6,13 @@ add_library(stiffness_checker_lib
 	StiffnessIO.cpp
 	Util.cpp
 	Timer.cpp
+	Material.cpp
 	)
 
 # Include directories
-# include_directories(${EIGEN_INCLUDE_DIRS} ${RAPIDJSON_INCLUDE_DIRS})
-target_include_directories(stiffness_checker_lib 
-	PUBLIC 
-	..
-	)
+target_include_directories(stiffness_checker_lib PUBLIC ..)
 
-# # auto deducing CXX features
-# # https://stackoverflow.com/questions/10851247/how-to-activate-c-11-in-cmake
-# # https://stackoverflow.com/questions/10984442/how-to-detect-c11-support-of-a-compiler-with-cmake/20165220#20165220
-# target_compile_features(stiffness_checker_lib PRIVATE cxx_range_for)
-
-# # Use C++11
+# Use C++11
 # target_compile_features(${PROJECT_NAME} PUBLIC ${CXX11_FEATURES})
 
 # header-only libraries linking

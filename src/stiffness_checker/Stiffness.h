@@ -305,7 +305,7 @@ protected:
    */
   Eigen::MatrixXi Fixities_;
 
-  std::vector<conmech::material::ConstantMaterial> material_parms_;
+  std::vector<conmech::material::Material> material_parms_;
   StiffnessSolver stiff_solver_;
 
   Timer create_k_;

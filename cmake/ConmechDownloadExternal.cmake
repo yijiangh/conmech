@@ -43,8 +43,8 @@ endfunction()
 ## Json
 function(conmech_download_json)
     conmech_download_project(json
-        URL      https://github.com/nlohmann/json/releases/download/v3.1.2/include.zip
-        URL_HASH SHA256=495362ee1b9d03d9526ba9ccf1b4a9c37691abe3a642ddbced13e5778c16660c
+        URL      https://github.com/nlohmann/json/releases/download/v3.7.3/include.zip
+        URL_HASH SHA256=87b5884741427220d3a33df1363ae0e8b898099fbc59f1c451113f6732891014
     )
 endfunction()
 

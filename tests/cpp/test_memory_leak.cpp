@@ -5,7 +5,7 @@
 #include <string>
 #include <iostream>
 #include <ctime>
-#include "catch/catch.hpp"
+#include <catch2/catch.hpp>
 
 // #include <Eigen/Dense>
 #include <stiffness_checker/Stiffness.h>

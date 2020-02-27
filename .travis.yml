@@ -1,3 +1,11 @@
+# * conmech
+branches:
+#   only:
+#   - .
+  except:
+    # under development
+    - feature/cpp_test
+
 language: cpp
 dist: trusty
 matrix:
