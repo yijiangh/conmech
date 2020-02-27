@@ -1,18 +1,22 @@
 #pragma once
+#include <nlohmann/json.hpp>
 
 namespace conmech
 {
-namespace stiffness_checker
+namespace material
 {
 
-class StiffnessParm
+struct ConstantMaterial
 {
  public:
-  StiffnessParm(){}
+  // https://github.com/jpanetta/MeshFEM/blob/master/src/lib/MeshFEM/Materials.hh
+  ConstantMaterial(){}
 
-  ~StiffnessParm(){};
+  // ~ConstantMaterial(){};
+  void setFromFile(const std::string &materialFile);
+  void setFromJson(const nlohmann::json &config);
+  nlohmann::json getJson() const;
 
- public:
   double getShearModulus(const double& E, const double& poisson_ratio) { return 0.5 * E / (1 + poisson_ratio); }
   double getPoissonRatio(const double& E, const double& G) { return (E / (2.0*G) - 1); }
 

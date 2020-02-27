@@ -12,7 +12,7 @@
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/cursorstreamwrapper.h>
 
-#include "stiffness_checker/StiffnessParm.h"
+#include "stiffness_checker/Material.h"
 #include "stiffness_checker/StiffnessIO.h"
 
 namespace
@@ -88,9 +88,10 @@ namespace conmech
 {
 namespace stiffness_checker
 {
-bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<StiffnessParm> &frame_parms)
+bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<conmech::material::ConstantMaterial> &frame_parms)
 {
   using namespace rapidjson;
+  using namespace conmech::material;
 
   FILE *fp = fopen(file_path.c_str(), "r");
 
@@ -129,7 +130,7 @@ bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<Stiff
 
     // TODO: make parsing uniform properties and element-wise properties the same function
     if (document["uniform_cross_section"].GetBool() && document["uniform_material_properties"].GetBool()) {
-      StiffnessParm frame_parm;
+      ConstantMaterial frame_parm;
       double unit_conversion;
 
       // TODO: check unit
@@ -198,7 +199,7 @@ bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<Stiff
     }
     else {
       for(int i=0; i<document["element_list"].Size(); i++) {
-        StiffnessParm frame_parm;
+        ConstantMaterial frame_parm;
         double unit_conversion;
 
         // TODO: check unit

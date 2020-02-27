@@ -2,19 +2,22 @@
 
 #include <vector>
 #include <Eigen/Dense>
-#include "stiffness_checker/StiffnessParm.h"
+#include "stiffness_checker/Material.h"
 
 namespace conmech
 {
 namespace stiffness_checker
 {
+  bool parseFrameJson(Eigen::MatrixXd& V, Eigen::MatrixXi& E, 
+                      Eigen::VectorXi& Fixities, std::vector<conmech::material::ConstantMaterial>& materials);
+
   /**
    * Parse material properties from a json file.
    * @param file_path target json file path
    * @param[out] a list of frame_parm
    * @return boolean flag for success
    */
-  bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<StiffnessParm> &frame_parms);
+  bool parseMaterialPropertiesJson(const std::string &file_path, std::vector<conmech::material::ConstantMaterial> &frame_parms);
   
   /**
    *

@@ -4,7 +4,7 @@
 #include <Eigen/Sparse>
 // TODO: check if needed: https://eigen.tuxfamily.org/dox/group__TopicStlContainers.html
 // #include<Eigen/StdVector>
-#include "stiffness_checker/StiffnessParm.h"
+#include "stiffness_checker/Material.h"
 #include "stiffness_checker/StiffnessSolver.h"
 
 namespace conmech
@@ -305,7 +305,7 @@ protected:
    */
   Eigen::MatrixXi Fixities_;
 
-  std::vector<StiffnessParm> material_parms_;
+  std::vector<conmech::material::ConstantMaterial> material_parms_;
   StiffnessSolver stiff_solver_;
 
   Timer create_k_;
