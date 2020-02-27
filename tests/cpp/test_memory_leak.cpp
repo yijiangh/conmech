@@ -4,11 +4,10 @@
 
 #include <string>
 #include <iostream>
-#include "catch/catch.hpp"
 #include <ctime>
+#include "catch/catch.hpp"
 
 // #include <Eigen/Dense>
-#include <stiffness_checker/Frame.h>
 #include <stiffness_checker/Stiffness.h>
 
 #ifdef _MSC_VER
@@ -109,11 +108,6 @@ std::string current_working_directory()
     return working_directory ;
 }
 
-TEST_CASE("frame init memory leak check", "memory_check") {
-  std::string test_file_path = "C:\\Users\\yijiangh\\Documents\\pb_ws\\conmech\\tests\\assembly_instances\\extrusion\\four-frame.json";
-  conmech::stiffness_checker::Frame frame;
-  frame.loadFromJson(test_file_path);
-}
 
 // TEST_CASE( "repetitive random solve memory leak check", "memory_check" ) {
 //     auto cwd = current_working_directory();

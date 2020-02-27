@@ -35,9 +35,10 @@ void createLocalStiffnessMatrix(const double& L, const double& A, const int& dim
  * @param[out] rot_m
  * @param rot_y2x
  */
+template <typename DerivedV>
 void getGlobal2LocalRotationMatrix(
-    const Eigen::VectorXd& end_vert_u,
-    const Eigen::VectorXd& end_vert_v,
+    const Eigen::MatrixBase<DerivedV> & end_vert_u,
+    const Eigen::MatrixBase<DerivedV> & end_vert_v,
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x=0.0);
 

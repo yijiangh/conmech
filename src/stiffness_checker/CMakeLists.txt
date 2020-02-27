@@ -1,12 +1,11 @@
 ################################################################################
 
 add_library(stiffness_checker_lib
-	Frame.cpp
-	Util.cpp
 	Stiffness.cpp
 	StiffnessSolver.cpp
-	Timer.cpp
 	StiffnessIO.cpp
+	Util.cpp
+	Timer.cpp
 	)
 
 # Include directories
@@ -14,8 +13,6 @@ add_library(stiffness_checker_lib
 target_include_directories(stiffness_checker_lib 
 	PUBLIC 
 	..
-	# ${EIGEN_INCLUDE_DIRS} 
-	# ${RAPIDJSON_INCLUDE_DIRS}
 	)
 
 # # auto deducing CXX features
@@ -26,6 +23,7 @@ target_include_directories(stiffness_checker_lib
 # # Use C++11
 # target_compile_features(${PROJECT_NAME} PUBLIC ${CXX11_FEATURES})
 
+# header-only libraries linking
 # https://github.com/jpanetta/MeshFEM/blob/master/src/lib/MeshFEM/CMakeLists.txt
 target_link_libraries(stiffness_checker_lib
     PUBLIC

@@ -19,15 +19,18 @@ void createLocalStiffnessMatrix(const double &L, const double &A, const int &dim
   switch(dim)
   {
     case 2:
+      assert(false && "2D local stiffness not implemented.");
       return;
     case 3:
     {
-      K_eL = Eigen::MatrixXd::Zero(12,12);
+      // K_eL = Eigen::MatrixXd::Zero(12,12);
+      K_eL = Eigen::Matrix<double, 12, 12>();
+      K_eL.setZero();
 
       // see: [Matrix Structural Analysis, McGuire et al., 2rd edition]
       // P73 - eq(4.34)
       Eigen::MatrixXd K_block(6,6);
-      K_block.setZero();
+      // K_block.setZero();
       Eigen::VectorXd diag(6);
 
       // block_00 and block_11
@@ -88,9 +91,10 @@ void createLocalStiffnessMatrix(const double &L, const double &A, const int &dim
  * @param[out] rot_m 3x3 Eigen matrix, transforming global axis to local coordinate frame
  * @param[in] rot_y2x optional rotation of local y axis around the local x axis, defaults to zero
  */
+template <typename DerivedV>
 void getGlobal2LocalRotationMatrix(
-    const Eigen::VectorXd& end_vert_u,
-    const Eigen::VectorXd& end_vert_v,
+    const Eigen::MatrixBase<DerivedV> & end_vert_u,
+    const Eigen::MatrixBase<DerivedV> & end_vert_v,
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x)
 {
@@ -100,6 +104,7 @@ void getGlobal2LocalRotationMatrix(
 
   // length of the element
   double L = (end_vert_v - end_vert_u).norm();
+  // TODO: make tol as a common shared const
   assert(L < 1e6 && "vertices too close, might be duplicated pts.");
 
   // by convention, the new x axis is along the element's direction

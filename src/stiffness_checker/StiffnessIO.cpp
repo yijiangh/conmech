@@ -5,13 +5,13 @@
 #include <stdio.h>
 
 // TODO: replace with: https://github.com/nlohmann/json
+// https://nlohmann.github.io/json/
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/filewritestream.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/cursorstreamwrapper.h>
 
-#include "stiffness_checker/Frame.h"
 #include "stiffness_checker/StiffnessParm.h"
 #include "stiffness_checker/StiffnessIO.h"
 
@@ -377,11 +377,11 @@ bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool
   return true;
 }
 
-bool write_output_json(const Frame& frame,
-    const Eigen::MatrixXd &node_displ,
-    const Eigen::MatrixXd &fixities_reaction,
-    const Eigen::MatrixXd &element_reaction,
-    const std::string& file_path)
+bool write_output_json(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E,
+                       const Eigen::MatrixXd &node_displ,
+                       const Eigen::MatrixXd &fixities_reaction,
+                       const Eigen::MatrixXd &element_reaction,
+                       const std::string& file_path)
 {
   using namespace rapidjson;
   // document is the root of a json message
@@ -407,7 +407,7 @@ bool write_output_json(const Frame& frame,
     rapidjson::Value node_container(rapidjson::kObjectType);
     node_container.AddMember("node_id", int(node_displ(i,0)), allocator);
 
-    auto pt = frame.getVertPosition(node_displ(i,0));
+    auto pt = V.block<1, 3>(int(node_displ(i,0)), 1);
     rapidjson::Value node_pose(rapidjson::kArrayType);
     node_pose.PushBack(Value().SetDouble(pt[0]), allocator);
     node_pose.PushBack(Value().SetDouble(pt[1]), allocator);
@@ -431,8 +431,8 @@ bool write_output_json(const Frame& frame,
     rapidjson::Value element_container(rapidjson::kObjectType);
     auto e_id = element_reaction(i,0);
     element_container.AddMember("element_id", int(e_id), allocator);
-    element_container.AddMember("node_u_id", frame.getElementEndVertU(e_id)->id(), allocator);
-    element_container.AddMember("node_v_id", frame.getElementEndVertV(e_id)->id(), allocator);
+    element_container.AddMember("node_u_id", E(i, 0), allocator);
+    element_container.AddMember("node_v_id", E(i, 1), allocator);
 
     rapidjson::Value e_react(rapidjson::kArrayType);
     for(int j=1; j < element_reaction.cols(); j++)
@@ -451,7 +451,7 @@ bool write_output_json(const Frame& frame,
     rapidjson::Value fix_container(rapidjson::kObjectType);
     fix_container.AddMember("node_id", int(fixities_reaction(i,0)), allocator);
 
-    auto pt = frame.getVertPosition(fixities_reaction(i,0));
+    auto pt = V.block<1, 3>(int(fixities_reaction(i,0)), 1);
     rapidjson::Value node_pose(rapidjson::kArrayType);
     node_pose.PushBack(Value().SetDouble(pt[0]), allocator);
     node_pose.PushBack(Value().SetDouble(pt[1]), allocator);
