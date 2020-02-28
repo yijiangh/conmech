@@ -4,10 +4,6 @@
 # download it via external project, and add_subdirectory to build it alongside
 # this project.
 
-### Configuration
-# set(MESHFEM_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
-# set(MESHFEM_EXTERNAL "${MESHFEM_ROOT}/3rdparty")
-
 # Download and update 3rdparty libraries
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 list(REMOVE_DUPLICATES CMAKE_MODULE_PATH)
@@ -40,13 +36,6 @@ if(NOT TARGET json::json)
     target_include_directories(conmech_json SYSTEM INTERFACE ${CONMECH_EXTERNAL}/json/include)
     add_library(json::json ALIAS conmech_json)
 endif()
-
-# TODO: remove later
-# rapidjson library
-add_library(conmech_rapidjson INTERFACE)
-conmech_download_rapidjson()
-target_include_directories(conmech_rapidjson SYSTEM INTERFACE ${CONMECH_EXTERNAL}/rapidjson/include)
-add_library(rapidjson::rapidjson ALIAS conmech_rapidjson)
 
 # Catch2
 if(NOT TARGET Catch2::Catch2 AND (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR))

@@ -48,14 +48,6 @@ function(conmech_download_json)
     )
 endfunction()
 
-## RapidJson
-function(conmech_download_rapidjson)
-    conmech_download_project(rapidjson
-		GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-		GIT_TAG        b16cec1a1aff158f5002250139528cf8a4b413d8
-    )
-endfunction()
-
 ## pybind11
 function(igl_download_pybind11)
 	igl_download_project(pybind11

@@ -5,8 +5,8 @@ from pyconmech import StiffnessChecker
 @pytest.mark.subd
 def test_subdivided_compliance():
     here = os.path.dirname(os.path.abspath(__file__))
-    filenames_num = glob.glob(os.path.join(here, 'test_data', 'subdivided', 'topopt100_subd_num'+'*'+'.json'))
-    filenames_len = glob.glob(os.path.join(here, 'test_data', 'subdivided', 'topopt100_subd_num'+'*'+'.json'))
+    filenames_num = glob.glob(os.path.join(here, '..', 'test_data', 'subdivided', 'topopt100_subd_num'+'*'+'.json'))
+    filenames_len = glob.glob(os.path.join(here, '..', 'test_data', 'subdivided', 'topopt100_subd_num'+'*'+'.json'))
     filenames = filenames_num + filenames_len
 
     for file in filenames:

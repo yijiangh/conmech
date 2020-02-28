@@ -17,7 +17,7 @@ def test_frame_file_io():
     file_name = 'tower_3D_broken_lines.json'
 
     here = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(here, 'test_data', file_name)
+    file_path = os.path.join(here, '..', 'test_data', file_name)
     node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name = \
         read_frame_json(file_path, verbose=True)
 
@@ -47,7 +47,7 @@ def test_frame_file_io():
 def test_parse_material_properties_from_frame_json():
     file_name = 'bad_material_properties_model.json'
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
+    json_path = os.path.join(root_dir, '..', 'test_data', file_name)
 
     node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name = \
         read_frame_json(json_path)
@@ -125,7 +125,7 @@ def test_parse_material_properties_from_frame_json():
 def test_parse_element_from_json():
     file_name = 'bad_node_element_model.json'
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
+    json_path = os.path.join(root_dir, '..', 'test_data', file_name)
 
     node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name = \
         read_frame_json(json_path)

@@ -21,7 +21,6 @@ target_link_libraries(stiffness_checker_lib
     PUBLIC
         Eigen3::Eigen
 		json::json
-		rapidjson::rapidjson
     # PRIVATE
     #     warnings::all
 )

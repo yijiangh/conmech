@@ -133,13 +133,13 @@ def test_stiffness_checker_solve_consistency(test_case, load_case):
         assert False, 'not supported test case!'
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
+    json_path = os.path.join(root_dir, '..', 'test_data', file_name)
 
     if load_case == 'self_weight':
         parsed_pt_loads = []
         include_sw = True
     elif load_case == 'point_load' or load_case == 'self_weight+point_load':
-        load_json_path = os.path.join(root_dir, 'test_data', load_file_name)
+        load_json_path = os.path.join(root_dir, '..', 'test_data', load_file_name)
         parsed_pt_loads, _, _ = read_load_case_json(load_json_path)
         include_sw = load_case=='self_weight+point_load'
     else:
@@ -166,7 +166,7 @@ def test_init_stiffness_checker():
     file_name = 'tower_3D_broken_lines.json'
 
     here = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(here, 'test_data', file_name)
+    file_path = os.path.join(here, '..', 'test_data', file_name)
 
     print('init StiffnessChecker from json file path...')
     # this is the same as: sc_from_json = StiffnessChecker(file_path)
@@ -198,8 +198,8 @@ def test_get_nodal_loads():
     file_name = 'tower_3D.json'
     load_file_name = 'tower_3D_load_case.json'
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
-    load_json_path = os.path.join(root_dir, 'test_data', load_file_name)
+    json_path = os.path.join(root_dir, '..', 'test_data', file_name)
+    load_json_path = os.path.join(root_dir, '..', 'test_data', load_file_name)
 
     sc = StiffnessChecker(json_file_path=json_path)
     sc.set_self_weight_load(False)
@@ -217,7 +217,7 @@ def test_neighnor_query():
     # TODO: not completed
     file_name = 'tower_3D.json'
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
+    json_path = os.path.join(root_dir, '..', 'test_data', file_name)
 
     sc = StiffnessChecker(json_file_path=json_path)
     assert_equal(sc.fix_element_ids, [0,1,2,3,8,9,10,11,12,13,14,15])
@@ -398,13 +398,13 @@ def test_nodal_equilibrium(test_case, load_case):
         assert False, 'not supported test case!'
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
+    json_path = os.path.join(root_dir, '..', 'test_data', file_name)
 
     if load_case == 'self_weight':
         parsed_pt_loads = []
         include_sw = True
     elif load_case == 'point_load' or load_case == 'self_weight+point_load':
-        load_json_path = os.path.join(root_dir, 'test_data', load_file_name)
+        load_json_path = os.path.join(root_dir, '..', 'test_data', load_file_name)
         parsed_pt_loads, _, _ = read_load_case_json(load_json_path)
         include_sw = load_case=='self_weight+point_load'
     else:
@@ -494,7 +494,7 @@ def test_self_weight_validity(test_case):
         assert False, 'not supported test case!'
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
+    json_path = os.path.join(root_dir, '..', 'test_data', file_name)
 
     print('\n################\nfull solve success gravity validity checks')
     repetitive_check_gravity_validity(json_path, existing_ids=[], expect_partial_ids_success=True)
@@ -519,7 +519,7 @@ def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids):
         assert False, 'not supported test case!'
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
+    json_path = os.path.join(root_dir, '..', 'test_data', file_name)
     sc = StiffnessChecker(json_file_path=json_path)
 
     # gravity load agreement check
@@ -574,8 +574,8 @@ def test_uniformly_distributed_load_with_analytical_solution():
     load_file_name = 'uniform_load_analytical_model_load_case.json'
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
-    load_json_path = os.path.join(root_dir, 'test_data', load_file_name)
+    json_path = os.path.join(root_dir, '..', 'test_data', file_name)
+    load_json_path = os.path.join(root_dir, '..', 'test_data', load_file_name)
 
     sc = StiffnessChecker(json_file_path=json_path)
     point_load, uniform_element_load, include_sw = read_load_case_json(load_json_path)

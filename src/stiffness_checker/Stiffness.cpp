@@ -1,4 +1,8 @@
-#define _USE_MATH_DEFINES
+#include "stiffness_checker/Stiffness.h"
+#include "stiffness_checker/StiffnessSolver.h"
+#include "stiffness_checker/StiffnessIO.h"
+#include "stiffness_checker/Util.h"
+
 #include <cstdlib>
 #include <cmath>
 #include <set>
@@ -9,12 +13,6 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
-
-#include "stiffness_checker/Util.h"
-#include "stiffness_checker/StiffnessSolver.h"
-#include "stiffness_checker/StiffnessIO.h"
-
-#include "stiffness_checker/Stiffness.h"
 
 namespace{
 const std::string PathSeparator =
@@ -755,12 +753,11 @@ bool Stiffness::solve(
     printOutTimer();
   }
 
-  // if (write_result_)
-  // {
-  //   // TODO: use os-dependent file separator here
-  //   write_output_json(frame_, node_displ, fixities_reaction, element_reaction,
-  //   output_json_file_path_ + PathSeparator + output_json_file_name_);
-  // }
+  if (write_result_)
+  {
+    write_output_json(Vertices_, Elements_, node_displ, fixities_reaction, element_reaction, 
+      output_json_file_path_ + PathSeparator + output_json_file_name_);
+  }
 
   has_stored_deformation_ = true;
   stored_existing_ids_ = exist_element_ids;
