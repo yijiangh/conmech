@@ -6,7 +6,7 @@
 add_executable(unit_tests
 	main.cpp
     test_memory_leak.cpp
-    test_material.cpp
+    test_io.cpp
 )
 
 target_link_libraries(unit_tests PUBLIC
