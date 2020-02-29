@@ -1,6 +1,7 @@
 #pragma once
 
 #include "stiffness_checker/Material.h"
+#include <nlohmann/json.hpp>
 #include <vector>
 #include <Eigen/Dense>
 

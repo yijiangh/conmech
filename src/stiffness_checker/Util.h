@@ -24,9 +24,9 @@ namespace stiffness_checker
  * in 3D case: 12*12 matrix (full_node_dof = 6)
  */
 void createLocalStiffnessMatrix(const double& L, const double& A, const int& dim,
-                            const double& Jx, const double& Iy, const double& Iz,
-                            const double& E, const double& G, const double& mu,
-                            Eigen::MatrixXd& K_loc);
+                                const double& Jx, const double& Iy, const double& Iz,
+                                const double& E, const double& G, const double& mu,
+                                Eigen::MatrixXd& K_loc);
 
 /**
  * Compute global to local (3x3) rotation matrix
@@ -35,10 +35,9 @@ void createLocalStiffnessMatrix(const double& L, const double& A, const int& dim
  * @param[out] rot_m
  * @param rot_y2x
  */
-template <typename DerivedV>
 void getGlobal2LocalRotationMatrix(
-    const Eigen::MatrixBase<DerivedV> & end_vert_u,
-    const Eigen::MatrixBase<DerivedV> & end_vert_v,
+    const Eigen::VectorXd & end_vert_u,
+    const Eigen::VectorXd & end_vert_v,
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x=0.0);
 

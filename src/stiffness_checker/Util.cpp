@@ -24,7 +24,7 @@ void createLocalStiffnessMatrix(const double &L, const double &A, const int &dim
     case 3:
     {
       // K_eL = Eigen::MatrixXd::Zero(12,12);
-      K_eL = Eigen::Matrix<double, 12, 12>();
+      K_eL = Eigen::MatrixXd(12, 12);
       K_eL.setZero();
 
       // see: [Matrix Structural Analysis, McGuire et al., 2rd edition]
@@ -91,10 +91,9 @@ void createLocalStiffnessMatrix(const double &L, const double &A, const int &dim
  * @param[out] rot_m 3x3 Eigen matrix, transforming global axis to local coordinate frame
  * @param[in] rot_y2x optional rotation of local y axis around the local x axis, defaults to zero
  */
-template <typename DerivedV>
 void getGlobal2LocalRotationMatrix(
-    const Eigen::MatrixBase<DerivedV> & end_vert_u,
-    const Eigen::MatrixBase<DerivedV> & end_vert_v,
+    const Eigen::VectorXd & end_vert_u,
+    const Eigen::VectorXd & end_vert_v,
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x)
 {

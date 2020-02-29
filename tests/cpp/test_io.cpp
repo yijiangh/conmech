@@ -1,10 +1,10 @@
 #include <stiffness_checker/Material.h>
 #include <stiffness_checker/StiffnessIO.h>
+#include "utils.h"
 #include <catch2/catch.hpp>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <Eigen/Dense>
-#include "utils.h"
 
 namespace
 {
@@ -38,7 +38,7 @@ bool equal_PLA_material(const conmech::material::Material& m)
 }
 }
 
-TEST_CASE("material deserialed from a json file", "conmech_io") 
+TEST_CASE("material deserialed from a json file", "[io]") 
 {
   using namespace conmech_testing;
   using namespace conmech::material;
@@ -56,7 +56,7 @@ TEST_CASE("material deserialed from a json file", "conmech_io")
   REQUIRE(equal_PLA_material(m));
 }
 
-TEST_CASE("frame data deserialed from a json file", "conmech_io") 
+TEST_CASE("frame data deserialed from a json file", "[io]") 
 {
   using namespace conmech_testing;
   using namespace conmech::material;

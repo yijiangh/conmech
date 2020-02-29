@@ -1,11 +1,12 @@
 #pragma once
 
+#include "stiffness_checker/Material.h"
+#include "stiffness_checker/StiffnessSolver.h"
+#include <nlohmann/json.hpp>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 // TODO: check if needed: https://eigen.tuxfamily.org/dox/group__TopicStlContainers.html
 // #include<Eigen/StdVector>
-#include "stiffness_checker/Material.h"
-#include "stiffness_checker/StiffnessSolver.h"
 
 namespace conmech
 {
@@ -26,8 +27,8 @@ public:
    * @param model_type : "frame" or "truss", "truss" unsupported now
    * @param output_json : if write analysis result to a json file
    */
-  Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::VectorXi& Fixities,
-            const std::vector<std::string>& materials,
+  Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities,
+            const std::vector<conmech::material::Material>& materials,
             const bool& verbose = false, const std::string& model_type = "frame", const bool& output_json = false);
 
   ~Stiffness();
@@ -296,7 +297,6 @@ private:
   void createCompleteGlobalStiffnessMatrix(const std::vector<int> &exist_e_ids);
 
 protected:
-  // Frame frame_;
   Eigen::MatrixXd Vertices_;
   Eigen::MatrixXi Elements_;
   /**
@@ -305,7 +305,7 @@ protected:
    */
   Eigen::MatrixXi Fixities_;
 
-  std::vector<conmech::material::Material> material_parms_;
+  std::vector<conmech::material::Material> materials_;
   StiffnessSolver stiff_solver_;
 
   Timer create_k_;
