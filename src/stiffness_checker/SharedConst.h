@@ -20,9 +20,11 @@ namespace conmech {
 
 /**
  * @brief numerical zero
- * 
+ * See: https://github.com/libigl/libigl/blob/master/include/igl/EPS.h
  */
-const static double EPSILON = 1e-20;
+const static double DOUBLE_EPS    = 1.0e-14;
+const static double DOUBLE_EPS_SQ = 1.0e-28;
+const static double EPSILON = 1.0e-14;
 
 /**
  * @brief unit system used inside conmech. Input unit systems will be converted to these before computation.

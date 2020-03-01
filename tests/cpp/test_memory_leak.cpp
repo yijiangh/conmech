@@ -3,7 +3,7 @@
 // https://docs.microsoft.com/en-us/visualstudio/debugger/finding-memory-leaks-using-the-crt-library?view=vs-2019
 
 #include <catch2/catch.hpp>
-#include "utils.h"
+#include "test_common.h"
 #include <stiffness_checker/Stiffness.h>
 #include <stiffness_checker/StiffnessIO.h>
 // #include <Eigen/Dense>
@@ -13,19 +13,8 @@
 #include <ctime>
 #include <nlohmann/json.hpp>
 
-#ifdef _MSC_VER
-      #include <direct.h>
-      #define GetCurrentDir _getcwd
-      const std::string PathSep = "\\";
-#else
-     #include <unistd.h>
-     #define GetCurrentDir getcwd
-      const std::string PathSep = "/";
-#endif
-
 namespace
 {
-
 bool repTestStiffness(const std::string& test_frame_path, const bool& solve_exist_id, 
   const bool& verbose, const int& iter, const bool& re_init)
 {
@@ -116,36 +105,13 @@ bool repTestStiffness(const std::string& test_frame_path, const bool& solve_exis
 }
 } // util anon ns
 
-
-std::string current_working_directory()
-{
-    char* dir_here = GetCurrentDir( 0, 0 ) ; // **** microsoft specific ****
-    // char dir_here[129] = {0};
-    // GetCurrentDir(dir_here, 128);
-    std::string working_directory(dir_here) ;
-    std::free(dir_here) ;
-    return working_directory ;
-}
-
-
 TEST_CASE( "repetitive random solve memory leak check", "[memory_check]" ) 
 {
-    // auto cwd = current_working_directory();
-    // auto test_data_dir = cwd + PathSep + ".." + PathSep + "assembly_instances" + PathSep + "extrusion";
-    // auto test_file_path = test_data_dir + PathSep + "fertility.json";
-    // auto test_file_path = test_data_dir + PathSep + "topopt-100_S1_03-14-2019_w_layer.json";
-
-    // pass in test_data file path from argument:
-    // https://stackoverflow.com/questions/25211110/find-external-test-file-for-unit-test-by-relative-path-c-cmake-guest
-    // ! this one even better: https://github.com/libigl/libigl/blob/master/tests/CMakeLists.txt#L33
-
-    std::string test_file_path = 
-      // "C:\\Users\\yijiangh\\Documents\\pb_ws\\conmech\\tests\\assembly_instances\\extrusion\\four-frame.json";
-      "C:\\Users\\yijiangh\\Documents\\pb_ws\\conmech\\tests\\assembly_instances\\extrusion\\topopt-100_S1_03-14-2019_w_layer.json";
+    std::string test_file_path = conmech_testing::data_path("topopt-100.json");
 
     bool solve_exist_id = true;
     bool verbose = false;
-    int run_iter = 10;
+    int run_iter = 1;
     bool reinit = false;
 
     // void *testWhetherMemoryLeakDetectionWorks = malloc(1);

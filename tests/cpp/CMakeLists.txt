@@ -2,14 +2,21 @@
 # Independent binaries
 ################################################################################
 # https://github.com/jpanetta/MeshFEM/blob/master/tests/CMakeLists.txt
+# https://github.com/libigl/libigl/blob/master/tests/CMakeLists.txt
 
-add_executable(unit_tests
+# Create test executable
+add_executable(conmech_tests
 	main.cpp
+	test_common.h
     test_memory_leak.cpp
     test_io.cpp
 )
 
-target_link_libraries(unit_tests PUBLIC
+# Set DATA_DIR definition
+set(CONMECH_TEST_DATA "${CMAKE_CURRENT_SOURCE_DIR}/../test_data/")
+target_compile_definitions(conmech_tests PUBLIC -DCONMECH_DATA_DIR="${CONMECH_TEST_DATA}")
+
+target_link_libraries(conmech_tests PUBLIC
 	Catch2::Catch2
 	json::json
 	stiffness_checker_lib
@@ -23,6 +30,7 @@ target_link_libraries(unit_tests PUBLIC
 # Register tests
 include(CTest)
 include(Catch)
-catch_discover_tests(unit_tests)
+# set(PARSE_CATCH_TESTS_ADD_TO_CONFIGURE_DEPENDS ON)
+catch_discover_tests(conmech_tests)
 
-add_test(unit_tests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/unit_tests)
+add_test(conmech_tests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/conmech_tests)
