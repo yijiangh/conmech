@@ -80,8 +80,6 @@ bool repTestStiffness(const std::string& test_frame_path, const bool& solve_exis
     }
     std::cout << "check result: " << success << std::endl;
 
-    // TODO: compliance non-zero value check
-
     // Eigen::MatrixXd nD, fR, eR;
     // sf.getSolvedResults(nD, fR, eR, success);
     // std::cout << "get solved result: criteria pass : " << success << std::endl;
@@ -100,6 +98,7 @@ bool repTestStiffness(const std::string& test_frame_path, const bool& solve_exis
 
     double compliance;
     sf.getSolvedCompliance(compliance);
+    REQUIRE(compliance > 0);
     std::cout << "compliance: " << compliance << std::endl;
   }
 
@@ -140,12 +139,15 @@ TEST_CASE( "repetitive random solve memory leak check", "[memory_check]" )
     // https://stackoverflow.com/questions/25211110/find-external-test-file-for-unit-test-by-relative-path-c-cmake-guest
     // ! this one even better: https://github.com/libigl/libigl/blob/master/tests/CMakeLists.txt#L33
 
-    std::string test_file_path = "C:\\Users\\yijiangh\\Documents\\pb_ws\\conmech\\tests\\assembly_instances\\extrusion\\four-frame.json";
+    std::string test_file_path = 
+      // "C:\\Users\\yijiangh\\Documents\\pb_ws\\conmech\\tests\\assembly_instances\\extrusion\\four-frame.json";
+      "C:\\Users\\yijiangh\\Documents\\pb_ws\\conmech\\tests\\assembly_instances\\extrusion\\topopt-100_S1_03-14-2019_w_layer.json";
 
-    bool solve_exist_id = false;
-    bool verbose = true;
-    int run_iter = 1;
+    bool solve_exist_id = true;
+    bool verbose = false;
+    int run_iter = 10;
     bool reinit = false;
 
+    // void *testWhetherMemoryLeakDetectionWorks = malloc(1);
     REQUIRE(repTestStiffness(test_file_path, solve_exist_id, verbose, run_iter, reinit));
 }

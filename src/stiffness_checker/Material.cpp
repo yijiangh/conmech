@@ -3,34 +3,6 @@
 #include <iostream>
 
 namespace {
-double convertLengthScale(const std::string &unit) {
-  if ("millimeter" == unit || "mm" == unit)
-  {
-    // ! default unit inside stiffness_checker
-    return 1;
-  }
-  if ("centimeter" == unit || "cm" == unit)
-  {
-    return 10;
-  }
-  if ("meter" == unit || "m" == unit)
-  {
-    return 1000;
-  }
-  if ("inch" == unit || "in" == unit)
-  {
-    return 25.4;
-  }
-  if ("foot" == unit || "ft" == unit)
-  {
-    return 304.8;
-  }
-
-  // default millimeter
-  std::cout << "WARNING: unrecognized length unit in the input json file. Using millimeter by default." << std::endl;
-  return 1;
-}
-
 double convertModulusScale(const std::string &unit) {
   // TODO: this is super outdated! Change this!
 
@@ -110,11 +82,6 @@ namespace material{
 
 //     return entry;
 // }
-
-// TODO: put this somewhere else
-    // if (!entry.HasMember("uniform_cross_section") || !entry.HasMember("uniform_material_properties")) { 
-    //   throw std::runtime_error("Frame json file uniform cross sec / mat properties flag not specified!");
-    // }
 
 double computeShearModulus(const double& E, const double& poisson_ratio) 
 {

@@ -41,5 +41,8 @@ void getGlobal2LocalRotationMatrix(
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x=0.0);
 
+void getNodePoints(const Eigen::MatrixXd& Vertices, const int& end_u_id, const int& end_v_id, 
+  Eigen::VectorXd& end_u, Eigen::VectorXd& end_v);
+
 } // namespace stiffness_checker
 } // namespace conmech

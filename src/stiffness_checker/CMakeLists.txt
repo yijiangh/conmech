@@ -4,6 +4,7 @@ add_library(stiffness_checker_lib
 	Stiffness.cpp
 	StiffnessSolver.cpp
 	StiffnessIO.cpp
+	StiffnessShape.cpp
 	Util.cpp
 	Timer.cpp
 	Material.cpp

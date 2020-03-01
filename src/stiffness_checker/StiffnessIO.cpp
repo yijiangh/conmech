@@ -4,11 +4,42 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
+namespace
+{
+double convertLengthScale(const nlohmann::json& unit)
+{
+  if ("millimeter" == unit || "mm" == unit)
+  {
+    return 0.001;
+  }
+  if ("centimeter" == unit || "cm" == unit)
+  {
+    return 0.01;
+  }
+  if ("meter" == unit || "m" == unit)
+  {
+    // ! default unit inside stiffness_checker
+    return 1;
+  }
+  if ("inch" == unit || "in" == unit)
+  {
+    return 0.0254;
+  }
+  if ("foot" == unit || "ft" == unit)
+  {
+    return 0.3048;
+  }
+
+  // default millimeter
+  std::cout << "WARNING: unrecognized length unit in the input json file. Using millimeter by default." << std::endl;
+  return 1;
+}
+}
+
 namespace conmech
 {
 namespace stiffness_checker
 {
-
 bool parseFrameJson(const std::string& file_path, 
                     Eigen::MatrixXd& V, Eigen::MatrixXi& E, 
                     Eigen::MatrixXi& Fixities, std::vector<conmech::material::Material>& materials)
@@ -22,7 +53,7 @@ bool parseFrameJson(const std::string& file_path,
   nlohmann::json json_data;
   is >> json_data;
   
-  parseFrameJson(json_data, V, E, Fixities, materials);
+  return parseFrameJson(json_data, V, E, Fixities, materials);
 }
 
 bool parseFrameJson(const nlohmann::json& json_data, 
@@ -49,6 +80,7 @@ bool parseFrameJson(const nlohmann::json& json_data,
 	E = Eigen::MatrixXi::Zero(n_Element, 2);
 
   // parsing vertices position
+  double length_scale = convertLengthScale(json_data["unit"]);
   std::vector<int> fixed_node_ids;
   json j_nodes = json_data["node_list"];
   for (json::iterator it = j_nodes.begin(); it != j_nodes.end(); ++it) 
@@ -56,9 +88,9 @@ bool parseFrameJson(const nlohmann::json& json_data,
     json j_node = it.value();
     // we ignore the "node_id" entry here
     int v_id = int(it - j_nodes.begin());
-    V(v_id, 0) = double(j_node["point"]["X"]);
-    V(v_id, 1) = double(j_node["point"]["Y"]);
-    V(v_id, 2) = double(j_node["point"]["Z"]);
+    V(v_id, 0) = double(j_node["point"]["X"])*length_scale;
+    V(v_id, 1) = double(j_node["point"]["Y"])*length_scale;
+    V(v_id, 2) = double(j_node["point"]["Z"])*length_scale;
     if (int(j_node["is_grounded"]) == 1)
     {
        fixed_node_ids.push_back(v_id);
@@ -72,15 +104,24 @@ bool parseFrameJson(const nlohmann::json& json_data,
   {
     int fv_id = fixed_node_ids[i];
     Fixities(i,0) = fv_id;
-    json j_fix = json_data["node_list"][fv_id]["fixities"];
-    if (int(j_fix.size()) != node_full_dof) 
+    if (json_data["node_list"][fv_id].contains("fixities"))
     {
-      throw std::runtime_error("Given fixities does not have enough dof specified: " + std::to_string(j_fix.size()) + " | " + std::to_string(node_full_dof));
+      json j_fix = json_data["node_list"][fv_id]["fixities"];
+      if (int(j_fix.size()) != node_full_dof) 
+      {
+        throw std::runtime_error("Given fixities does not have enough dof specified: " + 
+          std::to_string(j_fix.size()) + " | " + std::to_string(node_full_dof));
+      }
+      for(int di=0; di<node_full_dof; di++)
+      {
+        // shift to the right by one because fv_id
+        Fixities(i, di+1) = int(j_fix[di]);
+      }
     }
-    for(int di=0; di<node_full_dof; di++)
+    else
     {
-      // shift to the right by one because fv_id
-      Fixities(i, di+1) = int(j_fix[di]);
+      // assume all fixed
+      Fixities.block(i,1,1,node_full_dof) = Eigen::VectorXi::Constant(node_full_dof, 1).transpose();
     }
   }
 
@@ -98,7 +139,7 @@ bool parseFrameJson(const nlohmann::json& json_data,
   // parse materials
   if (!json_data.contains("uniform_cross_section") || !json_data.contains("uniform_material_properties"))
   {
-      throw std::runtime_error("Missing attributes in json: uniform_cross_section or uniform_material_properties!");
+    throw std::runtime_error("Missing attributes in json: uniform_cross_section or uniform_material_properties!");
   }
   materials.clear();
   bool uniform = bool(json_data["uniform_cross_section"]) && bool(json_data["uniform_material_properties"]);
@@ -115,6 +156,7 @@ bool parseFrameJson(const nlohmann::json& json_data,
     }
     materials.push_back(m);
   }
+  return true;
 }
 
 bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool& include_sw)

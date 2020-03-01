@@ -24,17 +24,6 @@ const std::string PathSeparator =
 #endif
 }
 
-namespace{
-  void getNodePoints(const Eigen::MatrixXd& Vertices, const int& end_u_id, const int& end_v_id, 
-    Eigen::VectorXd& end_u, Eigen::VectorXd& end_v)
-  {
-    end_u = Eigen::Vector3d(3);
-    end_u << Vertices(end_u_id, 1), Vertices(end_u_id, 2), Vertices(end_u_id, 3);
-    end_v = Eigen::Vector3d(3);
-    end_v << Vertices(end_v_id, 1), Vertices(end_v_id, 2), Vertices(end_v_id, 3);
-  }
-}
-
 namespace conmech
 {
 namespace stiffness_checker
@@ -67,7 +56,7 @@ bool Stiffness::init()
   dim_ = this->Vertices_.cols();
 
   // TODO: generalize to 2D
-  assert(dim_ = 3 && "only support 3D structure now!");
+  ASSERT(3 == dim_, "only support 3D structure now!");
 
   if (3 == dim_) {
     gravity_direction_ = Eigen::VectorXd(3);
@@ -118,10 +107,9 @@ bool Stiffness::init()
       e_react_dof_id_ << 0, 3;
     }
   }
-  // assert(xyz_dof_id_.size() == node_dof_ * 2);
+  ASSERT(xyz_dof_id_.size() == node_dof_ * 2, "");
 
   // init per-element material properties
-
   precomputeElementStiffnessMatrixList();
   precomputeElementSelfWeightLumpedLoad();
 
@@ -158,9 +146,7 @@ bool Stiffness::init()
   {
     std::cout << "Initialization done" << std::endl;
   }
-
   is_init_ = true;
-
   return true;
 }
 
@@ -175,7 +161,6 @@ void Stiffness::setNodalDisplacementTolerance(double transl_tol, double rot_tol)
 
 void Stiffness::precomputeElementStiffnessMatrixList()
 {
-  using namespace std;
   // complete element stiffness matrix
   // in local frame: [MSA McGuire et al.] P73
 
@@ -216,9 +201,6 @@ void Stiffness::precomputeElementStiffnessMatrixList()
     double mu = materials_[i].poisson_ratio_;
     double G = materials_[i].shear_modulus_;
 
-    // assert(std::abs((material_parm_.shear_modulus_ - G) / G) < 1e-6
-    //        && "input poisson ratio not compatible with shear and Young's modulus!");
-
     Eigen::Matrix3d R_LG;
     getGlobal2LocalRotationMatrix(end_u, end_v, R_LG);
 
@@ -258,8 +240,6 @@ void Stiffness::precomputeElementStiffnessMatrixList()
     }
     K_loc = K_loc_temp;
 
-    // DO NOT combine transpose
-    //https://libigl.github.io/matlab-to-eigen.html
     auto R_LG_diagT = R_LG_diag.transpose();
     K_loc = R_LG_diagT * K_loc * R_LG_diag;
 
@@ -272,9 +252,9 @@ void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exis
 {
   // std::clock_t c_start = std::clock();
 
-  // assert(element_K_list_.size() > 0);
-  // assert(exist_e_ids.size() > 0);
-  // assert(id_map_.rows() >= exist_e_ids.size());
+  assert(element_K_list_.size() > 0);
+  assert(exist_e_ids.size() > 0);
+  assert(id_map_.rows() >= int(exist_e_ids.size()));
 
   int total_dof = nV() * node_dof_;
   int N_element = nE();
@@ -282,12 +262,11 @@ void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exis
   K_assembled_full_.resize(total_dof, total_dof);
   std::vector<Eigen::Triplet<double>> K_triplets;
 
-  for (const int e_id : exist_e_ids)
+  for (const int& e_id : exist_e_ids)
   {
-    // assert(e_id >= 0 && e_id < nE());
-
+    assert(e_id >= 0 && e_id < nE());
     const auto K_e = element_K_list_[e_id];
-    // assert(K_e.rows() == 2 * node_dof_ && K_e.cols() == 2 * node_dof_);
+    assert(K_e.rows() == 2 * node_dof_ && K_e.cols() == 2 * node_dof_);
 
     for (int i = 0; i < 2 * node_dof_; i++)
     {
@@ -352,7 +331,6 @@ void Stiffness::createExternalNodalLoad(
   for (int i = 0; i < nodal_forces.rows(); i++)
   {
     int v_id = int(nodal_forces(i, 0));
-    // assert(0 <= v_id && v_id < nV());
 
     ext_load.segment(v_id * 6, 6) = nodal_forces.block<1, 6>(i, 1);
   }
@@ -423,18 +401,18 @@ void Stiffness::createUniformlyDistributedLumpedLoad(const std::vector<int>& exi
   int N_vert = nV();
   ext_load = Eigen::VectorXd::Zero(N_vert * node_dof_);
 
-  if (element_lumped_nload_list_.size() != nE()) {
+  if (element_lumped_nload_list_.size() != nE()) 
+  {
     return;
   }
 
-  // assert(is_init_);
-  // assert(id_map_.cols() == 2 * node_dof_);
-
-  for (const int e_id : exist_e_ids) {
+  for (const int e_id : exist_e_ids) 
+  {
     // assert(0 <= e_id && e_id < element_lumped_nload_list_.size());
     auto Qe = element_lumped_nload_list_[e_id];
 
-    for (int j = 0; j < id_map_.cols(); j++) {
+    for (int j = 0; j < id_map_.cols(); j++) 
+    {
       ext_load[id_map_(e_id, j)] += Qe[j];
     }
   }
@@ -607,7 +585,6 @@ bool Stiffness::solve(
       nexist_tail++;
     }
   }
-  cout << "before sparse solve" << endl;
 
   // a row permuatation matrix (multiply left)
   Eigen::SparseMatrix<double> Perm(dof, dof);
@@ -620,7 +597,6 @@ bool Stiffness::solve(
   // perm operator on the right (column) = inverse of perm operation on the left (row)
   auto Perm_T = Perm.transpose();
 
-  // TODO: ! error here
   // permute the full stiffness matrix & carve the needed portion out
   createCompleteGlobalStiffnessMatrix(exist_element_ids);
 
@@ -651,7 +627,7 @@ bool Stiffness::solve(
   }
 
   Eigen::VectorXd U_m(n_Free);
-  // TODO: tolerance here?
+  // TODO: clamping by tolerance here?
   if (nodal_load_P_tmp.isZero())
   {
     U_m.setZero();
@@ -660,7 +636,7 @@ bool Stiffness::solve(
   {
     // TODO: what's the best solve strategy?
     // TODO: Conjugate gradient, precondition? https://www.cs.cmu.edu/~baraff/papers/sig98.pdf
-    if (!stiff_solver_.solveSparseSimplicialLDLT(K_mm, Q_m, U_m))
+    if (!stiff_solver_.solveSparseSimplicialLDLT(K_mm, Q_m, U_m, verbose_))
     {
       if (verbose_)
       {
@@ -680,15 +656,11 @@ bool Stiffness::solve(
   R.segment(n_Free, n_Fixities) = R_f;
   R = Perm_T * R.eval();
 
-//  std::cout << "R:\n" << R << std::endl;
-
   // displacement
   Eigen::VectorXd U(dof);
   U.setZero();
   U.segment(0, n_Free) = U_m;
   U = Perm_T * U.eval();
-
-//  std::cout << "U:\n" << U << std::endl;
 
   // start raw computattion results conversion
   // element internal reaction
@@ -709,12 +681,6 @@ bool Stiffness::solve(
   }
   stored_element_reaction_ = element_reaction;
 
-  if (verbose_)
-  {
-    std::cout << "element reaction (kN, kN-m):" << std::endl;
-    std::cout << element_reaction << "\n" << std::endl;
-  }
-
   // fixities reaction
   fixities_reaction = Eigen::MatrixXd::Zero(n_SubFixedNode, 1 + node_dof_);
   cnt = 0;
@@ -730,12 +696,6 @@ bool Stiffness::solve(
   }
   stored_fixities_reaction_ = fixities_reaction;
 
-  if (verbose_)
-  {
-    std::cout << "fixities reaction (kN, kN-m):" << std::endl;
-    std::cout << fixities_reaction << "\n" << std::endl;
-  }
-
   // node displacement
   node_displ = Eigen::MatrixXd::Zero(sub_nodes_set.size(), 1 + node_dof_);
   cnt = 0;
@@ -750,12 +710,6 @@ bool Stiffness::solve(
 
   if (verbose_)
   {
-    std::cout << "nodal disp (m/rad):" << std::endl;
-    std::cout << node_displ << "\n" << std::endl;
-  }
-
-  if (verbose_)
-  {
     printOutTimer();
   }
 
@@ -767,6 +721,8 @@ bool Stiffness::solve(
 
   has_stored_deformation_ = true;
   stored_existing_ids_ = exist_element_ids;
+
+  // void *testWhetherMemoryLeakDetectionWorks = malloc(1);
 
   // stiffness criteria check
   return checkStiffnessCriteria(node_displ, fixities_reaction, element_reaction);
@@ -805,89 +761,49 @@ bool Stiffness::solve(const bool &cond_num)
 
 bool Stiffness::getElementStiffnessMatrices(std::vector<Eigen::MatrixXd> &element_stiffness_mats)
 {
-  // try{
-    if (!is_init_) {
+    if (!is_init_) 
+    {
       throw std::runtime_error("stiffness checker not inited yet.\n");
     }
     element_stiffness_mats = element_K_list_;
     return true;
-  // }
-  // catch (const std::runtime_error &e) {
-  //   fprintf(stderr, "%s", e.what());
-  //   return false;
-  // }
 }
 
 bool Stiffness::getElementLocal2GlobalRotationMatrices(std::vector<Eigen::MatrixXd> &e_L2G_rot_mats)
 {
-  // try{
-    if (!is_init_) {
-      throw std::runtime_error("stiffness checker not inited yet.\n");
-    }
-    e_L2G_rot_mats = rot_m_list_;
-    return true;
-  // }
-  // catch (const std::runtime_error &e) {
-  //   fprintf(stderr, "%s", e.what());
-  //   return false;
-  // }
+  if (!is_init_) 
+  {
+    throw std::runtime_error("stiffness checker not inited yet.\n");
+  }
+  e_L2G_rot_mats = rot_m_list_;
+  return true;
 }
 
 bool Stiffness::getSelfWeightNodalLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& self_weight_load)
 {
-  // try {
-      createSelfWeightLumpedLoad(exist_e_ids, self_weight_load);
-      return true;
-  // }
-  // catch (const std::runtime_error &e) {
-  //   fprintf(stderr, "%s", e.what());
-  //   return false;
-  // }
+  createSelfWeightLumpedLoad(exist_e_ids, self_weight_load);
+  return true;
 }
 
 bool Stiffness::getUniformlyDistributedLumpedLoad(const std::vector<int>& exist_e_ids, Eigen::VectorXd& lumped_load)
 {
-  // try {
-      createUniformlyDistributedLumpedLoad(exist_e_ids, lumped_load);
-      return true;
-  // }
-  // catch (const std::runtime_error &e) {
-  //   fprintf(stderr, "%s", e.what());
-  //   return false;
-  // }
+  createUniformlyDistributedLumpedLoad(exist_e_ids, lumped_load);
+  return true;
 }
 
 int Stiffness::nE() const  
 {
-  // TODO: inline
-  if (is_init_) {
-    return this->Elements_.rows();
-  }
-  return 0;
+  return this->Elements_.rows();
 }
 
 int Stiffness::nV() const
 {
-  if (is_init_) {
-    return this->Vertices_.rows();
-  }
-  return 0;
+  return this->Vertices_.rows();
 }
 
 int Stiffness::nFixV() const
 {
-  if (is_init_) {
-    return this->Fixities_.rows();
-  }
-  return 0;
-}
-
-int Stiffness::nFixDof() const
-{
-  if (is_init_) {
-    return this->Vertices_.rows();
-  }
-  return 0;
+  return this->Fixities_.rows();
 }
 
 int Stiffness::dim() const
@@ -910,238 +826,54 @@ bool Stiffness::getSolvedResults(Eigen::MatrixXd &node_displ,
   return true;
 }
 
+bool Stiffness::getSolvedCompliance(double &compliance)
+{
+  if (!hasStoredResults()) 
+  {
+    throw std::runtime_error("no stored result found.\n");
+  }
+  compliance = stored_compliance_;
+  return true;
+}
+
+bool Stiffness::getSolvedAltCompliance(double &compliance)
+{
+  if (!hasStoredResults()) 
+  {
+    throw std::runtime_error("no stored result found.\n");
+  }
+  compliance = stored_alt_compliance_;
+  return true;
+}
+
 bool Stiffness::getMaxNodalDeformation(double &max_trans, double &max_rot,
     int &max_trans_vid, int &max_rot_vid)
 {
-  if (!hasStoredResults()) {
+  if (!hasStoredResults()) 
+  {
     throw std::runtime_error("no stored result found.\n");
   }
   const int nNode = stored_nodal_deformation_.rows();
   int mt_i, mr_i, mr_j;
 
   Eigen::VectorXd trans_norm(nNode);
-  for(int i = 0; i < nNode; i++){
-    for(int j = 1; j <= 3; j++){
+  trans_norm.setZero();
+  for(int i = 0; i < nNode; i++)
+  {
+    for(int j = 1; j <= 3; j++)
+    {
       trans_norm[i] += std::pow(stored_nodal_deformation_(i, j), 2);
     }
     trans_norm[i] = sqrt(trans_norm[i]);
   }
   max_trans = trans_norm.maxCoeff(&mt_i);
   max_trans_vid = int(stored_nodal_deformation_(mt_i, 0));
-
   // max_trans = stored_nodal_deformation_.block(0, 1, nNode, 3).cwiseAbs().maxCoeff(&mt_i, &mt_j);
   // max_trans_vid = stored_nodal_deformation_(mt_i, 0);
 
   max_rot = stored_nodal_deformation_.block(0, 4, nNode, 3).cwiseAbs().maxCoeff(&mr_i, &mr_j);
   max_rot_vid = int(stored_nodal_deformation_(mr_j, 0));
   return true;
-}
-
-bool Stiffness::getSolvedCompliance(double &compliance)
-{
-  // try {
-    if (!hasStoredResults()) {
-      throw std::runtime_error("no stored result found.\n");
-    }
-    compliance = stored_compliance_;
-    return true;
-  // }
-  // catch (const std::runtime_error &e) {
-  //   compliance = 0;
-  //   fprintf(stderr, "%s", e.what());
-  //   return false;
-  // }
-}
-
-bool Stiffness::getSolvedAltCompliance(double &compliance)
-{
-  // try {
-    if (!hasStoredResults()) {
-      throw std::runtime_error("no stored result found.\n");
-    }
-    compliance = stored_alt_compliance_;
-    return true;
-  // }
-  // catch (const std::runtime_error &e) {
-  //   compliance = 0;
-  //   fprintf(stderr, "%s", e.what());
-  //   return false;
-  // }
-}
-
-Eigen::MatrixXd Stiffness::getOriginalShape(const int& disc, const bool& draw_full_shape)
-{
-  // assert(disc >= 1);
-  Eigen::MatrixXd orig_beam;
-
-  std::vector<int> draw_ids;
-  if(!draw_full_shape && stored_existing_ids_.size() > 0)
-  {
-    draw_ids = stored_existing_ids_;
-    orig_beam = Eigen::MatrixXd::Zero(stored_existing_ids_.size()*(disc+1), dim_);
-  }
-  else
-  {
-    int n_Element = nE();
-    draw_ids = std::vector<int>(n_Element);
-    std::iota(draw_ids.begin(), draw_ids.end(), 0);
-    orig_beam = Eigen::MatrixXd::Zero(n_Element*(disc+1), dim_);
-  }
-
-  for(std::size_t i=0; i < draw_ids.size(); i++)
-  {
-    int end_u_id = Elements_(draw_ids[i], 0);
-    int end_v_id = Elements_(draw_ids[i], 1);
-    Eigen::VectorXd end_u, end_v;
-    getNodePoints(Vertices_, end_u_id, end_v_id, end_u, end_v);
-
-    for(int k=0; k<disc+1; k++)
-    {
-      Eigen::VectorXd inter_pt = end_u + (double(k)/disc)*(end_v - end_u);
-      orig_beam.block(i*(disc+1)+k,0,1,dim_) = inter_pt.transpose();
-    }
-  }
-
-  return orig_beam;
-}
-
-Eigen::MatrixXd Stiffness::getDeformedShape(const double& exagg, const int& disc)
-{
-  if(!has_stored_deformation_ || stored_existing_ids_.empty())
-  {
-    throw std::runtime_error("Unable to compute deformed beam shape: no nodal deformation computed and stored!");
-  }
-  // assert(exagg >= 0 && disc >= 2);
-
-  int nE = stored_existing_ids_.size();
-
-  // TODO: incorporate 2D case
-  Eigen::VectorXd d_end_u(node_dof_), d_end_v(node_dof_);
-  Eigen::MatrixXd tmp_beam_disp;
-  Eigen::MatrixXd beam_displ = Eigen::MatrixXd::Zero(nE*(disc+1), dim_);
-
-  for(std::size_t i=0; i<stored_existing_ids_.size(); i++)
-  {
-    int end_u_id = Elements_(stored_existing_ids_[i], 0);
-    int end_v_id = Elements_(stored_existing_ids_[i], 1);
-
-    // TODO: check this node_dof and full_node_dof compatability
-    int u_row_id, v_row_id = -1;
-
-    for(int j=0; j<stored_nodal_deformation_.rows(); j++)
-    {
-      if(stored_nodal_deformation_(j,0) == end_u_id)
-      {
-        u_row_id = j;
-      }
-      if(stored_nodal_deformation_(j,0) == end_v_id)
-      {
-        v_row_id = j;
-      }
-    }
-    if(u_row_id == -1 || v_row_id == -1) {
-      throw std::runtime_error("existing node id not found in existing deformation matrix!");
-    }
-
-    d_end_u = stored_nodal_deformation_.row(u_row_id).segment(1, node_dof_);
-    d_end_v = stored_nodal_deformation_.row(v_row_id).segment(1, node_dof_);
-
-    Eigen::VectorXd end_u, end_v;
-    getNodePoints(Vertices_, end_u_id, end_v_id, end_u, end_v);
-
-    computeCubicDeformedBeam(end_u, end_v,
-                             d_end_u, d_end_v, exagg, disc,
-                             tmp_beam_disp);
-
-    beam_displ.block(i*(disc+1), 0, disc+1, dim_) = tmp_beam_disp;
-  }
-
-  return beam_displ;
-}
-
-bool Stiffness::computeCubicDeformedBeam(const Eigen::VectorXd& end_u, const Eigen::VectorXd& end_v,
-                                         const Eigen::VectorXd& d_end_u, const Eigen::VectorXd& d_end_v,
-                                         const double& exagg, const int& disc,
-                                         Eigen::MatrixXd& BeamPolygon)
-{
-    // assert(exagg >= 0 && disc >= 2);
-    double L = (end_v - end_u).norm();
-
-    Eigen::Matrix3d R_LG;
-    getGlobal2LocalRotationMatrix(end_u, end_v, R_LG);
-    Eigen::MatrixXd R = Eigen::MatrixXd::Zero(full_node_dof_*2,full_node_dof_*2);
-    for(int i=0; i<(full_node_dof_/3)*2; i++)
-    {
-      R.block(i*3, i*3, 3, 3) = R_LG;
-    }
-
-    // compute end deflection in local coordinates
-    Eigen::VectorXd D_global(full_node_dof_*2), D_local(full_node_dof_*2);
-    D_global << d_end_u, d_end_v;
-    D_local = exagg * R * D_global;
-
-    // curve-fitting problem for a cubic polynomial
-    // coordinates in local coordinate frame (x-axis along linear element)
-    double d_u_local_x = D_local[0];
-    double d_v_local_x = D_local[full_node_dof_-1] + L;
-
-    Eigen::MatrixXd A_m(4,4);
-    A_m.block(0,0,1,4) << 1, d_u_local_x, std::pow(d_u_local_x,2), std::pow(d_u_local_x,3);
-    A_m.block(1,0,1,4) << 1, d_v_local_x, std::pow(d_v_local_x,2), std::pow(d_v_local_x,3);
-    A_m.block(2,0,1,4) << 0, 1,           2*d_u_local_x,   3*std::pow(d_u_local_x,2);
-    A_m.block(3,0,1,4) << 0, 1,           2*d_v_local_x,   3*std::pow(d_v_local_x,2);
-    auto A_M_decomp = A_m.colPivHouseholderQr();
-
-    Eigen::VectorXd a_coeff, b_coeff;
-    if(2 == dim_)
-    {
-      // TODO: 2d case
-      assert(false && "not implemented!");
-    }
-    else
-    {
-      Eigen::VectorXd a_rhs(4);
-      a_rhs << D_local[1], D_local[7], D_local[5], D_local[11];
-      a_coeff = A_M_decomp.solve(a_rhs);
-
-      Eigen::VectorXd b_rhs(4);
-      b_rhs << D_local[2], D_local[8], -D_local[4], -D_local[10];
-      b_coeff = A_M_decomp.solve(b_rhs);
-    }
-
-    // beam discretization, break the beam into disc polygons (thus, disc+1 vertices)
-    // TODO: get this as input
-    int n_poly_vert = disc+1;
-
-    BeamPolygon = Eigen::MatrixXd::Zero(n_poly_vert, dim_);
-    double d_u = D_local[0];
-    double d_v = D_local[full_node_dof_];
-    double i_x, i_y, i_z; // interpolated local x, y, z
-    auto R_LG_decomp = R_LG.colPivHouseholderQr();
-    Eigen::VectorXd idD_global(dim_);
-
-    for(int i=0; i<n_poly_vert; i++)
-    {
-      i_x = d_u + i*(L + d_v - d_u)/disc;
-      Eigen::VectorXd monomial_vec(4);
-      monomial_vec << 1, i_x, std::pow(i_x,2), std::pow(i_x,3);
-
-      i_y = a_coeff.dot(monomial_vec);
-      if(3 == dim_)
-      {
-        i_z = b_coeff.dot(monomial_vec);
-
-        Eigen::Vector3d idD_local;
-        idD_local << i_x, i_y, i_z;
-        idD_global = R_LG_decomp.solve(idD_local);
-      }
-      else
-      {
-        assert(false && "not implemented");
-      }
-      BeamPolygon.block(i,0,1,dim_) = (end_u + idD_global).transpose();
-    }
-    return true;
 }
 
 bool Stiffness::checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
@@ -1153,8 +885,11 @@ bool Stiffness::checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
   const int nNode = node_displ.rows();
 
   Eigen::VectorXd trans_norm(nNode);
-  for(int i = 0; i < nNode; i++){
-    for(int j = 1; j <= 3; j++){
+  trans_norm.setZero();
+  for(int i = 0; i < nNode; i++)
+  {
+    for(int j = 1; j <= 3; j++)
+    {
       trans_norm[i] += std::pow(node_displ(i, j), 2);
     }
     trans_norm[i] = sqrt(trans_norm[i]);
@@ -1165,26 +900,6 @@ bool Stiffness::checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
     return false;
   }
 
-  // const auto& max_trans = node_displ.block(0, 1, nNode, 3).cwiseAbs();
-  // const auto& max_rot = node_displ.block(0, 4, nNode, 3).cwiseAbs();
-
-  // if (verbose_)
-  // {
-  //   std::cout << "max translation deformation: " << max_trans.maxCoeff()
-  //             << " / " << "tolerance " << transl_tol_ << std::endl;
-  //   std::cout << "max rotational deformation: " << max_rot.maxCoeff()
-  //             << " / " << "tolerance " << rot_tol_ << std::endl;
-  // }
-  // if (max_trans.maxCoeff() > transl_tol_)
-  // {
-  //   return false;
-  // }
-  // if (max_rot.maxCoeff() > rot_tol_)
-  // {
-  //   return false;
-  // }
-
-  // TODO: not well tested yet
   // stability check
   // element reaction check
   // grounded element shouldn't be in tension
@@ -1279,9 +994,8 @@ void Stiffness::printOutTimer()
   {
     printf("***Stiffness timer result:\n");
     stiff_solver_.solve_timer_.Print("SolveK:");
-
     create_k_.Print("CreateGlobalK:");
-    check_ill_.Print("CheckIllCond:");
+    // check_ill_.Print("CheckIllCond:");
   }
 }
 

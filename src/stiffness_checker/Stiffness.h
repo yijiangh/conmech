@@ -206,13 +206,6 @@ public:
    */
   int nFixV() const;
 
-  /**
-   * @brief number of fixed DOF
-   * 
-   * @return int 
-   */
-  int nFixDof() const;
-
   void computeLumpedUniformlyDistributedLoad(const Eigen::Vector3d &w_G, const Eigen::Matrix3d &R_LG, const double &Le, 
     Eigen::VectorXd &eq_nodal_load);
 

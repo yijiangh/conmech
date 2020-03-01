@@ -76,6 +76,7 @@ TEST_CASE("frame data deserialed from a json file", "[io]")
            0, 20, 0,
            0, -20, 0,
            0, 0, 20;
+  realV *= 0.001;
   REQUIRE(almost_equal_m(V, realV));
 
   Eigen::MatrixXi realE(4,2);
