@@ -24,15 +24,7 @@ bool repTestStiffness(const std::string& test_frame_path, const bool& solve_exis
   using namespace conmech_testing;
   using namespace conmech::material;
 
-  std::ifstream is(test_frame_path);
-  if (!is.is_open()) {
-      throw std::runtime_error("Couldn't open frame: " + test_frame_path);
-  }
-  nlohmann::json config;
-  is >> config;
-
   std::cout << "Testing on file: " << test_frame_path << std::endl;
-
   Eigen::MatrixXd V;
   Eigen::MatrixXi E;
   Eigen::MatrixXi Fixities;
@@ -69,13 +61,6 @@ bool repTestStiffness(const std::string& test_frame_path, const bool& solve_exis
     }
     std::cout << "check result: " << success << std::endl;
 
-    // Eigen::MatrixXd nD, fR, eR;
-    // sf.getSolvedResults(nD, fR, eR, success);
-    // std::cout << "get solved result: criteria pass : " << success << std::endl;
-    // std::cout << "nodal disp: \n" << nD << std::endl;
-    // std::cout << "fixities reaction: \n" << fR << std::endl;
-    // std::cout << "element reaction: \n" << eR << std::endl;
-
     double trans_tol = sf.getTransTol();
     double rot_tol = sf.getRotTol();
 
@@ -107,13 +92,36 @@ bool repTestStiffness(const std::string& test_frame_path, const bool& solve_exis
 
 TEST_CASE( "repetitive random solve memory leak check", "[memory_check]" ) 
 {
-    std::string test_file_path = conmech_testing::data_path("topopt-100.json");
+  int run_iter = 10;
+  bool verbose = false;
 
+  SECTION("topopt-100 solve exist id w/o reinit")
+  {
     bool solve_exist_id = true;
-    bool verbose = false;
-    int run_iter = 1;
     bool reinit = false;
-
-    // void *testWhetherMemoryLeakDetectionWorks = malloc(1);
+    std::string test_file_path = conmech_testing::data_path("topopt-100.json");
     REQUIRE(repTestStiffness(test_file_path, solve_exist_id, verbose, run_iter, reinit));
+  }
+  SECTION("topopt-100 solve exist id w reinit")
+  {
+    bool solve_exist_id = true;
+    bool reinit = true;
+    std::string test_file_path = conmech_testing::data_path("topopt-100.json");
+    REQUIRE(repTestStiffness(test_file_path, solve_exist_id, verbose, run_iter, reinit));
+  }
+  SECTION("topopt-100 solve all w/o reinit")
+  {
+    bool solve_exist_id = false;
+    bool reinit = false;
+    std::string test_file_path = conmech_testing::data_path("topopt-100.json");
+    REQUIRE(repTestStiffness(test_file_path, solve_exist_id, verbose, run_iter, reinit));
+  }
+  SECTION("topopt-100 solve all w reinit")
+  {
+    // void *testWhetherMemoryLeakDetectionWorks = malloc(1);
+    bool solve_exist_id = false;
+    bool reinit = true;
+    std::string test_file_path = conmech_testing::data_path("topopt-100.json");
+    REQUIRE(repTestStiffness(test_file_path, solve_exist_id, verbose, run_iter, reinit));
+  }
 }
