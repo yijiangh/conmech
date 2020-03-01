@@ -18,7 +18,6 @@ namespace
 bool repTestStiffness(const std::string& test_frame_path, const bool& solve_exist_id, 
   const bool& verbose, const int& iter, const bool& re_init)
 {
-  // https://github.com/ethz-asl/eigen_catkin/wiki/Eigen-Memory-Issues
   assert(iter > 0);
   using namespace conmech::stiffness_checker;
   using namespace conmech_testing;
