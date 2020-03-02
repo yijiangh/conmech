@@ -19,16 +19,20 @@ matrix:
     env:
     - MATRIX_EVAL="export CONFIG=Debug PYTHON=3"
 
-script:
-  - mkdir build
-  - pushd build
-  # - cmake .. ${CMAKE_EXTRA_ARGS}
-  - cmake .. -DCMAKE_BUILD_TYPE=$CONFIG
-  - make -j 2
-  - ctest --verbose
-  - popd
-  - rm -rf build
+install:
+  # - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then export PATH="/usr/local/opt/ccache/libexec:$PATH"; fi
+  - eval "${MATRIX_EVAL}"
   - pip install --no-cache-dir -r requirements-dev.txt
+
+script:
+  # - mkdir build
+  # - pushd build
+  # - cmake .. -DCMAKE_BUILD_TYPE=$CONFIG #${CMAKE_EXTRA_ARGS}
+  # - make -j 2
+  # - ctest --verbose
+  # - popd
+  # - rm -rf build
+  # - pip install --no-cache-dir -r requirements-dev.txt
   - pytest
 
 after_success:
