@@ -7,12 +7,10 @@ pyconmech
 
 This library provides python wrappers for efficient evaluation of construction mechanics.
 
-
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
     pyconmech.frame_analysis
-
     pyconmech.database
 
 """

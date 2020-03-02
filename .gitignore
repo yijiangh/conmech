@@ -50,3 +50,5 @@ abaqus.rpy
 *.vcxproj
 
 .coverage
+
+docs/reference/generated

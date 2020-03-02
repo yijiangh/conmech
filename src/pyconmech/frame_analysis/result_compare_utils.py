@@ -22,6 +22,20 @@ RES_UNIT_STANDARD = {
 }
 
 def read_frame_analysis_result_json(res_file_path, verbose=False):
+    """
+    
+    Parameters
+    ----------
+    res_file_path : [type]
+        [description]
+    verbose : bool, optional
+        [description], by default False
+    
+    Returns
+    -------
+    [type]
+        [description]
+    """
     with open(res_file_path, 'r') as f:
         json_data = json.loads(f.read())
         if verbose: print('conmech result parsed: {}'.format(res_file_path))

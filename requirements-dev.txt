@@ -8,11 +8,12 @@ invoke>=0.14
 isort
 paramiko
 pylint
-pytest
+pytest>=5.2.0
 pytest-cov
 python-coveralls
 scp
 sphinx>=1.5
+sphinx_rtd_theme
 twine
-backports.tempfile
+backports.tempfile # needed for test
 -e .
