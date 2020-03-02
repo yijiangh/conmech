@@ -38,8 +38,14 @@ matrix:
     env:
     - MATRIX_EVAL="export CONFIG=Debug"
 
-install:
+before_install:
   - eval "${MATRIX_EVAL}"
+  - |
+    if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+      curl https://bootstrap.pypa.io/get-pip.py | sudo python
+      pip install --upgrade setuptools
+    fi
+  # https://stackoverflow.com/questions/49748063/pip-install-fails-for-every-package-could-not-find-a-version-that-satisfies
 
 script:
   - mkdir build
