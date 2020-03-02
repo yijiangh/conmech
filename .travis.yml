@@ -9,7 +9,7 @@ branches:
 language: python
 dist: trusty
 python:
-  - "3.6"
+  - "3.7"
 
 addons:
   apt:
@@ -33,20 +33,20 @@ matrix:
     - MATRIX_EVAL="export CC=gcc-7 CXX=g++-7 CONFIG=Release"
 
   - os: osx
+    language: shell # 'language: python' is an error on Travis CI macOS
     compiler: clang
     env:
     - MATRIX_EVAL="export CONFIG=Debug"
 
 install:
   - eval "${MATRIX_EVAL}"
-  # - pip install numpy
 
 script:
   - mkdir build
   - pushd build
   - cmake .. -DCMAKE_BUILD_TYPE=$CONFIG #${CMAKE_EXTRA_ARGS}
   - make -j 2
-  - ctest --verbose
+  - ctest
   - popd
   - rm -rf build
   - pip install --no-cache-dir -r requirements-dev.txt

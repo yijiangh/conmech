@@ -1,4 +1,4 @@
-cmake>=3.15
+# cmake>=3.15
 attrs>=17.4
 autopep8
 bumpversion>=0.5
