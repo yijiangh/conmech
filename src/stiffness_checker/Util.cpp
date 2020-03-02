@@ -19,6 +19,7 @@ void createLocalStiffnessMatrix(const double &L, const double &A, const int &dim
   switch(dim)
   {
     case 2:
+      assert(false && "2D local stiffness not implemented.");
       return;
     case 3:
     {
@@ -89,8 +90,8 @@ void createLocalStiffnessMatrix(const double &L, const double &A, const int &dim
  * @param[in] rot_y2x optional rotation of local y axis around the local x axis, defaults to zero
  */
 void getGlobal2LocalRotationMatrix(
-    const Eigen::VectorXd& end_vert_u,
-    const Eigen::VectorXd& end_vert_v,
+    const Eigen::VectorXd & end_vert_u,
+    const Eigen::VectorXd & end_vert_v,
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x)
 {
@@ -100,6 +101,7 @@ void getGlobal2LocalRotationMatrix(
 
   // length of the element
   double L = (end_vert_v - end_vert_u).norm();
+  // TODO: make tol as a common shared const
   assert(L < 1e6 && "vertices too close, might be duplicated pts.");
 
   // by convention, the new x axis is along the element's direction
@@ -158,6 +160,15 @@ void getGlobal2LocalRotationMatrix(
 
     rot_m = R;
   }
+}
+
+void getNodePoints(const Eigen::MatrixXd& Vertices, const int& end_u_id, const int& end_v_id, 
+  Eigen::VectorXd& end_u, Eigen::VectorXd& end_v)
+{
+  end_u = Eigen::VectorXd(3);
+  end_u << Vertices(end_u_id, 0), Vertices(end_u_id, 1), Vertices(end_u_id, 2);
+  end_v = Eigen::VectorXd(3);
+  end_v << Vertices(end_v_id, 0), Vertices(end_v_id, 1), Vertices(end_v_id, 2);
 }
 
 } // namespace stiffness_checker

@@ -34,11 +34,25 @@ def parse_node_points(json_data, scale=1.0, dim=3):
 
 
 def parse_fixed_nodes(json_data, dim=3):
-    fixities_node_id = []
+    """[summary]
+    
+    Parameters
+    ----------
+    json_data : [type]
+        [description]
+    dim : int, optional
+        [description], by default 3
+    
+    Returns
+    -------
+    fixities_node_id
+        list of int
+    fixities_spec
+        list of [0-1 specs]
+    """
     fixities_spec = {}
     for i, json_node in enumerate(json_data['node_list']):
         if json_node['is_grounded'] == 1:
-            fixities_node_id.append(i)
             if 'fixities' in json_node and json_node['fixities']:
                 if dim == 3:
                     assert len(json_node['fixities']) == dim*2 
@@ -50,7 +64,7 @@ def parse_fixed_nodes(json_data, dim=3):
                     fixities_spec[i] = [1] * 6
                 else:
                     fixities_spec[i] = [1] * 3
-    return fixities_node_id, fixities_spec
+    return fixities_spec
 
 
 def check_material_dict(mat_dict):
@@ -113,11 +127,29 @@ def extract_model_name_from_path(file_path):
 
 
 def read_frame_json(file_path, verbose=False):
-    """Read frame data from a file path.
+    """[summary]
     
     Parameters
     ----------
-    file_path : str
+    file_path : [type]
+        [description]
+    verbose : bool, optional
+        [description], by default False
+    
+    Returns
+    -------
+    node_points
+        list of [x,y,z]
+    element_vids, 
+        list of [v_id, v_id]
+    fix_node_ids
+    
+    fix_specs, model_type, material_dicts, model_name
+    
+    Raises
+    ------
+    ValueError
+        [description]
     """
     assert os.path.exists(file_path) and "json file path does not exist!"
     with open(file_path, 'r') as f:
@@ -138,7 +170,7 @@ def read_frame_json(file_path, verbose=False):
 
     element_vids = parse_elements(json_data)
     node_points = parse_node_points(json_data, scale=scale, dim=dim)
-    fix_node_ids, fix_specs = parse_fixed_nodes(json_data, dim)
+    fix_specs = parse_fixed_nodes(json_data, dim)
 
     if 'uniform_cross_section' in json_data and \
        'uniform_material_properties' in json_data and \
@@ -162,14 +194,13 @@ def read_frame_json(file_path, verbose=False):
     if verbose:
         print('Model: {} | Unit: {}'.format(json_data['model_type'], json_data['unit']))
         print('Nodes: {} | Ground: {} | Elements: {}'.format(
-            len(node_points), len(fix_node_ids), len(element_vids)))
+            len(node_points), len(fix_specs), len(element_vids)))
    
-    return node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name
+    return node_points, element_vids, fix_specs, model_type, material_dicts, model_name, unit
 
 
-def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dicts,
-    unif_cross_sec=False, unif_material=False,
-    fixity_specs=None, unit=None, model_type='frame', model_name=None, indent=None, check_material=True):
+def write_frame_json(file_path, nodes, elements, fixity_specs, material_dicts,
+    unif_cross_sec=False, unif_material=False, unit=None, model_type='frame', model_name=None, indent=None, check_material=True):
     data = OrderedDict()
     data['model_name'] = model_name if model_name else extract_model_name_from_path(file_path)
     data['model_type'] = model_type
@@ -205,7 +236,7 @@ def write_frame_json(file_path, nodes, elements, fixed_node_ids, material_dicts,
         if data['dimension'] == 3:
             node_data['point']['Z'] = node[2] * LENGTH_SCALE_CONVERSION[unit]
         node_data['node_id'] = i
-        node_data['is_grounded'] = i in fixed_node_ids
+        node_data['is_grounded'] = i in fixity_specs
         if fixity_specs:
             node_data['fixities'] = fixity_specs[i] if node_data['is_grounded'] else []
         else:

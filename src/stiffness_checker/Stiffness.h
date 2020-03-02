@@ -1,11 +1,12 @@
 #pragma once
 
+#include "stiffness_checker/Material.h"
+#include "stiffness_checker/StiffnessSolver.h"
+#include <nlohmann/json.hpp>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
-#include "stiffness_checker/Frame.h"
-#include "stiffness_checker/StiffnessParm.h"
-#include "stiffness_checker/StiffnessSolver.h"
-//#include "stiffness_checker/IllCondDetector.hpp"
+// TODO: check if needed: https://eigen.tuxfamily.org/dox/group__TopicStlContainers.html
+// #include<Eigen/StdVector>
 
 namespace conmech
 {
@@ -14,11 +15,45 @@ namespace stiffness_checker
 class Stiffness
 {
 public:
-//  Stiffness(Frame &frame, bool verbose = false, std::string model_type = "frame");
+  /**
+   * @brief Factory function - returned by value:
+   * 
+   * @param V 
+   * @param E 
+   * @param Fixities 
+   * @param materials 
+   * @param verbose 
+   * @param model_type 
+   * @param output_json 
+   * @return Stiffness 
+   */
+  static Stiffness create(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities,
+                          const std::vector<conmech::material::Material>& materials,
+                          const bool& verbose = false, const std::string& model_type = "frame", const bool& output_json = false);
 
-  Stiffness(const std::string& json_file_path, bool verbose = false, const std::string& model_type = "frame", bool output_json = false);
+  Stiffness(const std::string& file_path,
+            const bool& verbose = false, const std::string& model_type = "frame", const bool& output_json = false);
 
-  ~Stiffness() {}
+  /**
+   * @brief Construct a new Stiffness object
+   * 
+   * @param V : frame vertices coordinate list, n by 3 (2), where n is the number of vertices (#V)
+   * @param E : element index list, m by 2, where m is the number of elements (#E)
+   * @param BC : boundary condition fixities list, each row, vertex id, dof fixity indication, fn by 7 (4), TODO: dependent on frame or truss
+   * @param materials : list of materials, parsed from json
+   * @param verbose 
+   * @param model_type : "frame" or "truss", "truss" unsupported now
+   * @param output_json : if write analysis result to a json file
+   */
+  Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities,
+            const std::vector<conmech::material::Material>& materials,
+            const bool& verbose = false, const std::string& model_type = "frame", const bool& output_json = false);
+
+  Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities,
+            const std::vector<nlohmann::json>& material_jsons,
+            const bool& verbose = false, const std::string& model_type = "frame", const bool& output_json = false);
+
+  ~Stiffness();
 
 public:
   /**
@@ -145,6 +180,8 @@ public:
 
   double getTransTol() const { return transl_tol_; }
   double getRotTol() const { return rot_tol_; }
+
+  // TODO: avoid copy?
   Eigen::MatrixXi getElement2DofIdMap() const { return id_map_; }
   Eigen::MatrixXi getNode2DofIdMap() const { return v_id_map_; }
 
@@ -163,8 +200,33 @@ public:
                                 const double& exagg, const int& disc,
                                 Eigen::MatrixXd& BeamPolygon);
 
-  int getTotalNumOfElements();
-  int getTotalNumOfVertices();
+  /**
+   * @brief total number of elements
+   * 
+   * @return int 
+   */
+  int nE() const;
+
+  /**
+   * @brief total number of vertices
+   * 
+   * @return int 
+   */
+  int nV() const;
+
+  /**
+   * @brief dimension of the structure
+   * 
+   * @return int const 
+   */
+  int dim() const;
+
+  /**
+   * @brief number of fixed vertices
+   * 
+   * @return int 
+   */
+  int nFixV() const;
 
   void computeLumpedUniformlyDistributedLoad(const Eigen::Vector3d &w_G, const Eigen::Matrix3d &R_LG, const double &Le, 
     Eigen::VectorXd &eq_nodal_load);
@@ -180,7 +242,9 @@ public:
 
 protected:
 
-  bool init();
+  bool init(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities, 
+            const std::vector<conmech::material::Material>& materials,
+            const bool& verbose, const std::string& model_type, const bool& output_json);
 
   virtual bool checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
                                       const Eigen::MatrixXd &fixities_reaction,
@@ -250,8 +314,15 @@ private:
   void createCompleteGlobalStiffnessMatrix(const std::vector<int> &exist_e_ids);
 
 protected:
-  Frame frame_;
-  std::vector<StiffnessParm> material_parms_;
+  Eigen::MatrixXd Vertices_;
+  Eigen::MatrixXi Elements_;
+  /**
+   * (N_fixities_node x 7) int matrix
+   *    fixities[i] = [n_id, is_Tx, is_Ty, is_Tz, is_Rx, is_Ry, is_Rz]
+   */
+  Eigen::MatrixXi Fixities_;
+
+  std::vector<conmech::material::Material> materials_;
   StiffnessSolver stiff_solver_;
 
   Timer create_k_;
@@ -311,10 +382,10 @@ private:
    */
   Eigen::MatrixXi v_id_map_;
 
-  /**
-   * a ((num_fix_node) x node_dof_) eigen int matrix
-   */
-  Eigen::MatrixXi fixities_table_;
+  // /**
+  //  * a ((num_fix_node) x node_dof_) eigen int matrix
+  //  */
+  // Eigen::MatrixXi fixities_table_;
 
   /**
    * a list of element stiffness matrix in global frame
@@ -343,6 +414,7 @@ private:
    * Note: for now, we separate gravity and other element-wise loads
    * 
    * (N_all_element x (12)) list
+   * 
    */
   std::vector<Eigen::VectorXd> element_gravity_nload_list_;
 
@@ -362,12 +434,6 @@ private:
   Eigen::VectorXd nodal_load_P_;
 
   /**
-   * (N_fixities_node x 7) int matrix
-   *    fixities[i] = [n_id, is_Tx, is_Ty, is_Tz, is_Rx, is_Ry, is_Rz]
-   */
-  Eigen::MatrixXi fixities_;
-
-  /**
    * stored computation results
    */
   std::vector<int> stored_existing_ids_;
@@ -376,7 +442,6 @@ private:
   Eigen::MatrixXd stored_element_reaction_;
   Eigen::MatrixXd stored_fixities_reaction_;
   double stored_compliance_;
-  double stored_alt_compliance_;
 
   /**
    * boolean flag for if the model is inited (1) or not (0).

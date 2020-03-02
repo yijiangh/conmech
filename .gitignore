@@ -5,6 +5,8 @@ _generate/
 *.so
 *.py[cod]
 *.egg-info
+*ilk
+*pdb
 
 # Clion stuff
 .idea/
@@ -39,3 +41,10 @@ abaqus.rpy
 .tox
 
 .vscode
+
+/ext
+.pytest_cache
+**/__pycache__
+
+*.vcxproj.filters
+*.vcxproj

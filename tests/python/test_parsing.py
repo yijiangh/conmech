@@ -13,28 +13,24 @@ from pyconmech.frame_analysis import read_frame_json, write_frame_json, read_loa
 from copy import deepcopy
 
 @pytest.mark.parse
-def test_frame_file_io():
+def test_frame_file_io(test_data_dir):
     file_name = 'tower_3D_broken_lines.json'
-
-    here = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(here, 'test_data', file_name)
-    node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name = \
+    file_path = os.path.join(test_data_dir, file_name)
+    node_points, element_vids, fix_specs, model_type, material_dicts, model_name, unit = \
         read_frame_json(file_path, verbose=True)
 
     # temp_fp = os.path.join(here, 'tmp.json')
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_fp = os.path.join(temp_dir, file_name)
-        write_frame_json(temp_fp, node_points, element_vids, fix_node_ids, material_dicts, 
-        fixity_specs=fix_specs, model_type=model_type, model_name = model_name)
-        back_node_points, back_element_vids, back_fix_node_ids, back_fix_specs, back_model_type, back_material_dicts, back_model_name = \
+        write_frame_json(temp_fp, node_points, element_vids, fix_specs, material_dicts, \
+            model_type=model_type, model_name=model_name, unit=unit)
+        back_node_points, back_element_vids, back_fix_specs, back_model_type, back_material_dicts, back_model_name, back_unit = \
             read_frame_json(temp_fp, verbose=True)
 
     for n1, n2 in zip(node_points, back_node_points):
         assert_equal(n1, n2)
     for e1, e2 in zip(element_vids, back_element_vids):
         assert_equal(e1, e2)
-    for fv1, fv2 in zip(fix_node_ids, back_fix_node_ids):
-        assert_equal(fv1, fv2)
     for vid, spec in fix_specs.items():
         assert vid in back_fix_specs
         assert_equal(spec, back_fix_specs[vid])
@@ -42,21 +38,21 @@ def test_frame_file_io():
     for mat1, mat2 in zip(material_dicts, back_material_dicts):
         assert mat1 == mat2
     assert model_name == back_model_name
+    assert unit == back_unit
 
 @pytest.mark.parse_mat
-def test_parse_material_properties_from_frame_json():
+def test_parse_material_properties_from_frame_json(test_data_dir):
     file_name = 'bad_material_properties_model.json'
-    root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
+    json_path = os.path.join(test_data_dir, file_name)
 
-    node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name = \
+    node_points, element_vids, fix_specs, model_type, material_dicts, model_name, unit = \
         read_frame_json(json_path)
 
     # initial file no problem
     mat_entry = ''
-    err_msg = 'Frame json file uniform cross sec / mat properties flag not specified!'
+    err_msg = 'Missing attributes in json: uniform_cross_section or uniform_material_properties!'
     with pytest.raises(RuntimeError) as excinfo:
-        StiffnessChecker(json_file_path=json_path)
+        StiffnessChecker.from_json(json_file_path=json_path)
     assert str(excinfo.value) == err_msg
 
     def check_mat(i, mat_entry, err_msg, expect_failure=True):
@@ -76,15 +72,15 @@ def test_parse_material_properties_from_frame_json():
             else:
                 del mds[i][mat_entry]
 
-            write_frame_json(temp_fp, node_points, element_vids, fix_node_ids, mds, 
-            unif_cross_sec=uniform, unif_material=uniform,
-            fixity_specs=fix_specs, model_type=model_type, model_name = model_name, check_material=False, unit='meter')
+            write_frame_json(temp_fp, node_points, element_vids, fix_specs, mds, \
+              unif_cross_sec=uniform, unif_material=uniform, \
+              model_type=model_type, model_name=model_name, check_material=False, unit=unit)
             if expect_failure:
                 with pytest.raises(RuntimeError) as excinfo:
-                    StiffnessChecker(json_file_path=temp_fp)
-                assert str(excinfo.value) == err_msg
+                    StiffnessChecker.from_json(json_file_path=temp_fp)
+                # assert str(excinfo.value) == err_msg
             else:
-                StiffnessChecker(json_file_path=temp_fp)
+                StiffnessChecker.from_json(json_file_path=temp_fp)
 
     for test_element in [True, False]:
         i = random.choice(list(range(len(element_vids)))) if test_element else None
@@ -122,15 +118,14 @@ def test_parse_material_properties_from_frame_json():
         check_mat(i, mat_entry, err_msg, expect_failure=True)
 
 @pytest.mark.parse_element
-def test_parse_element_from_json():
+def test_parse_element_from_json(test_data_dir):
     file_name = 'bad_node_element_model.json'
-    root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, 'test_data', file_name)
+    json_path = os.path.join(test_data_dir, file_name)
 
-    node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name = \
+    node_points, element_vids, fix_specs, model_type, material_dicts, model_name, unit = \
         read_frame_json(json_path)
 
     with pytest.raises(RuntimeError) as excinfo:
-        StiffnessChecker.from_frame_data(node_points, element_vids, fix_node_ids, material_dicts, 
-            fixity_specs=fix_specs, unit='meter', model_type='frame', model_name=None, verbose=False)
+        StiffnessChecker.from_frame_data(node_points, element_vids, fix_specs, material_dicts, \
+            unit='meter', model_type='frame', model_name=None, verbose=False)
     assert str(excinfo.value) == 'there needs to be at least one support (fixed) vertex in the model!'

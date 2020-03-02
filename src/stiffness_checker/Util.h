@@ -24,9 +24,9 @@ namespace stiffness_checker
  * in 3D case: 12*12 matrix (full_node_dof = 6)
  */
 void createLocalStiffnessMatrix(const double& L, const double& A, const int& dim,
-                            const double& Jx, const double& Iy, const double& Iz,
-                            const double& E, const double& G, const double& mu,
-                            Eigen::MatrixXd& K_loc);
+                                const double& Jx, const double& Iy, const double& Iz,
+                                const double& E, const double& G, const double& mu,
+                                Eigen::MatrixXd& K_loc);
 
 /**
  * Compute global to local (3x3) rotation matrix
@@ -36,28 +36,13 @@ void createLocalStiffnessMatrix(const double& L, const double& A, const int& dim
  * @param rot_y2x
  */
 void getGlobal2LocalRotationMatrix(
-    const Eigen::VectorXd& end_vert_u,
-    const Eigen::VectorXd& end_vert_v,
+    const Eigen::VectorXd & end_vert_u,
+    const Eigen::VectorXd & end_vert_v,
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x=0.0);
 
-// Eigen utils
-
-// TODO: convert a 1-x or x-1 matrix block to a segment or vector
-// https://eigen.tuxfamily.org/dox/classEigen_1_1VectorBlock.html
-template<typename Derived>
-Eigen::VectorBlock<Derived>
-segmentFromRange(Eigen::MatrixBase<Derived>& v, int start, int end)
-{
-  return Eigen::VectorBlock<Derived>(v.derived(), start, end-start);
-}
-
-template<typename Derived>
-const Eigen::VectorBlock<const Derived>
-segmentFromRange(const Eigen::MatrixBase<Derived>& v, int start, int end)
-{
-  return Eigen::VectorBlock<const Derived>(v.derived(), start, end-start);
-}
+void getNodePoints(const Eigen::MatrixXd& Vertices, const int& end_u_id, const int& end_v_id, 
+  Eigen::VectorXd& end_u, Eigen::VectorXd& end_v);
 
 } // namespace stiffness_checker
 } // namespace conmech

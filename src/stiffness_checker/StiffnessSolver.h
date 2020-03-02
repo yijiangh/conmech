@@ -5,6 +5,8 @@
 #include "stiffness_checker/Timer.h"
 
 using namespace std;
+// TODO: clean up namespace
+// TODO: no need for having a class
 
 namespace conmech
 {
@@ -24,7 +26,7 @@ class StiffnessSolver
 
   bool solveSparseSimplicialLDLT(
     const Eigen::SparseMatrix<double>& A, const Eigen::VectorXd& b,
-    Eigen::VectorXd& x);
+    Eigen::VectorXd& x, const bool& verbose=false);
 
  public:
   Timer solve_timer_;

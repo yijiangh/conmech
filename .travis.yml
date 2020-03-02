@@ -1,3 +1,11 @@
+# * conmech
+branches:
+#   only:
+#   - .
+  except:
+    # under development
+    - feature/cpp_test
+
 language: cpp
 dist: trusty
 matrix:
@@ -5,9 +13,9 @@ matrix:
   - name: Linux with py2.7
     os: linux
     env: PYTHON=2.7
-  - name: Linux with py3.4
+  - name: Linux with py3.7
     os: linux
-    env: PYTHON=3.4
+    env: PYTHON=3.7
   # - os: linux
   #   env: CONDA=2.7
   # - os: linux
@@ -15,38 +23,35 @@ matrix:
   - name: OSX with py2.7
     os: osx
     env: PYTHON=2.7
-  - name: OSX with py3.6
+  - name: OSX with py3.7
     os: osx
-    env: PYTHON=3.6
-  # - os: osx
-  #   env: CONDA=2.7
-  # - os: osx
-  #   env: CONDA=3.6
-  - name: Windows (VS2017 x64) with py2.7
-    # adapted from: https://github.com/wireshark/wireshark/blob/master/.travis.yml
-    # Set a supported language, otherwise the Windows worker will not start.
-    language : shell
-    os : windows
-    env:
-      - PLATFORM: x64
-      - PYTHON=2.7
-    cache:
-      directories:
-        - travis-cache
-  - name: Windows (VS2017 Win32) with py2.7
-    language: shell
-    os: windows
-    env:
-      - PLATFORM: Win32
-      - PYTHON=2.7
-    cache:
-      directories:
-        - travis-cache
-  # Windows builds are experimental in Travis and are unreliable, do not force it.
-  # https://docs.travis-ci.com/user/reference/windows/
-  # https://blog.travis-ci.com/2018-10-11-windows-early-release
-  allow_failures:
-    - os: windows
+    env: PYTHON=3.7
+  # - name: Windows (VS2017 x64) with py2.7
+  #   # adapted from: https://github.com/wireshark/wireshark/blob/master/.travis.yml
+  #   # Set a supported language, otherwise the Windows worker will not start.
+  #   language : shell
+  #   os : windows
+  #   env:
+  #     - PLATFORM: x64
+  #     - PYTHON=2.7
+  #   cache:
+  #     directories:
+  #       - travis-cache
+  # - name: Windows (VS2017 Win32) with py2.7
+  #   language: shell
+  #   os: windows
+  #   env:
+  #     - PLATFORM: Win32
+  #     - PYTHON=2.7
+  #   cache:
+  #     directories:
+  #       - travis-cache
+  # # Windows builds are experimental in Travis and are unreliable, do not force it.
+  # # https://docs.travis-ci.com/user/reference/windows/
+  # # https://blog.travis-ci.com/2018-10-11-windows-early-release
+  # allow_failures:
+  #   - os: windows
+
 before_install:
 - |
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
@@ -62,7 +67,7 @@ before_install:
       pip install --user --upgrade pip virtualenv;
       python -m virtualenv -p python$PYTHON venv;
       source venv/bin/activate;
-      pip install pytest numpy backports.tempfile
+      # pip install pytest numpy backports.tempfile
     elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
       # TODO: do virtualenv here as well
       # tools/travis-cache-windows.sh restore;
@@ -71,36 +76,23 @@ before_install:
         [Environment]::GetEnvironmentVariable("PATH", $_) -Split ";" -Replace "\\$", ""
       } | Select -Unique | % { cygpath $_ }) -Join ":"')";
       echo "PATH=$PATH";
-      # pip3 install --disable-pip-version-check --user --upgrade pip setuptools
+      pip install --disable-pip-version-check --user --upgrade pip setuptools
       python --version
       pip install setuptools pytest numpy backports.tempfile
     fi
-  elif [ -n "$CONDA" ]; then
-    if [ "$TRAVIS_OS_NAME" == "linux" ]; then OS=Linux-x86_64; else OS=MacOSX-x86_64; fi
-    wget -O miniconda.sh https://repo.continuum.io/miniconda/Miniconda${CONDA:0:1}-latest-$OS.sh
-    bash miniconda.sh -b -p $HOME/miniconda
-    export PATH="$HOME/miniconda/bin:$PATH"
-    conda config --set always_yes yes --set changeps1 no
-    conda config --add channels conda-forge
-    conda update -q conda
-    conda install -q conda-build
-    conda create -q -n test-environment python=$CONDA
-    source activate test-environment
   fi
 install:
 - |
   if [ -n "$PYTHON" ]; then
-      python setup.py sdist
-    if [ "$TRAVIS_OS_NAME" != "windows" ]; then
-      pip install --verbose dist/*.tar.gz
-    elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
-      # wildcard in windows shell: https://superuser.com/questions/460598/is-there-any-way-to-get-the-windows-cmd-shell-to-expand-wildcard-paths
-      powershell -Command "& ls"
-      powershell -Command "& pip install --verbose $(ls dist/*.tar.gz | % {$_.FullName})"
-    fi
-  elif [ -n "$CONDA" ]; then
-    conda build conda.recipe
-    conda install --use-local pyconmech
+      # python setup.py sdist
+      pip install --no-cache-dir -r requirements-dev.txt
+    # if [ "$TRAVIS_OS_NAME" != "windows" ]; then
+    #   pip install --verbose dist/*.tar.gz
+    # elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
+    #   # wildcard in windows shell: https://superuser.com/questions/460598/is-there-any-way-to-get-the-windows-cmd-shell-to-expand-wildcard-paths
+    #   powershell -Command "& ls"
+    #   powershell -Command "& pip install --verbose $(ls dist/*.tar.gz | % {$_.FullName})"
+    # fi
   fi
 script:
 - pytest
