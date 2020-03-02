@@ -6,7 +6,6 @@ shallow_clone: true
 branches:
   only:
     - master
-    # - dev
 environment:
   matrix:
   - CONFIG: Debug
@@ -19,13 +18,11 @@ build:
   parallel: true
 build_script:
   - cd c:\projects\conmech
-  # Tutorials and tests
   - set PATH=C:\Python%PYTHON%-x64;C:\Python%PYTHON%-x64\Scripts;%PATH%
   - mkdir build
   - cd build
   - cmake -DCMAKE_BUILD_TYPE=%CONFIG%
       -G "Visual Studio 15 2017 Win64"
-    #   -Ax64
       ../
   - set MSBuildLogger="C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
   - set MSBuildOptions=/v:m /m /p:BuildInParallel=true /p:Configuration=%CONFIG% /logger:%MSBuildLogger%
@@ -34,3 +31,5 @@ build_script:
 test_script:
   - set CTEST_OUTPUT_ON_FAILURE=1
   - ctest -C %CONFIG% --verbose --output-on-failure -j 2
+
+  # Error parsing appveyor.yml: (Line: 29, Col: 7, Idx: 563) - (Line: 29, Col: 10, Idx: 566): While parsing a block collection, did not find expected '-' indicator.
