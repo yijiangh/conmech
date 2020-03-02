@@ -42,10 +42,14 @@ before_install:
   - eval "${MATRIX_EVAL}"
   - |
     if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-      curl https://bootstrap.pypa.io/get-pip.py | sudo python
-      pip install --upgrade setuptools
+      brew update; brew install python3;
+      pip install --user --upgrade pip virtualenv;
+      python -m virtualenv -p python$PYTHON venv;
+      source venv/bin/activate;
     fi
   # https://stackoverflow.com/questions/49748063/pip-install-fails-for-every-package-could-not-find-a-version-that-satisfies
+  # curl https://bootstrap.pypa.io/get-pip.py | sudo python
+  # pip install --upgrade setuptools
 
 script:
   - mkdir build
