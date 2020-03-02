@@ -9,6 +9,8 @@ isort
 paramiko
 pylint
 pytest
+pytest-cov
+python-coveralls
 scp
 sphinx>=1.5
 twine

@@ -48,3 +48,5 @@ abaqus.rpy
 
 *.vcxproj.filters
 *.vcxproj
+
+.coverage

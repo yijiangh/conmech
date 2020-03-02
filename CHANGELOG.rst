@@ -3,38 +3,50 @@
 Changelog
 =========
 
-.. # with overline, for parts
-.. * with overline, for chapters
-.. =, for sections
-.. -, for subsections
-.. ^, for subsubsections
-.. ", for paragraphs
+All notable changes to this project will be documented in this file.
 
-TODO
-----
-- Even when applying the lumped nodal loads in Karamba, the results still look different to the ones from conmech. See `developer_notes/karamba_comparision` for more details.
+The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_
+and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
+
+Unreleased
+-----------
+
+**Added**
+
+- Added ``StiffnessChecker`` class method, directly construct from frame data, without saving data to a temp json
+- Added some initial cpp unit tests, test data fed in by CMake and tests organized by ``Catch2``
+
+**Changed**
+
+- Changed ``rapidjson`` to ``nlohmann::json``
+
+**Removed**
+
+- Removed the `Frame` data structure in Stiffness checker's cpp backend
+- Removed all the git submodule and used CMake download external instead
+
+**Fixed**
+
+- Fixed the memory leak caused by the smart pointer cycle dependency in ``Frame``
 
 0.3.1
 ----------
 
-Added
-^^^^^^^
+**Added**
 
 - Added unit tests for `std::throw` in parsing material properties
 
 0.3.0
 ----------
 
-Changed
-^^^^^^^
+**Changed**
 
 - Changed `try/catch` in the C++ file parsing to `std::throw` 
 
 0.2.0
 -----
 
-Changed
-^^^^^^^
+**Changed**
 
 - The original ``stiffness_checker`` extension module is wrapper as ``_stiffness_checker``.
   All the cpp modules are wrapper under a top-level python classes/functions, to give more
@@ -44,8 +56,7 @@ Changed
 - Delete ``radius`` entry from ``material_properties``.
 
 
-Added
-^^^^^
+**Added**
 
 - documentation is hosted on readthedocs!
 - add grasshopper examples - parse/save files, karamba comparsion, solve/get result in GH via ghpython-remote
