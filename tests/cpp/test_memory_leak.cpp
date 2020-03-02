@@ -30,7 +30,7 @@ bool repTestStiffness(const std::string& test_frame_path, const bool& solve_exis
   std::vector<Material> mats;
   parseFrameJson(test_frame_path, V, E, Fixities, mats);
 
-  Stiffness sf(V, E, Fixities, mats, verbose);
+  Stiffness sf(test_frame_path, verbose);
 
   // TODO: randomize element ids
   // partial structure ids

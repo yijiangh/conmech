@@ -8,6 +8,9 @@ conmech
     :target: https://travis-ci.com/yijiangh/conmech
     :alt: Travis CI
 
+.. image:: https://ci.appveyor.com/api/projects/status/k0f10bas2fj4uqww?svg=true
+    :target: https://ci.appveyor.com/project/yijiangh/conmech
+    :alt: Appveyor CI
 
 .. image:: https://readthedocs.org/projects/conmech/badge/?version=latest
     :target: https://conmech.readthedocs.io/en/latest/?badge=latest

@@ -29,31 +29,75 @@ namespace conmech
 namespace stiffness_checker
 {
 
+Stiffness Stiffness::create(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities,
+                            const std::vector<conmech::material::Material>& materials,
+                            const bool& verbose, const std::string& model_type, const bool& output_json) 
+{ 
+  return Stiffness(V, E, Fixities, materials, verbose, model_type, output_json); 
+}
+
+Stiffness::Stiffness(const std::string& file_path,
+                     const bool& verbose, const std::string& model_type, const bool& output_json)
+{
+  Eigen::MatrixXd V;
+  Eigen::MatrixXi E;
+  Eigen::MatrixXi Fixities;
+  std::vector<conmech::material::Material> mats;
+  parseFrameJson(file_path, V, E, Fixities, mats);
+
+  init(V, E, Fixities, mats, verbose, model_type, output_json);
+}
+
 Stiffness::Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities, 
                      const std::vector<conmech::material::Material>& materials,
                      const bool& verbose, const std::string& model_type, const bool& output_json)
-  : Vertices_(V), Elements_(E), Fixities_(Fixities), materials_(materials),
-    verbose_(verbose), is_init_(false), include_self_weight_load_(false),
-    transl_tol_(1e-3), rot_tol_(3 * (3.14 / 180)), write_result_(output_json),
-    has_stored_deformation_(false), stored_compliance_(-1.0), stored_alt_compliance_(-1.0)
 {
-  verbose_ = verbose;
-  stiff_solver_.timing_ = verbose;
-  model_type_ = model_type;
+  init(V, E, Fixities, materials, verbose, model_type, output_json);
+}
 
-  output_json_file_name_ = "";
-  output_json_file_path_ = "";
-
-  init();
+Stiffness::Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities,
+                     const std::vector<nlohmann::json>& material_jsons,
+                     const bool& verbose, const std::string& model_type, const bool& output_json)
+{
+  using namespace conmech::material;
+  std::vector<Material> materials;
+  for (const auto& m_json : material_jsons)
+  {
+    Material m(m_json);
+    materials.push_back(m);
+  }
+  init(V, E, Fixities, materials, verbose, model_type, output_json);
 }
 
 Stiffness::~Stiffness()
 {
 }
 
-bool Stiffness::init()
+bool Stiffness::init(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities, 
+                     const std::vector<conmech::material::Material>& materials,
+                     const bool& verbose, const std::string& model_type, const bool& output_json)
 {
-  dim_ = this->Vertices_.cols();
+  Vertices_ = V; 
+  Elements_ = E; 
+  Fixities_ = Fixities; 
+  materials_ = materials;
+  verbose_ = verbose; 
+  model_type_ = model_type;
+  write_result_ = output_json,
+  stiff_solver_.timing_ = verbose;
+
+  // default settings
+  is_init_ = false; 
+  include_self_weight_load_ = false;
+  has_stored_deformation_ = false; 
+  stored_compliance_ = -1.0;
+  transl_tol_ = 1e-3; 
+  rot_tol_ = 3 * (3.14 / 180);
+  output_json_file_name_ = "";
+  output_json_file_path_ = "";
+
+  // init starts
+  dim_ = int(this->Vertices_.cols());
 
   // TODO: generalize to 2D
   ASSERT(3 == dim_, "only support 3D structure now!");
@@ -559,7 +603,7 @@ bool Stiffness::solve(
   }
 
   // count supp_dof and res_dof to init K_slice
-  int n_Nexist = node_dof_ * (n_Node - sub_nodes_set.size());
+  int n_Nexist = node_dof_ * (n_Node - int(sub_nodes_set.size()));
   int n_Free = dof - n_Fixities - n_Nexist;
 
   // generate permute id map
@@ -793,17 +837,17 @@ bool Stiffness::getUniformlyDistributedLumpedLoad(const std::vector<int>& exist_
 
 int Stiffness::nE() const  
 {
-  return this->Elements_.rows();
+  return int(this->Elements_.rows());
 }
 
 int Stiffness::nV() const
 {
-  return this->Vertices_.rows();
+  return int(this->Vertices_.rows());
 }
 
 int Stiffness::nFixV() const
 {
-  return this->Fixities_.rows();
+  return int(this->Fixities_.rows());
 }
 
 int Stiffness::dim() const
@@ -836,16 +880,6 @@ bool Stiffness::getSolvedCompliance(double &compliance)
   return true;
 }
 
-bool Stiffness::getSolvedAltCompliance(double &compliance)
-{
-  if (!hasStoredResults()) 
-  {
-    throw std::runtime_error("no stored result found.\n");
-  }
-  compliance = stored_alt_compliance_;
-  return true;
-}
-
 bool Stiffness::getMaxNodalDeformation(double &max_trans, double &max_rot,
     int &max_trans_vid, int &max_rot_vid)
 {
@@ -853,7 +887,7 @@ bool Stiffness::getMaxNodalDeformation(double &max_trans, double &max_rot,
   {
     throw std::runtime_error("no stored result found.\n");
   }
-  const int nNode = stored_nodal_deformation_.rows();
+  const int nNode = int(stored_nodal_deformation_.rows());
   int mt_i, mr_i, mr_j;
 
   Eigen::VectorXd trans_norm(nNode);
@@ -882,7 +916,7 @@ bool Stiffness::checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
 {
   // stiffness check
   // nodal displacement check
-  const int nNode = node_displ.rows();
+  const int nNode = int(node_displ.rows());
 
   Eigen::VectorXd trans_norm(nNode);
   trans_norm.setZero();

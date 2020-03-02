@@ -14,6 +14,8 @@ struct Material
  public:
   // https://github.com/jpanetta/MeshFEM/blob/master/src/lib/MeshFEM/Materials.hh
   Material(){}
+  Material(const std::string& file_path);
+  Material(const nlohmann::json& config);
 
   void setFromFile(const std::string& materialFile);
   void setFromJson(const nlohmann::json& config);

@@ -1,6 +1,6 @@
 ################################################################################
 
-add_library(stiffness_checker_lib
+add_library(conmech_stiffness_checker
 	Stiffness.cpp
 	StiffnessSolver.cpp
 	StiffnessIO.cpp
@@ -9,24 +9,22 @@ add_library(stiffness_checker_lib
 	Timer.cpp
 	Material.cpp
 	)
+# # Export conmech_stiffness_checker as conmech::stiffness_checker
+# set_property(TARGET conmech_stiffness_checker PROPERTY EXPORT_NAME conmech::stiffness_checker)
 
 # Include directories
-target_include_directories(stiffness_checker_lib PUBLIC ..)
+target_include_directories(conmech_stiffness_checker PUBLIC ..)
 
 # Use C++11
 # target_compile_features(${PROJECT_NAME} PUBLIC ${CXX11_FEATURES})
 
 # header-only libraries linking
 # https://github.com/jpanetta/MeshFEM/blob/master/src/lib/MeshFEM/CMakeLists.txt
-target_link_libraries(stiffness_checker_lib
+target_link_libraries(conmech_stiffness_checker
     PUBLIC
         Eigen3::Eigen
 		json::json
     # PRIVATE
     #     warnings::all
 )
-
-if(CONMECH_WITH_PYTHON)
-	message(STATUS "Building stiffness_checker's python bindings.")
-	add_subdirectory(bindings)
-endif()
+add_library(conmech::stiffness_checker ALIAS conmech_stiffness_checker)

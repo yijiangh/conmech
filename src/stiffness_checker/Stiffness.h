@@ -15,6 +15,24 @@ namespace stiffness_checker
 class Stiffness
 {
 public:
+  /**
+   * @brief Factory function - returned by value:
+   * 
+   * @param V 
+   * @param E 
+   * @param Fixities 
+   * @param materials 
+   * @param verbose 
+   * @param model_type 
+   * @param output_json 
+   * @return Stiffness 
+   */
+  static Stiffness create(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities,
+                          const std::vector<conmech::material::Material>& materials,
+                          const bool& verbose = false, const std::string& model_type = "frame", const bool& output_json = false);
+
+  Stiffness(const std::string& file_path,
+            const bool& verbose = false, const std::string& model_type = "frame", const bool& output_json = false);
 
   /**
    * @brief Construct a new Stiffness object
@@ -29,6 +47,10 @@ public:
    */
   Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities,
             const std::vector<conmech::material::Material>& materials,
+            const bool& verbose = false, const std::string& model_type = "frame", const bool& output_json = false);
+
+  Stiffness(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities,
+            const std::vector<nlohmann::json>& material_jsons,
             const bool& verbose = false, const std::string& model_type = "frame", const bool& output_json = false);
 
   ~Stiffness();
@@ -220,7 +242,9 @@ public:
 
 protected:
 
-  bool init();
+  bool init(const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities, 
+            const std::vector<conmech::material::Material>& materials,
+            const bool& verbose, const std::string& model_type, const bool& output_json);
 
   virtual bool checkStiffnessCriteria(const Eigen::MatrixXd &node_displ,
                                       const Eigen::MatrixXd &fixities_reaction,
@@ -418,7 +442,6 @@ private:
   Eigen::MatrixXd stored_element_reaction_;
   Eigen::MatrixXd stored_fixities_reaction_;
   double stored_compliance_;
-  double stored_alt_compliance_;
 
   /**
    * boolean flag for if the model is inited (1) or not (0).

@@ -19,7 +19,7 @@ target_compile_definitions(conmech_tests PUBLIC -DCONMECH_DATA_DIR="${CONMECH_TE
 target_link_libraries(conmech_tests PUBLIC
 	Catch2::Catch2
 	json::json
-	stiffness_checker_lib
+	conmech::stiffness_checker
 )
 
 # if (MSVC)

@@ -12,4 +12,5 @@ pytest
 scp
 sphinx>=1.5
 twine
+backports.tempfile
 -e .

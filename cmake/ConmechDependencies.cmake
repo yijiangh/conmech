@@ -46,10 +46,12 @@ endif()
 
 ################################################################################
 ### Download the python part ###
-if(CONMECH_WITH_PYTHON AND NOT TARGET pybind11)
-    conmech_download_project(pybind11
-        GIT_REPOSITORY https://github.com/pybind/pybind11.git
-        GIT_TAG 97784dad3e518ccb415d5db57ff9b933495d9024
-    )
-    # add_subdirectory(${CONMECH_EXTERNAL}/pybind11)
+if(CONMECH_WITH_PYTHON)
+    if(NOT TARGET pybind11)
+        conmech_download_project(pybind11
+            GIT_REPOSITORY https://github.com/pybind/pybind11.git
+            GIT_TAG 97784dad3e518ccb415d5db57ff9b933495d9024
+        )
+    endif()
+    add_subdirectory(${CONMECH_EXTERNAL}/pybind11)
 endif()

@@ -33,9 +33,12 @@ const static double EPSILON = 1.0e-14;
 const static std::string LENGTH_UNIT = "meter";
 const static std::string ROT_ANGLE_UNIT = "rad";
 const static std::string FORCE_UNIT = "kN";
-const static std::string MOMENT_UNIT = "kN-m";
 
-// deduced from above
-const static std::string PRESSURE_UNIT = "kN/m^2"; // modulus
+// deduced units
+const static std::string MOMENT_UNIT = FORCE_UNIT + "*" + ROT_ANGLE_UNIT;
+const static std::string AREA_UNIT         = LENGTH_UNIT + "^2";
+const static std::string AREA_INERTIA_UNIT = LENGTH_UNIT + "^4";
+const static std::string PRESSURE_UNIT = FORCE_UNIT + "/" + LENGTH_UNIT + "^2";// "kN/m^2" modulus
+const static std::string DENSITY_UNIT  = FORCE_UNIT + "/" + LENGTH_UNIT + "^3"; //"kN/m^3"
 
 } // ns conmech

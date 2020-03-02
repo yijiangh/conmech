@@ -18,7 +18,7 @@ from collections import defaultdict, OrderedDict
 import numpy as np
 from numpy.linalg import norm
 
-from _pystiffness_checker import _stiffness_checker
+from _pystiffness_checker import _StiffnessChecker
 from pyconmech.frame_analysis.frame_file_io import read_frame_json, write_frame_json
 
 class StiffnessChecker(object):
@@ -28,56 +28,79 @@ class StiffnessChecker(object):
     See tests/test_data for examples on the frame shape json file format.
     
     """
-    def __init__(self, json_file_path, verbose=False):
+
+    def __init__(self, node_points=None, elements=None, fix_specs=None, material_dicts=None,  
+        unit='meter', model_type='frame', model_name=None, verbose=False, checker_engine=None):
         """Init fn for stiffness_checker
 
-        By default, self-weight load is added.
-        Disable by <your stiffness checker class>.set_self_weight_load(False)
+        By default, self-weight load is added. Disable by StiffnessChecker.set_self_weight_load(False)
         
         Parameters
         ----------
-        json_file_path : str
-            absolute path to the frame shape's json file
+        node_points : [type], optional
+            [description], by default None
+        elements : [type], optional
+            [description], by default None
+        fix_specs : [type], optional
+            [description], by default None
+        material_dicts : [type], optional
+            [description], by default None
+        unit : str, optional
+            [description], by default 'meter'
+        model_type : str, optional
+            [description], by default 'frame'
+        model_name : [type], optional
+            [description], by default None
         verbose : bool, optional
-            verbose screen outputs turned on/off, by default False
-
-        """
-        assert os.path.exists(json_file_path)
-        self._sc_ins = _stiffness_checker(json_file_path=json_file_path, verbose=verbose)
-        self._sc_ins.set_self_weight_load(True)
+            [description], by default False
+        checker_engine : class instance, optional
+            _StiffnessChecker generated from cpp, or a np based python solver, by default None
         
-        node_points, element_vids, fix_node_ids, fix_specs, model_type, material_dicts, model_name = \
-        read_frame_json(json_file_path, verbose=verbose)
+        Raises
+        ------
+        NotImplementedError
+            [description]
+        """
+        self._model_name = model_name or ''
         if model_type == 'truss':
             raise NotImplementedError('truss model is not supported now...')
-
-        # TODO: wrap them into a frame class, and provide __eq__ and __ne__
-        self._model_name = model_name
-        self._node_points = node_points
-        self._elements = element_vids
-        self._fix_node_ids = fix_node_ids
-        self._fix_specs = fix_specs
         self._model_type = model_type
+        #
+        self._sc_ins = checker_engine
+        self._sc_ins.set_self_weight_load(True)
+        #
+        self._node_points = node_points or []
+        self._elements = elements or []
+        self._fix_specs = fix_specs or {}
+        if not (len(fix_specs) > 0 and all([len(fix_dofs) == 3 or len(fix_dofs) == 6 for fix_dofs in fix_specs.values()])):
+            raise RuntimeError('there needs to be at least one support (fixed) vertex in the model!')
         self._material_dicts = material_dicts
-        
         self.set_nodal_displacement_tol()
 
     @classmethod
-    def from_json(cls, json_file_path, verbose=False):
-        return cls(json_file_path, verbose=verbose)
+    def from_json(cls, json_file_path=None, verbose=False):
+        assert os.path.exists(json_file_path), "json file not exists!"
+        checker_engine = _StiffnessChecker(json_file_path=json_file_path, verbose=verbose)
+
+        node_points, elements, fix_specs, model_type, material_dicts, model_name, unit = \
+            read_frame_json(json_file_path, verbose=verbose)
+
+        return cls(node_points=node_points, elements=elements, fix_specs=fix_specs, \
+                   model_type=model_type, material_dicts=material_dicts, unit=unit, model_name=model_name, verbose=verbose, \
+                   checker_engine=checker_engine)
 
     @classmethod
-    def from_frame_data(cls, nodes, elements, fixed_node_ids, material_dicts, 
-        fixity_specs={}, unit='meter', model_type='frame', model_name=None, verbose=False):
+    def from_frame_data(cls, node_points, elements, fix_specs, material_dicts, 
+        unit='meter', model_type='frame', model_name=None, verbose=False):
+        # convert to np array
+        fixities = np.array([[int(key)] + fix_dofs for key, fix_dofs in fix_specs.items()], dtype=np.int32)
+        checker_engine = _StiffnessChecker(np.array(node_points, dtype=np.float64), np.array(elements, dtype=np.int32), fixities, \
+            material_dicts, verbose=verbose)
+        checker_engine.set_self_weight_load(True)
 
-        # here = os.path.dirname(os.path.abspath(__file__))
-        # tmp_path = os.path.join(here, 'pyconmech_frame_temp.json')
-        with tempfile.TemporaryDirectory() as temp_dir:
-            tmp_path = os.path.join(temp_dir, 'pyconmech_frame_temp.json')
-            write_frame_json(tmp_path, nodes, elements, fixed_node_ids, material_dicts, 
-            fixity_specs=fixity_specs, model_type=model_type, model_name=model_name)
-            instance = cls.from_json(tmp_path, verbose)
-        return instance
+        return cls(node_points=node_points, elements=elements, fix_specs=fix_specs, \
+                   model_type=model_type, material_dicts=material_dicts, unit=unit, model_name=model_name, verbose=verbose, \
+                   checker_engine=checker_engine)
 
     # ==========================================================================
     # properties
@@ -97,7 +120,7 @@ class StiffnessChecker(object):
     
     @property
     def fix_node_ids(self):
-        return self._fix_node_ids
+        return list(self._fix_specs.keys())
 
     @property
     def fix_element_ids(self):
@@ -315,9 +338,6 @@ class StiffnessChecker(object):
         float
         """
         return self._sc_ins.get_compliance()
-
-    def get_alt_compliance(self):
-        return self._sc_ins.get_alt_compliance()
 
     def get_self_weight_loads(self, existing_ids=[], dof_flattened=False):
         """Return lumped gravity loads

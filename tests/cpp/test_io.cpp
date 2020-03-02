@@ -41,7 +41,7 @@ TEST_CASE("material deserialed from a json file", "[io]")
 {
   using namespace conmech_testing;
   using namespace conmech::material;
-  const std::string test_frame_path = "C:\\Users\\yijiangh\\Documents\\pb_ws\\conmech\\tests\\assembly_instances\\extrusion\\four-frame.json";
+  std::string test_frame_path = conmech_testing::data_path("four-frame.json");
 
   std::ifstream is(test_frame_path);
   if (!is.is_open()) {
@@ -52,6 +52,9 @@ TEST_CASE("material deserialed from a json file", "[io]")
 
   Material m;
   parseMaterialPropertiesJson(config["material_properties"], m);
+  assert_eq_PLA(m);
+
+  m.setFromJson(config["material_properties"]);
   assert_eq_PLA(m);
 }
 
