@@ -61,7 +61,7 @@ def test_parse_material_properties_from_frame_json(test_data_dir):
             mds = deepcopy(material_dicts)
             if i is not None:
                 uniform = False
-                err_msg = 'Element {}: '.format(i) + err_msg
+                # err_msg = 'Element {}: '.format(i) + err_msg
             else:
                 i = 0
                 uniform = True
@@ -78,7 +78,7 @@ def test_parse_material_properties_from_frame_json(test_data_dir):
             if expect_failure:
                 with pytest.raises(RuntimeError) as excinfo:
                     StiffnessChecker.from_json(json_file_path=temp_fp)
-                # assert str(excinfo.value) == err_msg
+                assert str(excinfo.value) == err_msg
             else:
                 StiffnessChecker.from_json(json_file_path=temp_fp)
 

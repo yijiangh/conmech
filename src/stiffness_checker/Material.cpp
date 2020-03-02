@@ -66,6 +66,10 @@ void Material::setFromJson(const nlohmann::json &entry)
   // TODO: check unit
   // kN/cm^2 -> kN/m^2
   unit_conversion = 1e4;
+  if (!entry.contains("youngs_modulus") || !entry.contains("youngs_modulus_unit"))
+  {
+    throw std::runtime_error("Young\'s modulus property value not specified!");
+  }
   youngs_modulus_ = unit_conversion * double(entry["youngs_modulus"]);
 
   // TODO: add tensile strength
@@ -99,7 +103,8 @@ void Material::setFromJson(const nlohmann::json &entry)
   }
 
   // kN/m^3
-  if (!entry.contains("density_unit") || !entry.contains("density")){
+  if (!entry.contains("density_unit") || !entry.contains("density"))
+  {
     throw std::runtime_error("Density not specified!");
   }
   unit_conversion = convertDensityScale(entry["density_unit"]);
@@ -107,7 +112,8 @@ void Material::setFromJson(const nlohmann::json &entry)
 
   // cm^2 -> m^2
   unit_conversion = 1.0e-4;
-  if(!entry.contains("cross_sec_area")) {
+  if(!entry.contains("cross_sec_area")) 
+  {
     throw std::runtime_error("Cross section area property value not specified!");
   }
   cross_sec_area_ = unit_conversion * double(entry["cross_sec_area"]);
@@ -115,7 +121,8 @@ void Material::setFromJson(const nlohmann::json &entry)
   // cm^4 -> m^4
   if (!entry.contains("Jx") || 
       !entry.contains("Iy") ||
-      !entry.contains("Iz")){
+      !entry.contains("Iz"))
+  {
     throw std::runtime_error("Jx, Iy or Iz not specified!");
   }
   unit_conversion = 1.0e-8;
