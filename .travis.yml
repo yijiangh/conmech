@@ -6,38 +6,61 @@ branches:
     # under development
     - feature/cpp_test
 
-language: cpp
+language: python
 dist: trusty
+python:
+  - "3.6"
+
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    # - libc++-dev
+    - gcc-7
+    - g++-7
+
 matrix:
   include:
   - os: linux
     compiler: gcc # 4.8.4 by default on Trusty
     env:
-    - MATRIX_EVAL="export CONFIG=Release PYTHON=3"
+    - MATRIX_EVAL="export CONFIG=Release"
+
+  - os: linux
+    compiler: gcc-7
+    env:
+    - MATRIX_EVAL="export CC=gcc-7 CXX=g++-7 CONFIG=Release"
+
   - os: osx
     compiler: clang
     env:
-    - MATRIX_EVAL="export CONFIG=Debug PYTHON=3"
+    - MATRIX_EVAL="export CONFIG=Debug"
 
 install:
-  # - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then export PATH="/usr/local/opt/ccache/libexec:$PATH"; fi
   - eval "${MATRIX_EVAL}"
-  - pip install --no-cache-dir -r requirements-dev.txt
+  # - pip install numpy
 
 script:
-  # - mkdir build
-  # - pushd build
-  # - cmake .. -DCMAKE_BUILD_TYPE=$CONFIG #${CMAKE_EXTRA_ARGS}
-  # - make -j 2
-  # - ctest --verbose
-  # - popd
-  # - rm -rf build
-  # - pip install --no-cache-dir -r requirements-dev.txt
+  - mkdir build
+  - pushd build
+  - cmake .. -DCMAKE_BUILD_TYPE=$CONFIG #${CMAKE_EXTRA_ARGS}
+  - make -j 2
+  - ctest --verbose
+  - popd
+  - rm -rf build
+  - pip install --no-cache-dir -r requirements-dev.txt
+  # - python setup.py build --debug install
   - pytest
 
 after_success:
   - coveralls
 
+# pybind11 - cmake can't find the right python version if multiple versions exist
 # https://github.com/libigl/libigl/blob/master/.travis.yml
 # https://github.com/vgc/vgc/issues/42
 # https://github.com/vgc/vgc/blob/master/.travis.yml
+
+# reproduce travis ci failure locally with docker
+# https://stackoverflow.com/questions/29753560/how-to-reproduce-a-travis-ci-build-environment-for-debugging
+# https://gist.github.com/purp/0df77b579031127f10f31ebd202e8fd4

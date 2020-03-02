@@ -6,16 +6,20 @@ shallow_clone: true
 branches:
   only:
     - master
+
 environment:
   matrix:
   - CONFIG: Debug
     PYTHON: 37
   - CONFIG: Release
     PYTHON: 37
+
 install:
   - cinstall: python
+
 build:
   parallel: true
+
 build_script:
   - cd c:\projects\conmech
   - set PATH=C:\Python%PYTHON%-x64;C:\Python%PYTHON%-x64\Scripts;%PATH%
@@ -31,3 +35,7 @@ build_script:
 test_script:
   - set CTEST_OUTPUT_ON_FAILURE=1
   - ctest -C %CONFIG% --verbose --output-on-failure -j 2
+  - cd ..
+  - python -m pip install --upgrade pip
+  - pip install --no-cache-dir -r requirements-dev.txt
+  - pytest

@@ -16,7 +16,7 @@ add_library(conmech_stiffness_checker
 target_include_directories(conmech_stiffness_checker PUBLIC ..)
 
 # Use C++11
-# target_compile_features(${PROJECT_NAME} PUBLIC ${CXX11_FEATURES})
+target_compile_features(conmech_stiffness_checker PUBLIC ${CXX11_FEATURES})
 
 # header-only libraries linking
 # https://github.com/jpanetta/MeshFEM/blob/master/src/lib/MeshFEM/CMakeLists.txt
