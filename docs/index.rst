@@ -20,7 +20,7 @@ conmech
     :target: ./LICENSE
     :alt: License MIT
 
-.. .. image:: https://img.shields.io/badge/python-2.5+|3.x-blue
+.. image:: https://img.shields.io/badge/python-3.6|3.7-blue
     :target: https://pypi.org/project/pyconmech/
     :alt: PyPI - Python Version
 

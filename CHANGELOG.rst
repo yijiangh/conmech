@@ -8,6 +8,13 @@ All notable changes to this project will be documented in this file.
 The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_
 and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
+Unreleased
+-----------
+
+**Changed**
+
+- Changed ``-DCONMECH_BUILD_TESTS=OFF`` in ``setup_cmake_utils.py`` to disable cpp test building in ``python setup.py build``
+
 0.4.0
 -----------
 
