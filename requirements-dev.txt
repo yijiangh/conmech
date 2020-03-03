@@ -9,7 +9,7 @@ isort
 paramiko
 pylint
 # https://stackoverflow.com/questions/58189683/typeerror-attrib-got-an-unexpected-keyword-argument-convert
-pytest>=0.5.2
+pytest>=5.2.0
 pytest-cov
 python-coveralls
 scp

@@ -42,6 +42,7 @@ matrix:
     before_install:
       - python3 --version
       - pip3 install -U pip
+
   - name: "Python 3.7.5 on macOS xcode10.2"
     os: osx
     language: shell # 'language: python' is an error on Travis CI macOS
