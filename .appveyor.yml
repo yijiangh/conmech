@@ -38,4 +38,5 @@ test_script:
   - cd ..
   - python -m pip install --upgrade pip
   - pip install --no-cache-dir -r requirements-dev.txt
+  - python -c "from pyconmech import StiffnessChecker"
   - pytest

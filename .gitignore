@@ -52,3 +52,4 @@ abaqus.rpy
 .coverage
 
 docs/reference/generated
+src/pyconmech/cpp_stiffness_checker

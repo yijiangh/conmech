@@ -22,6 +22,7 @@ import os
 import sys
 import decimal
 
+from .cpp_stiffness_checker import *
 from .frame_analysis import StiffnessChecker
 from .database import *
 

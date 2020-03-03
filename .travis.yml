@@ -68,8 +68,10 @@ script:
   - |
     if [ "$TRAVIS_OS_NAME" == "linux" ]; then
       pip install --no-cache-dir -r requirements-dev.txt
+      python -c "from pyconmech import StiffnessChecker"
     elif [ "$TRAVIS_OS_NAME" == "osx" ]; then
       pip3 install --no-cache-dir -r requirements-dev.txt
+      python3 -c "from pyconmech import StiffnessChecker"
     fi
   - pytest
 
