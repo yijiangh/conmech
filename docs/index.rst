@@ -31,7 +31,11 @@ conmech
 
 .. Write project description
 
-**conmech** is an open-source library to provide efficient stiffness checkers for architectural construction sequencing. It's written in C++11 and wrapped friendly with Python via `pybind11 <https://github.com/pybind/pybind11>`_.
+**conmech** is a stiffness checker that performs elastic deformation analysis for 3D frame structures. 
+It is designed for construction sequencing applications, which involves testing
+the partially assembled structure (subset of element permutation) many times.
+
+**conmech** is written in C++11 and wrapped friendly with Python via `pybind11 <https://github.com/pybind/pybind11>`_.
 
 ========
 Contents

@@ -55,41 +55,36 @@ Build python bindings
 Prerequisites
 """""""""""""
 
-*conmech* depends on `Eigen <http://eigen.tuxfamily.org/index.php?title=Main_Page>`_ for linear algebra and `rapidjson <https://github.com/Tencent/rapidjson>`_ for json (de-)serialization, both of which are shipped with conmech.
-
 The following dependencies come from pybind11 for building the python wrappers.
 
 **On Unix (Linux, OS X)**
 
 * A compiler with C++11 support
-* CMake >= 2.8.12
+* CMake >= 3.1
 
 **On Windows**
 
 * Visual Studio 2015 (required for all Python versions, see notes below)
 * CMake >= 3.1
 
-*conmech*'s python bindings are built with a CMake-based build system via pybind11.
-**It is recommended (especially for Windows users) to test the environment with the** `cmake_example for pybind11 <https://github.com/pybind/cmake_example>`_ **before proceeding to build conmech.**
-
-Then, clone this repository and pip install. Note the ``--recursive`` option which is needed for cloning the submodules:
+Then, clone this repository and pip install.
 
 ::
 
-  git clone --recursive https://github.com/yijiangh/conmech
-  pip install ./conmech
-  # try with '--user' if you encountered a sudo problem
-
-Or for developers:
-
-::
-
-  git clone --recursive https://github.com/yijiangh/conmech
   cd conmech
-  python setup.py sdist
-  pip install --verbose dist/*.tar.gz
+  pip install .
 
 With the ``setup.py`` file included in the base folder, the pip install command will invoke CMake and build the pybind11 module as specified in CMakeLists.txt.
+
+**Note:**
+
+*conmech*'s python bindings are built with a CMake-based build system via pybind11.
+Take a look at `cmake_example for pybind11 <https://github.com/pybind/cmake_example>`_ 
+if you want to learn more about this.
+
+*conmech* depends on `Eigen <http://eigen.tuxfamily.org/index.php?title=Main_Page>`_ for linear algebra 
+and `nlohmann::json <https://github.com/nlohmann/json>`_ 
+for json (de-)serialization, both of which are handled automatically by cmake for downloading.
 
 Build C++ code
 ^^^^^^^^^^^^^^
@@ -99,7 +94,7 @@ Build C++ code
   mkdir build
   cd build
   cmake ..
-  make -j4 # Unix
+  make -j2 # Unix
 
 Or on Windows, replace the last line with
 
