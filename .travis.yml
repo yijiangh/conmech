@@ -8,8 +8,6 @@ branches:
 
 language: python
 dist: trusty
-python:
-  - "3.6"
 
 addons:
   apt:
@@ -23,35 +21,50 @@ addons:
 matrix:
   include:
   - os: linux
+    python: 3.6
+    compiler: gcc # 4.8.4 by default on Trusty
+    env:
+    - MATRIX_EVAL="export CONFIG=Release"
+  - os: linux
+    python: 3.7
     compiler: gcc # 4.8.4 by default on Trusty
     env:
     - MATRIX_EVAL="export CONFIG=Release"
 
   - os: linux
+    python: 3.6
+    compiler: gcc-7
+    env:
+    - MATRIX_EVAL="export CC=gcc-7 CXX=g++-7 CONFIG=Release"
+  - os: linux
+    python: 3.7
     compiler: gcc-7
     env:
     - MATRIX_EVAL="export CC=gcc-7 CXX=g++-7 CONFIG=Release"
 
-  - os: osx
+  - name: "Python 3.6.5 on macOS 10.13"
+    os: osx
     language: shell # 'language: python' is an error on Travis CI macOS
+    osx_image: xcode9.4  # Python 3.6.5 running on macOS 10.13
     compiler: clang
     env:
     - MATRIX_EVAL="export CONFIG=Debug"
+    before_install:
+      - python3 --version
+      - pip3 install -U pip
+  - name: "Python 3.7.3 on macOS"
+    os: osx
+    language: shell # 'language: python' is an error on Travis CI macOS
+    osx_image: xcode10.2  # https://blog.travis-ci.com/2019-08-07-extensive-python-testing-on-travis-ci
+    compiler: clang
+    env:
+    - MATRIX_EVAL="export CONFIG=Debug"
+    before_install:
+      - python3 --version
+      - pip3 install -U pip
 
-before_install:
+install:
   - eval "${MATRIX_EVAL}"
-  - |
-    if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-      brew update; brew install python3;
-      pip install --user --upgrade pip virtualenv;
-      python -m virtualenv -p python$PYTHON venv;
-      source venv/bin/activate;
-    fi
-  # https://stackoverflow.com/questions/49748063/pip-install-fails-for-every-package-could-not-find-a-version-that-satisfies
-  # curl https://bootstrap.pypa.io/get-pip.py | sudo python
-  # pip install --upgrade setuptools
-
-script:
   - mkdir build
   - pushd build
   - cmake .. -DCMAKE_BUILD_TYPE=$CONFIG #${CMAKE_EXTRA_ARGS}
@@ -59,8 +72,14 @@ script:
   - ctest
   - popd
   - rm -rf build
-  - pip install --no-cache-dir -r requirements-dev.txt
-  # - python setup.py build --debug install
+
+script:
+  - |
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+      pip install --no-cache-dir -r requirements-dev.txt
+    elif [ "$TRAVIS_OS_NAME" == "osx" ]; then
+      pip3 install --no-cache-dir -r requirements-dev.txt
+    fi
   - pytest
 
 after_success:
@@ -74,3 +93,6 @@ after_success:
 # reproduce travis ci failure locally with docker
 # https://stackoverflow.com/questions/29753560/how-to-reproduce-a-travis-ci-build-environment-for-debugging
 # https://gist.github.com/purp/0df77b579031127f10f31ebd202e8fd4
+
+# TypeError: attrib() got an unexpected keyword argument 'convert'
+# https://stackoverflow.com/questions/58189683/typeerror-attrib-got-an-unexpected-keyword-argument-convert
