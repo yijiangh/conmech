@@ -8,6 +8,8 @@ branches:
 
 language: python
 dist: trusty
+python:
+  - "3.6"
 
 addons:
   apt:
@@ -21,28 +23,16 @@ addons:
 matrix:
   include:
   - os: linux
-    python: 3.6
-    compiler: gcc # 4.8.4 by default on Trusty
-    env:
-    - MATRIX_EVAL="export CONFIG=Release"
-  - os: linux
-    python: 3.7
     compiler: gcc # 4.8.4 by default on Trusty
     env:
     - MATRIX_EVAL="export CONFIG=Release"
 
   - os: linux
-    python: 3.6
-    compiler: gcc-7
-    env:
-    - MATRIX_EVAL="export CC=gcc-7 CXX=g++-7 CONFIG=Release"
-  - os: linux
-    python: 3.7
     compiler: gcc-7
     env:
     - MATRIX_EVAL="export CC=gcc-7 CXX=g++-7 CONFIG=Release"
 
-  - name: "Python 3.6.5 on macOS 10.13"
+  - name: "Python 3.7.5 on macOS xcode9.4"
     os: osx
     language: shell # 'language: python' is an error on Travis CI macOS
     osx_image: xcode9.4  # Python 3.6.5 running on macOS 10.13
@@ -52,7 +42,7 @@ matrix:
     before_install:
       - python3 --version
       - pip3 install -U pip
-  - name: "Python 3.7.3 on macOS"
+  - name: "Python 3.7.5 on macOS xcode10.2"
     os: osx
     language: shell # 'language: python' is an error on Travis CI macOS
     osx_image: xcode10.2  # https://blog.travis-ci.com/2019-08-07-extensive-python-testing-on-travis-ci
