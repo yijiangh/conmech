@@ -23,14 +23,12 @@ void createLocalStiffnessMatrix(const double &L, const double &A, const int &dim
       return;
     case 3:
     {
-      // K_eL = Eigen::MatrixXd::Zero(12,12);
-      K_eL = Eigen::Matrix<double, 12, 12>();
-      K_eL.setZero();
+      K_eL = Eigen::MatrixXd::Zero(12,12);
 
       // see: [Matrix Structural Analysis, McGuire et al., 2rd edition]
       // P73 - eq(4.34)
       Eigen::MatrixXd K_block(6,6);
-      // K_block.setZero();
+      K_block.setZero();
       Eigen::VectorXd diag(6);
 
       // block_00 and block_11
@@ -91,10 +89,9 @@ void createLocalStiffnessMatrix(const double &L, const double &A, const int &dim
  * @param[out] rot_m 3x3 Eigen matrix, transforming global axis to local coordinate frame
  * @param[in] rot_y2x optional rotation of local y axis around the local x axis, defaults to zero
  */
-template <typename DerivedV>
 void getGlobal2LocalRotationMatrix(
-    const Eigen::MatrixBase<DerivedV> & end_vert_u,
-    const Eigen::MatrixBase<DerivedV> & end_vert_v,
+    const Eigen::VectorXd & end_vert_u,
+    const Eigen::VectorXd & end_vert_v,
     Eigen::Matrix3d& rot_m,
     const double& rot_y2x)
 {
@@ -163,6 +160,15 @@ void getGlobal2LocalRotationMatrix(
 
     rot_m = R;
   }
+}
+
+void getNodePoints(const Eigen::MatrixXd& Vertices, const int& end_u_id, const int& end_v_id, 
+  Eigen::VectorXd& end_u, Eigen::VectorXd& end_v)
+{
+  end_u = Eigen::VectorXd(3);
+  end_u << Vertices(end_u_id, 0), Vertices(end_u_id, 1), Vertices(end_u_id, 2);
+  end_v = Eigen::VectorXd(3);
+  end_v << Vertices(end_v_id, 0), Vertices(end_v_id, 1), Vertices(end_v_id, 2);
 }
 
 } // namespace stiffness_checker

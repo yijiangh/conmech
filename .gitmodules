@@ -1,3 +1,0 @@
-[submodule "tests/assembly_instances"]
-	path = tests/assembly_instances
-	url = https://github.com/yijiangh/assembly_instances

@@ -58,44 +58,7 @@ def confirm(question):
         if response in ('y', 'yes'):
             return True
 
-        print('Focus, kid! It is either (y)es or (n)o', file=sys.stderr)
-
-
-# The IronPython install code is based on gh_python_remote
-# https://github.com/Digital-Structures/ghpythonremote
-# MIT License
-# Copyright (c) 2017 Pierre Cuvilliers, Caitlin Mueller, Massachusetts Institute of Technology
-# def get_ironpython_path(rhino_version):
-#     appdata_path = os.getenv('APPDATA', '')
-#     ironpython_settings_path = os.path.join(appdata_path, 'McNeel', 'Rhinoceros', rhino_version, 'Plug-ins',
-#                                             'IronPython (814d908a-e25c-493d-97e9-ee3861957f49)', 'settings')
-#
-#     if not os.path.isdir(ironpython_settings_path):
-#         return None
-#
-#     return ironpython_settings_path
-#
-#
-# def replaceText(node, newText):
-#     if node.firstChild.nodeType != node.TEXT_NODE:
-#         raise Exception("Node does not contain text")
-#
-#     node.firstChild.replaceWholeText(newText)
-#
-#
-# def updateSearchPaths(settings_file, python_source_path):
-#     with codecs.open(settings_file, 'r', encoding="ascii", errors="ignore") as file_handle:
-#         doc = parse(file_handle)
-#
-#     for entry in doc.getElementsByTagName('entry'):
-#         if entry.getAttribute('key') == 'SearchPaths':
-#             current_paths = entry.firstChild.data
-#             if python_source_path not in current_paths:
-#                 replaceText(entry, current_paths + ';' + python_source_path)
-#
-#     with codecs.open(settings_file, 'w', encoding='utf-8') as file_handle:
-#         doc.writexml(file_handle)
-
+        print('Focus! It is either (y)es or (n)o', file=sys.stderr)
 
 @task(default=True)
 def help(ctx):
@@ -212,7 +175,7 @@ def test(ctx, checks=True, build=False):
 
         if build:
             log.write('Checking build')
-            ctx.run('python setup.py clean --all sdist') #bdist_wheel
+            ctx.run('python setup.py clean --all sdist bdist_wheel')
             if sys.platform == 'win32':
                 ctx.run('powershell -Command "& pip install --verbose $(ls dist/*.tar.gz | % {$_.FullName})"')
             else:
@@ -220,7 +183,7 @@ def test(ctx, checks=True, build=False):
 
         log.write('Running pytest')
         # ctx.run('pytest --doctest-module')
-        ctx.run('pytest')
+        ctx.run('pytest --cov=pybullet_planning tests')
 
 
 @task(help={
@@ -247,38 +210,6 @@ def release(ctx, release_type, bump_version=False):
         else:
             raise Exit('Aborted release')
 
-
-# @task()
-# def add_to_rhino(ctx):
-#     """Adds the current project to Rhino Python search paths."""
-#     try:
-#         python_source_path = os.path.join(os.getcwd(), 'src')
-#         rhino_setting_per_version = [
-#             ('5.0', 'settings.xml'), ('6.0', 'settings-Scheme__Default.xml')]
-#         setting_files_updated = 0
-#
-#         for version, filename in rhino_setting_per_version:
-#             ironpython_path = get_ironpython_path(version)
-#
-#             if not ironpython_path:
-#                 continue
-#
-#             settings_file = os.path.join(ironpython_path, filename)
-#             if not os.path.isfile(settings_file):
-#                 log.warn('IronPython settings for Rhino ' + version + ' not found')
-#             else:
-#                 updateSearchPaths(settings_file, python_source_path)
-#                 log.write('Updated search path for Rhino ' + version)
-#                 setting_files_updated += 1
-#
-#         if setting_files_updated == 0:
-#             raise Exit('[ERROR] No Rhino settings file found\n' +
-#                        'Could not automatically make this project available to IronPython\n' +
-#                        'To add manually, open EditPythonScript on Rhinoceros, go to Tools -> Options\n' +
-#                        'and add the project path to the module search paths')
-#
-#     except RuntimeError as error:
-#         raise Exit(error)
 
 @contextlib.contextmanager
 def chdir(dirname=None):

@@ -1,0 +1,42 @@
+version: 1.0.{build}
+os: Visual Studio 2017
+platform: x64
+clone_folder: C:\projects\conmech
+shallow_clone: true
+branches:
+  only:
+    - master
+
+environment:
+  matrix:
+  - CONFIG: Debug
+    PYTHON: 37
+  - CONFIG: Release
+    PYTHON: 37
+
+install:
+  - cinstall: python
+
+build:
+  parallel: true
+
+build_script:
+  - cd c:\projects\conmech
+  - set PATH=C:\Python%PYTHON%-x64;C:\Python%PYTHON%-x64\Scripts;%PATH%
+  - mkdir build
+  - cd build
+  - cmake -DCMAKE_BUILD_TYPE=%CONFIG%
+      -G "Visual Studio 15 2017 Win64"
+      ../
+  - set MSBuildLogger="C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
+  - set MSBuildOptions=/v:m /m /p:BuildInParallel=true /p:Configuration=%CONFIG% /logger:%MSBuildLogger%
+  - msbuild %MSBuildOptions% conmech.sln
+
+test_script:
+  - set CTEST_OUTPUT_ON_FAILURE=1
+  - ctest -C %CONFIG% --output-on-failure -j 2
+  - cd ..
+  - python -m pip install --upgrade pip
+  - pip install --no-cache-dir -r requirements-dev.txt
+  - python -c "from pyconmech import StiffnessChecker"
+  - pytest

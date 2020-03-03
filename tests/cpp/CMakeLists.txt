@@ -2,15 +2,24 @@
 # Independent binaries
 ################################################################################
 # https://github.com/jpanetta/MeshFEM/blob/master/tests/CMakeLists.txt
+# https://github.com/libigl/libigl/blob/master/tests/CMakeLists.txt
 
-add_executable(unit_tests
+# Create test executable
+add_executable(conmech_tests
 	main.cpp
+	test_common.h
     test_memory_leak.cpp
+    test_io.cpp
 )
 
-target_link_libraries(unit_tests PUBLIC
-	# Catch2::Catch2
-	stiffness_checker_lib
+# Set DATA_DIR definition
+set(CONMECH_TEST_DATA "${CMAKE_CURRENT_SOURCE_DIR}/../test_data/")
+target_compile_definitions(conmech_tests PUBLIC -DCONMECH_DATA_DIR="${CONMECH_TEST_DATA}")
+
+target_link_libraries(conmech_tests PUBLIC
+	Catch2::Catch2
+	json::json
+	conmech::stiffness_checker
 )
 
 # if (MSVC)
@@ -20,41 +29,8 @@ target_link_libraries(unit_tests PUBLIC
 
 # Register tests
 include(CTest)
-# include(Catch)
-# catch_discover_tests(unit_tests)
+include(Catch)
+# set(PARSE_CATCH_TESTS_ADD_TO_CONFIGURE_DEPENDS ON)
+catch_discover_tests(conmech_tests)
 
-add_test(unit_tests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/unit_tests)
-
-#################################################
-
-# message( STATUS "Tests included" )
-
-# add_executable(conmech_tests
-# hello_catch.cpp
-# )
-# # target_link_libraries(inja_test PRIVATE inja)
-
-# add_test(conmech_tests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/conmech_tests)
-
-# add_executable(inja_test
-# test/unit.cpp
-# test/unit-files.cpp
-# test/unit-renderer.cpp
-# )
-# target_link_libraries(inja_test PRIVATE inja)
-
-# add_test(inja_test ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/inja_test)
-
-
-# add_library(single_inja INTERFACE)
-# target_compile_features(single_inja INTERFACE cxx_std_11)
-# target_include_directories(single_inja INTERFACE single_include include third_party/include)
-
-# add_executable(single_inja_test
-# test/unit.cpp
-# test/unit-files.cpp
-# test/unit-renderer.cpp
-# )
-# target_link_libraries(single_inja_test PRIVATE single_inja)
-
-# add_test(single_inja_test ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/single_inja_test)
+add_test(conmech_tests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/conmech_tests)

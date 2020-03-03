@@ -8,6 +8,10 @@ conmech
     :target: https://travis-ci.com/yijiangh/conmech
     :alt: Travis CI
 
+.. image:: https://ci.appveyor.com/api/projects/status/k0f10bas2fj4uqww?svg=true
+    :target: https://ci.appveyor.com/project/yijiangh/conmech
+    :alt: Appveyor CI
+
 .. image:: https://readthedocs.org/projects/conmech/badge/?version=latest
     :target: https://conmech.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
@@ -16,18 +20,22 @@ conmech
     :target: ./LICENSE
     :alt: License MIT
 
-.. image:: https://img.shields.io/badge/python-2.5+|3.x-blue
+.. image:: https://img.shields.io/badge/python-3.6|3.7-blue
     :target: https://pypi.org/project/pyconmech/
     :alt: PyPI - Python Version
 
-.. image:: https://img.shields.io/badge/pypi-v0.1.1-orange
+.. .. image:: https://img.shields.io/badge/pypi-v0.1.1-orange
     :target: https://pypi.org/project/pyconmech/
     :alt: PyPI - Latest Release
 .. end-badges
 
 .. Write project description
 
-**conmech** is an open-source library to provide efficient stiffness checkers for architectural construction sequencing. It's written in C++11 and wrapped friendly with Python via `pybind11 <https://github.com/pybind/pybind11>`_.
+**conmech** is a stiffness checker that performs elastic deformation analysis for 3D frame structures. 
+It is designed for construction sequencing applications, which involves testing
+the partially assembled structure (subset of element permutation) many times.
+
+**conmech** is written in C++11 and wrapped friendly with Python via `pybind11 <https://github.com/pybind/pybind11>`_.
 
 ========
 Contents
@@ -38,7 +46,7 @@ Contents
 
    readme
    under_the_hood/index
-   reference/index
+   reference
    developer_notes/index
    contributing
    authors

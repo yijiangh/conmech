@@ -4,6 +4,8 @@ Some commonly used material properties.
 """
 __all__ = ['MATERIAL_PROPERTY_DATABASE']
 
+"""material properties library: Steel, PLA
+"""
 MATERIAL_PROPERTY_DATABASE = {
     'Steel-S235' : {
         "material_name": "Steel-S235",

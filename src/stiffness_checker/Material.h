@@ -5,25 +5,21 @@ namespace conmech
 {
 namespace material
 {
+double computeShearModulus(const double& E, const double& poisson_ratio);
 
-struct ConstantMaterial
+double computePoissonRatio(const double& E, const double& G);
+
+struct Material
 {
  public:
   // https://github.com/jpanetta/MeshFEM/blob/master/src/lib/MeshFEM/Materials.hh
-  ConstantMaterial(){}
+  Material(){}
+  Material(const std::string& file_path);
+  Material(const nlohmann::json& config);
 
-  // ~ConstantMaterial(){};
-  void setFromFile(const std::string &materialFile);
-  void setFromJson(const nlohmann::json &config);
+  void setFromFile(const std::string& materialFile);
+  void setFromJson(const nlohmann::json& config);
   nlohmann::json getJson() const;
-
-  double getShearModulus(const double& E, const double& poisson_ratio) { return 0.5 * E / (1 + poisson_ratio); }
-  double getPoissonRatio(const double& E, const double& G) { return (E / (2.0*G) - 1); }
-
-  /**
-   * material density, unit: kN/m^3
-   */
-  double density_;
 
   /**
    * unit: kN/m^2
@@ -36,17 +32,22 @@ struct ConstantMaterial
   double shear_modulus_;
 
   /**
-   * unit: kN/m^2
-   */
-  double tensile_yeild_stress_;
-
-  /**
    * unit: [] (unitless)
    * G = E / 2(1+mu),
    * where G is shear modulus, E is Young's modulus
    * mu is poission ratio
    */
   double poisson_ratio_;
+
+  /**
+   * unit: kN/m^2
+   */
+  double tensile_yeild_stress_;
+
+  /**
+   * material density, unit: kN/m^3
+   */
+  double density_;
 
   // TODO: this radius should be associated with geometry
   /**
@@ -68,6 +69,9 @@ struct ConstantMaterial
   double Iy_;
   double Iz_;
 };
+
+
+void parseMaterialPropertiesJson(const nlohmann::json& entry, Material& M);
 
 } // ns stiffness_checker
 } // ns conmech

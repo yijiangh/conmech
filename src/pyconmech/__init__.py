@@ -7,12 +7,10 @@ pyconmech
 
 This library provides python wrappers for efficient evaluation of construction mechanics.
 
-
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
     pyconmech.frame_analysis
-
     pyconmech.database
 
 """
@@ -24,6 +22,7 @@ import os
 import sys
 import decimal
 
+from .cpp_stiffness_checker import *
 from .frame_analysis import StiffnessChecker
 from .database import *
 

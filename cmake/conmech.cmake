@@ -10,19 +10,20 @@ set(CONMECH_EXTERNAL "${CONMECH_ROOT}/ext")
 # Download and update 3rdparty libraries
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
+# C++11/14 features
+include(CXXFeatures)
+
+# https://github.com/jpanetta/MeshFEM/blob/master/CMakeLists.txt#L67
+# We need -fPIC when compiling our libraries and our dependencies for
+# the python bindings (shared libraries) to link.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 ################################################################################
 # Dependencies
 ################################################################################
 
 # Download and define targets for third-party dependencies
 include(ConmechDependencies)
-
-# for now, eigen is shipped with conmech
-# find_package(Eigen REQUIRED)
-# set(EIGEN_INCLUDE_DIRS ${CONMECH_EXTERNAL}/eigen)
-# set(RAPIDJSON_INCLUDE_DIRS ${CONMECH_EXTERNAL}/rapidjson/include)
-
-# add_subdirectory(${CONMECH_EXTERNAL})
 
 ################################################################################
 # Subdirectories

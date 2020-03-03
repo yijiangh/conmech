@@ -1,13 +1,6 @@
-global-include CMakeLists.txt *.cmake
+global-include CMakeLists.txt *.cmake *.cmake.in
 graft src
 prune src/stiffness_checker/matlab
-prune src/stiffness_checker/test
-
-recursive-include ext/pybind11/include *.h
-recursive-include ext/rapidjson/include *.h
-graft ext/eigen/Eigen
-prune ext/eigen/Eigen/test
-prune ext/eigen/Eigen/failtest
 
 prune docs
 prune tests
