@@ -13,11 +13,6 @@ matrix:
     env:
     - MATRIX_EVAL="export CONFIG=Release"
     - PYTHON=2.7 GCC=4.8
-    addons:
-      apt:
-        packages:
-          - cmake=3.\*
-          - cmake-data=3.\*
 
   - name: "Python 3.6, gcc 4.8"
     os: linux
@@ -32,15 +27,13 @@ matrix:
         packages:
           - python3.6-dev
           - python3.6-venv
-          - cmake=3.\*
-          - cmake-data=3.\*
 
-  - name: "PYTHON 3.6 gcc 7"
+  - name: "Python 3.6, gcc 7"
     os: linux
     dist: xenial
     env:
     - MATRIX_EVAL="export CONFIG=Release"
-    - PYTHON=3.6 GCC=4.8
+    - PYTHON=3.6 GCC=7
     addons:
       apt:
         sources:
@@ -148,7 +141,7 @@ script:
   # pip setup install and pytest
   $PY_CMD setup.py sdist
   $PY_CMD -m pip install --user -U ./dist/*
-  $PY_CMD -m pytest -cov=pyconmech
+  $PY_CMD -m pytest
   popd
   $PY_CMD -c "from _pystiffness_checker import _StiffnessChecker"
   $PY_CMD -c "from pyconmech import StiffnessChecker"
@@ -157,7 +150,7 @@ script:
   set -ex
   # pip install requirements
   $PY_CMD -m pip install --no-cache-dir -r requirements-dev.txt
-  $PY_CMD -m pytest -cov=pyconmech
+  $PY_CMD -m pytest --cov=pyconmech tests
 
 after_success:
   - coveralls
