@@ -19,7 +19,7 @@ matrix:
     dist: trusty
     env:
     - MATRIX_EVAL="export CONFIG=Release"
-    - PYTHON=3.7 GCC=4.8
+    - PYTHON=3.6 GCC=4.8
     addons:
       apt:
         sources:
@@ -119,7 +119,7 @@ install:
   set -ex
   cmake --version
   echo "Installing pytest, numpy..."
-  $PY_CMD -m pip install --user --upgrade numpy pytest python-coveralls
+  $PY_CMD -m pip install --user --upgrade numpy pytest
   echo "done."
   set +ex
 
@@ -151,6 +151,7 @@ script:
   # pip install requirements
   $PY_CMD -m pip install --no-cache-dir -r requirements-dev.txt
   $PY_CMD -m pytest --cov=pyconmech tests
+  set +ex
 
 after_success:
   - coveralls

@@ -53,3 +53,5 @@ abaqus.rpy
 
 docs/reference/generated
 src/pyconmech/cpp_stiffness_checker
+
+tests/python/tmp_*.json

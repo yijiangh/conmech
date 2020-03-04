@@ -16,5 +16,4 @@ scp
 sphinx>=1.5
 sphinx_rtd_theme
 twine
-backports.tempfile # needed for test
 -e .
