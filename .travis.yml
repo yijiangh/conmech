@@ -129,11 +129,11 @@ script:
   set -ex
   eval "${MATRIX_EVAL}"
   mkdir build
-  pushd build
+  cd build
   cmake .. -DCMAKE_BUILD_TYPE=$CONFIG #${CMAKE_EXTRA_ARGS}
   make -j 2
   ctest
-  popd
+  cd ..
   rm -rf build
   set +ex
 - |
