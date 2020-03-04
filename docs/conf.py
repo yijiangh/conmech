@@ -10,7 +10,7 @@ project = 'conmech'
 year = '2020'
 author = 'Yijiang Huang'
 copyright = '{0}, {1}'.format(year, author)
-version = release = '0.4.2'
+version = release = '0.4.3'
 
 master_doc = 'index'
 source_suffix = '.rst'
