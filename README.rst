@@ -24,6 +24,10 @@ conmech
     :target: https://pypi.org/project/pyconmech/
     :alt: PyPI - Python Version
 
+.. image:: https://coveralls.io/repos/github/yijiangh/conmech/badge.svg?branch=master
+    :target: https://coveralls.io/github/yijiangh/conmech?branch=master
+    :alt: Coveralls
+
 .. .. image:: https://img.shields.io/badge/pypi-v0.3.1-orange
     :target: https://pypi.org/project/pyconmech/
     :alt: PyPI - Latest Release
