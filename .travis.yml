@@ -54,6 +54,9 @@ matrix:
       - python3 --version
       - pip3 install -U pip
 
+# set -ex
+# https://www.peterbe.com/plog/set-ex
+
 install:
   - eval "${MATRIX_EVAL}"
   - mkdir build

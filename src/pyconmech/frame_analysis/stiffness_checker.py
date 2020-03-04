@@ -7,10 +7,6 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
-if sys.version_info[0] < 3:
-    from backports import tempfile
-else:
-    import tempfile
 
 import os
 import json
