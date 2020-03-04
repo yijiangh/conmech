@@ -142,7 +142,6 @@ script:
   $PY_CMD setup.py sdist
   $PY_CMD -m pip install --user -U ./dist/*
   $PY_CMD -m pytest
-  cd ..
   $PY_CMD -c "from _pystiffness_checker import _StiffnessChecker"
   $PY_CMD -c "from pyconmech import StiffnessChecker"
   set +ex
