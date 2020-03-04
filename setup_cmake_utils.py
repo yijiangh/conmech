@@ -43,13 +43,13 @@ class CMakeBuild(build_ext):
 
     def build_extension(self, ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
-        execdir = sys.exec_prefix
+        # execdir = sys.exec_prefix
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
                       '-DPYTHON_EXECUTABLE=' + sys.executable,
-                      '-DPYTHON_LIBRARY=' + os.path.join(execdir, 'lib', ),
-                      '-DPYTHON_INCLUDE_DIR=' + ,
-                      '-DCONMECH_BUILD_TESTS=OFF']
+                    #   '-DPYTHON_LIBRARY=' + os.path.join(execdir, 'lib', ),
+                    #   '-DPYTHON_INCLUDE_DIR=' + ,
                       # disable cpp test because we exclude them in MANIFEST.in
+                      '-DCONMECH_BUILD_TESTS=OFF']
 
         # build against the non-system (homebrew, etc.) Python install
         # https://github.com/pybind/pybind11/issues/99#issuecomment-207782425
