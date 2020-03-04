@@ -76,7 +76,8 @@ Then, clone this repository and pip install.
 ::
 
   cd conmech
-  pip install .
+  python pip install .
+  # or python3
 
 With the ``setup.py`` file included in the base folder, the pip install command will invoke CMake and build the pybind11 module as specified in CMakeLists.txt.
 
