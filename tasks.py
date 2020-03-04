@@ -183,7 +183,7 @@ def test(ctx, checks=True, build=False):
 
         log.write('Running pytest')
         # ctx.run('pytest --doctest-module')
-        ctx.run('pytest --cov=pybullet_planning tests')
+        ctx.run('pytest --cov=pyconmech tests')
 
 
 @task(help={

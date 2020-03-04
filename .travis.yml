@@ -1,15 +1,10 @@
 # * conmech
-branches:
+# branches:
 #   only:
-#   - .
-  except:
-    # under development
-    - feature/cpp_test
+#   except:
 
 language: python
 dist: trusty
-python:
-  - "3.6"
 
 addons:
   apt:
@@ -22,37 +17,55 @@ addons:
 
 matrix:
   include:
-  - os: linux
+  - name: "linux with py2.7 gcc"
+    os: linux
     compiler: gcc # 4.8.4 by default on Trusty
     env:
     - MATRIX_EVAL="export CONFIG=Release"
+    - PYTHON=2.7
 
-  - os: linux
-    compiler: gcc-7
+  - name: "linux with py3.7 gcc"
+    os: linux
+    compiler: gcc # 4.8.4 by default on Trusty
     env:
-    - MATRIX_EVAL="export CC=gcc-7 CXX=g++-7 CONFIG=Release"
+    - MATRIX_EVAL="export CONFIG=Release"
+    - PYTHON=3.7
 
-  - name: "Python 3.7.5 on macOS xcode9.4"
-    os: osx
-    language: shell # 'language: python' is an error on Travis CI macOS
-    osx_image: xcode9.4  # Python 3.6.5 running on macOS 10.13
-    compiler: clang
-    env:
-    - MATRIX_EVAL="export CONFIG=Debug"
-    before_install:
-      - python3 --version
-      - pip3 install -U pip
+  # - os: linux
+  #   compiler: gcc-7
+  #   env:
+  #   - MATRIX_EVAL="export CC=gcc-7 CXX=g++-7 CONFIG=Release"
 
-  - name: "Python 3.7.5 on macOS xcode10.2"
+  - name: "macOS xcode10.2 with py2.7"
     os: osx
     language: shell # 'language: python' is an error on Travis CI macOS
     osx_image: xcode10.2  # https://blog.travis-ci.com/2019-08-07-extensive-python-testing-on-travis-ci
+    # osx_image: xcode9.4  # Python 3.6.5 running on macOS 10.13
     compiler: clang
     env:
     - MATRIX_EVAL="export CONFIG=Debug"
-    before_install:
-      - python3 --version
-      - pip3 install -U pip
+    - PYTHON=2.7
+
+  - name: "macOS xcode10.2 with py3.7"
+    os: osx
+    language: shell # 'language: python' is an error on Travis CI macOS
+    osx_image: xcode10.2  # https://blog.travis-ci.com/2019-08-07-extensive-python-testing-on-travis-ci
+    # osx_image: xcode9.4  # Python 3.6.5 running on macOS 10.13
+    compiler: clang
+    env:
+    - MATRIX_EVAL="export CONFIG=Debug"
+    - PYTHON=3.7
+
+before_install:
+- python --version
+- |
+  if [ "$TRAVIS_OS_NAME" == "osx" ] && [ "${PYTHON:0:1}" == "3" ]; then
+    brew update; brew install python3;
+  fi
+  pip install --user --upgrade pip virtualenv;
+  python -m virtualenv -p python$PYTHON venv;
+  source venv/bin/activate;
+- python --version
 
 install:
   - eval "${MATRIX_EVAL}"
@@ -65,15 +78,11 @@ install:
   - rm -rf build
 
 script:
-  - |
-    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-      pip install --no-cache-dir -r requirements-dev.txt
-      python -c "from pyconmech import StiffnessChecker"
-    elif [ "$TRAVIS_OS_NAME" == "osx" ]; then
-      pip3 install --no-cache-dir -r requirements-dev.txt
-      python3 -c "from pyconmech import StiffnessChecker"
-    fi
+  - pip install --no-cache-dir -r requirements-dev.txt
   - pytest
+  # try import from a different path
+  - popd
+  - python -c "from pyconmech import StiffnessChecker"
 
 after_success:
   - coveralls
