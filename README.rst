@@ -47,7 +47,9 @@ Installation
 
 ::
 
-  pip install pyconmech
+  python -m pip install pyconmech --user
+  # or python3 if default python is 2.x (OSX or Linux)
+  # try the following flags when updating: --user --upgrade --force
 
 
 Build from source
@@ -76,8 +78,9 @@ Then, clone this repository and pip install.
 ::
 
   cd conmech
-  python pip install .
-  # or python3
+  python -m pip install .
+  # or python3 if default python is 2.x (OSX or Linux)
+  # try the following flags when updating: --user --upgrade --force 
 
 With the ``setup.py`` file included in the base folder, the pip install command will invoke CMake and build the pybind11 module as specified in CMakeLists.txt.
 
