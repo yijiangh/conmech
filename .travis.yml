@@ -67,6 +67,9 @@ before_install:
   source venv/bin/activate;
 - python --version
 
+# set -ex
+# https://www.peterbe.com/plog/set-ex
+
 install:
   - eval "${MATRIX_EVAL}"
   - mkdir build
