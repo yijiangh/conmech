@@ -1,5 +1,8 @@
 import numpy as np
+from numpy.linalg import norm
 from .stiffness_base import StiffnessBase
+
+EPS = 1e-10
 
 """
 # Variables:
@@ -71,12 +74,13 @@ def axial_stiffness_matrix(L, A, E):
 
     Return
     ------
-    K_ax_x : 2x2 numpy matrix
+    K_ax_x : 2x2 numpy array
     """
     K = np.ones([2,2])
     K[0,1] = -1.
     K[1,0] = -1.
-    return K * (A*E/L)
+    K *= (A*E/L)
+    return K
 
 
 def torsional_stiffness_matrix(L, J, G):
@@ -97,13 +101,14 @@ def torsional_stiffness_matrix(L, J, G):
 
     Return
     ------
-    K_tor_x : 2x2 numpy matrix
+    K_tor_x : 2x2 numpy array
     """
     return axial_stiffness_matrix(L, J, G)
 
 
-def bending_stiffness_matrix(L, E, Iz):
-    """uniform beam element without transverse shear deformation
+def bending_stiffness_matrix(L, E, Iz, axis=2):
+    """stiffness matrix of uniform beam element without the 
+    transverse shear deformation
 
     Here the stress-strain (\sigma ~ \epsilon) turns into 
     bending moment-curvature (M ~ \kappa).
@@ -134,26 +139,122 @@ def bending_stiffness_matrix(L, E, Iz):
     Iz : [type]
         moment of inertia of the section about the z axis
             Iz = \int_A y^2 dA
+    axis: int
+        1 = local y axis , 2 = local z axis, default to 2
 
     Return
     ------
-    K_bend_z : 4x4 numpy matrix
+    K_bend_z : 4x4 numpy array
     """
     K = np.zeros([4,4])
-    K[0,:] = np.array([12., 6*L, -12., 6*L])
-    K[1,:] = np.array([6*L, 4*(L**2), -6*L, 2*(L**2)])
+    sign = 1. if axis==2 else -1.
+    K[0,:] = np.array([12.,      sign*6*L, -12.,      sign*6*L])
+    K[1,:] = np.array([sign*6*L, 4*(L**2), sign*-6*L, 2*(L**2)])
     K[2,:] = -K[0,:]
-    K[3,:] = np.array([6*L, 2*(L**2), -6*L, 4*(L**2)])
-    return K*(E*Iz/L**3)
+    K[3,:] = np.array([sign*6*L, 2*(L**2), -sign*6*L, 4*(L**2)])
+    K *= (E*Iz/L**3)
+    return K
 
+def mu2G(mu, E):
+    return E/(2*(1+mu))
 
-def create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, G, mu, dim=3):
-    # if dim != 3:
-    raise NotImplementedError()
-    # assembly components
+def G2mu(G, E):
+    return E/(2*G)-1
 
-def global2local_transf_matrix():
-    pass
+def create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, mu):
+    """complete 12x12 stiffness matrix for a bisymmetrical member.
+
+        Since for small displacements the axial force effects, torsion,
+        and bending about each axis are uncoupled, the influence coeff
+        **relating** these effects are zero.
+    
+    Parameters
+    ----------
+    L : float
+        element length
+    A : float
+        cross section area
+    Jx : float
+        torsional constant, unit: length unit^4
+        In the case of circular, cylindrical shaft, it's equal to
+        the polar moment of inertia of the cross section.
+    Iy : float
+        moment of inertia \int_A z^2 dA
+    Iz : float
+        moment of inertia \int_A y^2 dA
+    E : float
+        Young's modulus
+    mu : float
+        Poisson ratio
+    
+    Returns
+    -------
+    K : 12x12 numpy array
+    """
+    G = mu2G(mu, E)
+    # Fx1, Fx2 : u1, u2
+    # 0, 6 : 0, 6
+    axial_x_k = axial_stiffness_matrix(L, A, E)
+    # Mx1, Mx2 : \theta_x1, \theta_x2
+    # 3, 9 : 3, 9
+    tor_x_k = torsional_stiffness_matrix(L, Jx, G)
+
+    # Fy1, Mz1, Fy2, Mz2 : v1, \theta_z1, v2, \theta_z2
+    # 1, 5, 7, 11 : 1, 5, 7, 11
+    bend_z_k = bending_stiffness_matrix(L, E, Iz, axis=2)
+    # Fz1, My1, Fz2, My2 : v1, \theta_z1, v2, \theta_z2
+    # 2, 4, 8, 10 : 2, 4, 8, 10
+    bend_y_k = bending_stiffness_matrix(L, E, Iz, axis=1)
+
+    K = np.zeros([12,12])
+    K[np.ix_([0,6], [0,6])] += axial_x_k
+    K[np.ix_([3,9], [3,9])] += tor_x_k
+    K[np.ix_([1,5,7,11], [1,5,7,11])] += bend_z_k
+    K[np.ix_([2,4,8,10], [2,4,8,10])] += bend_y_k
+    return K
+
+def global2local_transf_matrix(end_vert_u, end_vert_v, rot_y2x=0.0):
+    assert len(end_vert_u) == len(end_vert_v)
+    assert len(end_vert_u) == 2 or len(end_vert_u) == 3
+    dim = len(end_vert_u)
+    L = norm(end_vert_u-end_vert_v)
+    assert L > 1e-6
+
+    # by convention, the new x axis is along the element's direction
+    # directional cosine of the new x axis in the global world frame
+    c_x = (end_vert_v[0] - end_vert_u[0])/L
+    c_y = (end_vert_v[1] - end_vert_u[1])/L
+    R = np.zeros([3,3])
+
+    if 3 == dim:
+        c_z = (end_vert_v[2] - end_vert_u[2]) / L
+        # TODO rotaxis
+        if abs(abs(c_z) - 1.0) < EPS:
+            # the element is parallel to global z axis
+            # cross product is not defined, in this case
+            # it's just a rotation about the global z axis
+            # in x-y plane
+            R[0, 2] = -c_z
+            R[1, 1] = 1
+            R[2, 0] = c_z
+        else:
+            # local x_axis = element's vector
+            new_x = np.array([c_x, c_y, c_z])
+            # local y axis = cross product with global z axis
+            new_y = -np.cross(new_x, [0,0,1.0])
+            new_y /= norm(new_y)
+            new_z = np.cross(new_x, new_y)
+            R[0, :] = new_x
+            R[1, :] = new_y
+            R[2, :] = new_z
+        # R = R * rot_axis;
+    elif 2 == dim:
+        R[0,:] = [c_x, c_y, 0]
+        R[1,:] = [-c_y, c_x, 0]
+        R[2,2] = 1.0
+        # TODO check rotaxis
+    return R
+
 
 class NumpyStiffness(StiffnessBase):
     def __init__(self, vertices, elements, fixities, material_dicts, 
