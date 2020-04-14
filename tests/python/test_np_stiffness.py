@@ -1,10 +1,12 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_array_almost_equal_nulp, assert_array_almost_equal
+from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from scipy.sparse import find
 import scipy.sparse.linalg as SPLIN
 from pyconmech.frame_analysis import create_local_stiffness_matrix, global2local_transf_matrix, \
-    assemble_global_stiffness_matrix
+    assemble_global_stiffness_matrix, get_element_shape_fn
 
 # from pyconmech.frame_analysis import numpy_stiffness
 
@@ -37,7 +39,7 @@ def assert_aleq_sparse(A, B, atol = 1e-14):
     assert np.allclose(v1,v2, atol=atol)
 
 @pytest.mark.np_wip
-def test_2Dbeam_stiffness_matrix():
+def test_2Dbeam_stiffness_matrix(viewer):
     # base on example 4.8-4.12, p.79 [MGZ2000]
     # assume no bending normal to the plane of the paper
     # notice that in [MGZ2000], unit convention:
@@ -107,18 +109,65 @@ def test_2Dbeam_stiffness_matrix():
     # boundary condition: 
     # end a fully fixed, v_b = 0, theta_b = theta_c = 0
     v_map = np.vstack([np.array(range(v*6, (v+1)*6)) for v in range(3)])
-    dof_ids = [v_map[1,0], v_map[1,5], v_map[2,0], v_map[2,1], v_map[2,5]]
+    enabled_dofs = []
+    for v in range(3):
+        enabled_dofs.extend([0+v*6,1+v*6,3+v*6,5+v*6])
+
+    dof_ids = [v_map[1,0], v_map[2,0], v_map[2,1], v_map[1,5], v_map[2,5]]
     
     Pc = 5/np.sqrt(2) # kN
-    load_ff = np.array([0, 0, Pc, -Pc, 0])
+    load_ff = np.array([0, Pc, -Pc, 0, 0])
 
     Ksp_ff = Ksp[np.ix_(dof_ids, dof_ids)]
     # print(Ksp_ff / 200)
     u = SPLIN.spsolve(Ksp_ff, load_ff)
 
     # u_b, theta_zb, u_c, v_c, theta_zc
-    u_ans = np.array([0.024, -0.00088, 0.046, -19.15,  -0.00530])
+    # u_ans = np.array([0.024, -0.00088, 0.046, -19.15,  -0.00530])
+    # u_b, u_c, v_c, theta_zb, theta_zc
+    u_ans = np.array([0.024, 0.046, -19.15, -0.00088, -0.00530])
     assert_aleq_gmz_array(u_ans, u, precision=1)
+
+    # compute reactions
+    # R_xa, R_ya, R_mza, R_yb
+    fixed_dofs = [0,1,5,7]
+    Ksp_fs = Ksp[np.ix_(fixed_dofs, dof_ids)]
+    R = Ksp_fs.dot(u)
+    assert R.shape[0] == 4
+
+    # R_xa, R_ya, Rm_za, R_yb
+    # textbook moment reaction unit kN m
+    R_ans = np.array([-3.6, -3.3, -8.8*1e3, 6.85])
+    # (God knows what type of hand-calc precision the authors were using...)
+    assert_aleq_gmz_array(R_ans, R, precision=0)
+
+    # * plot moment diagram
+
+    # * plot deflected structure
+    end_pts = np.array([[0.,0.,0], [0., 8, 0], [0, 13., 0]])
+    end_pts *= 1e3 # m => mm
+    d_a = np.array([0,0,0,0,0,0])
+    d_b = np.array([0,u[1],0,0,0,u[3]])
+    shape_fn = get_element_shape_fn(end_pts[0, :], end_pts[1, :], d_a, d_b)
+
+    if viewer:
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+
+        x_plt = np.linspace(0., 0.008, 50) 
+        u_plt = np.array([shape_fn(x) for x in x_plt])
+        # print('s: ', u_plt.shape)
+        # https://matplotlib.org/3.1.1/gallery/subplots_axes_and_figures/axis_equal_demo.html
+
+        ax.plot(u_plt[:,0], u_plt[:,1], u_plt[:,2])
+        ax.legend()
+        plt.show()
+
+    assert_array_almost_equal(np.zeros((3)), shape_fn(0.0))
+    assert_array_almost_equal(end_pts[1,:] + np.array([0, 0.024, 0]), shape_fn(8*1e3))
 
 
 def test_transf_matrix():

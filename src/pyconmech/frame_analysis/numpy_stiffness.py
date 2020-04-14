@@ -271,14 +271,15 @@ def global2local_transf_matrix(end_vert_u, end_vert_v, rot_y2x=0.0):
 
 
 def assemble_global_stiffness_matrix(k_list, nV, id_map, exist_e_ids=[]):
-    """[summary]
+    """assemble element stiffness matrix into a sparse system stiffness matrix
     
     Parameters
     ----------
     k_list : list of np array
         a list of equal-sized global stiffness matrix
     nV : int
-        number of vertices
+        number of vertices, used to compute total dof for sizing 
+        the output sparse matrix
     id_map : np array
         (nEx(2xnode_dof)) idex matrix:
             M[element index] = [nodal dof index]
@@ -312,6 +313,62 @@ def assemble_global_stiffness_matrix(k_list, nV, id_map, exist_e_ids=[]):
     Ksp = csr_matrix((data, (row, col)), shape=(total_dof, total_dof))
     return Ksp
 
+
+def get_element_shape_fn(end_u, end_v, d_u, d_v, exagg=1.0):
+    """cubic polynomial interpolation given its boundary condition:
+        d = [u1, du1/dx, u2, du2/dx]
+    
+    Parameters
+    ----------
+    d : [type]
+        [description]
+    L : float
+        element length
+
+    Return
+    ------
+    poly_eval_fn : function handle
+    """
+    L = norm(np.array(end_u) - np.array(end_v))
+    LINEAR_INTERP_POLY = (np.array([1, -1/L]),
+                          np.array([0, 1/L]))
+    CUBIC_INTERP_POLY = (
+        np.array([1, 0, -3/L**2, 2/L**3]),
+        np.array([0, 1, -2/L, 1/L**2]),
+        np.array([0, 0, 3/L**2, 2/L**3]),
+        np.array([0, 0, -1/L, 1/L**2]))
+
+    R3 = global2local_transf_matrix(end_u, end_v)
+    R = np.zeros((12,12))
+    for i in range(4):
+        R[i*3:(i+1)*3, i*3:(i+1)*3] = R3
+
+    # compute end deflection in local ordinates
+    D_local = np.zeros((12, 1))
+    D_global = np.hstack([d_u, d_v])
+    D_local = exagg * R.dot(D_global)
+
+    u_poly = []
+    for i in range(3):
+        if i==0:
+            N = np.zeros(2)
+            dl = np.array([D_local[i], D_local[i+6]])
+            for j in range(2):
+                N += LINEAR_INTERP_POLY[j]*dl[j]
+        else:
+            N = np.zeros(4)
+            dl = np.array([D_local[i], D_local[i+3], D_local[i+6], D_local[i+3+6]])
+            for j in range(4):
+                N += CUBIC_INTERP_POLY[j]*dl[j]
+        u_poly.append(N)
+    
+    def shape_fn(t):
+        assert t>=0 and t<=L
+        # d = np.zeros((3,1))
+        d = np.array([np.polynomial.polynomial.polyval(t, u_poly[i]) for i in range(3)])
+        return end_u + d
+
+    return shape_fn
 
 class NumpyStiffness(StiffnessBase):
     def __init__(self, vertices, elements, fixities, material_dicts, 
