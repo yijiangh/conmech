@@ -49,5 +49,6 @@ from .stiffness_checker import *
 from .frame_file_io import *
 from .result_compare_utils import *
 from .stiffness_solve_fn import *
+from .numpy_stiffness import *
 
 __all__ = [name for name in dir() if not name.startswith('_')]

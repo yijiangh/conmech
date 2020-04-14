@@ -89,6 +89,7 @@ class StiffnessChecker(object):
             [description]
         """
         assert os.path.exists(json_file_path), "json file not exists!"
+        # TODO: argument switch for numpy engine
         checker_engine = _StiffnessChecker(json_file_path=json_file_path, verbose=verbose)
 
         node_points, elements, fix_specs, model_type, material_dicts, model_name, unit = \

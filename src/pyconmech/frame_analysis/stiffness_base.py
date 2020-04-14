@@ -1,3 +1,6 @@
+import os
+from .frame_file_io import read_frame_json
+
 class StiffnessBase(object):
     def __init__(self, vertices, elements, fixities, material_dicts, 
         verbose=False, model_type='frame', output_json=False):
@@ -13,7 +16,25 @@ class StiffnessBase(object):
 
     @classmethod
     def from_json(cls, json_file_path=None, verbose=False):
-        raise NotImplementedError()
+        """init class from a frame json file
+        
+        Parameters
+        ----------
+        json_file_path : [type], optional
+            [description], by default None
+        verbose : bool, optional
+            [description], by default False
+        
+        Returns
+        -------
+        [type]
+            [description]
+        """
+        assert os.path.exists(json_file_path), "json file not exists!"
+        node_points, elements, fix_specs, model_type, material_dicts, _, unit = \
+            read_frame_json(json_file_path, verbose=verbose)
+        return cls(node_points, elements, fix_specs, material_dicts, 
+            model_type=model_type, verbose=verbose)
 
     #######################
     # Load input
