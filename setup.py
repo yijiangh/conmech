@@ -24,8 +24,13 @@ def read(*names, **kwargs):
 about = {}
 exec(read('src', 'pyconmech', '__version__.py'), about)
 
-requirements = read('requirements.txt').split('\n')
+# requirements = read('requirements.txt').split('\n')
+requirements = [
+    'numpy',
+    'scipy',
+]
 
+# TODO: let user choose to use cpp engine or not
 ext_modules = [
     CMakeExtension('_pystiffness_checker'),
     ]

@@ -1,12 +1,17 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_array_almost_equal_nulp, assert_array_almost_equal
-from pyconmech.frame_analysis import create_local_stiffness_matrix
+from scipy.sparse import find
+import scipy.sparse.linalg as SPLIN
+from pyconmech.frame_analysis import create_local_stiffness_matrix, global2local_transf_matrix, \
+    assemble_global_stiffness_matrix
+
 # from pyconmech.frame_analysis import numpy_stiffness
 
-@pytest.fixture
-def tol():
-    return 1e-8
+def isPSD(A, tol = 1e-8):
+    vals, _ = SPLIN.eigsh(A, k = 2, which = 'BE') 
+    # return the ends of spectrum of A
+    return np.all(vals > -tol)
 
 def assert_aleq_gmz_array(a, b, precision=2, np_test=False):
     # 2digit precision is used in [GMZ] results
@@ -23,9 +28,17 @@ def assert_aleq_gmz_array(a, b, precision=2, np_test=False):
             a_iter.iternext()
             b_iter.iternext()
 
-@pytest.mark.local_stiff
-def test_2Dbeam_stiffness_matrix(tol):
-    # base on example 4.8, p.79 [MGZ2000]
+def assert_aleq_sparse(A, B, atol = 1e-14):
+    assert np.array_equal(A.shape, B.shape)
+    r1,c1,v1 = find(A)
+    r2,c2,v2 = find(B)
+    index_match = np.array_equal(r1,r2) & np.array_equal(c1,c2)
+    assert index_match!=0, 'number of nonzero id not matched: {}'.format(index_match)
+    assert np.allclose(v1,v2, atol=atol)
+
+@pytest.mark.np_wip
+def test_2Dbeam_stiffness_matrix():
+    # base on example 4.8-4.12, p.79 [MGZ2000]
     # assume no bending normal to the plane of the paper
     # notice that in [MGZ2000], unit convention:
     # length : mm (angle: rad)
@@ -44,9 +57,11 @@ def test_2Dbeam_stiffness_matrix(tol):
 
     L = 8 #m
     L *= 1e3 # => mm
-    Iy = Iz # not used
+    # Iy = Iz # not used
+    Iy = 0 # not used
 
     K_full = create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, mu)
+    assert (12,12) == K_full.shape
     # omit out-of-plane shear and bending dof 
     # delete (My1, My2, w1, \theta_y1, w2, \theta_y1)
     ids = list(range(6))
@@ -70,3 +85,44 @@ def test_2Dbeam_stiffness_matrix(tol):
 
     assert_aleq_gmz_array(K_ans, K)
 
+    # assembl & solve stiffness matrix
+    A_bc = 4000 # mm2
+    Iz_bc = 50*1e6 # mm4
+    J_bc = 100*1e3 # mm4
+    L_bc = 5 # m
+    L_bc *= 1e3 # => mm
+
+    K_bc = create_local_stiffness_matrix(L_bc, A_bc, J_bc, 0, Iz_bc, E, mu)
+    assert (12,12) == K_full.shape
+    assert (12,12) == K_bc.shape
+    k_list = [K_full, K_bc]
+
+    nV = 3
+    id_map = np.vstack([np.array(range(0, 12)), np.array(range(6, 18))])
+    Ksp = assemble_global_stiffness_matrix(k_list, nV, id_map)
+    assert_aleq_sparse(Ksp, Ksp.T)
+    assert isPSD(Ksp)
+
+    # fixities
+    # boundary condition: 
+    # end a fully fixed, v_b = 0, theta_b = theta_c = 0
+    v_map = np.vstack([np.array(range(v*6, (v+1)*6)) for v in range(3)])
+    dof_ids = [v_map[1,0], v_map[1,5], v_map[2,0], v_map[2,1], v_map[2,5]]
+    
+    Pc = 5/np.sqrt(2) # kN
+    load_ff = np.array([0, 0, Pc, -Pc, 0])
+
+    Ksp_ff = Ksp[np.ix_(dof_ids, dof_ids)]
+    # print(Ksp_ff / 200)
+    u = SPLIN.spsolve(Ksp_ff, load_ff)
+
+    # u_b, theta_zb, u_c, v_c, theta_zc
+    u_ans = np.array([0.024, -0.00088, 0.046, -19.15,  -0.00530])
+    assert_aleq_gmz_array(u_ans, u, precision=1)
+
+
+def test_transf_matrix():
+    pt1 = np.array([0,0,0])
+    pt2 = np.array([1,0,0])
+    R = global2local_transf_matrix(pt1, pt2)
+    assert_array_almost_equal(np.eye(3), R)

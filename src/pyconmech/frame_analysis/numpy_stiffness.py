@@ -1,9 +1,3 @@
-import numpy as np
-from numpy.linalg import norm
-from .stiffness_base import StiffnessBase
-
-EPS = 1e-10
-
 """
 # Variables:
 displacements:          {u}
@@ -31,6 +25,26 @@ traction force {\Phi} on boundary S.
     \int {\delta \epsilon}^T {\sigma} dV = 
         \int {\delta u}^T F dV + \int {\delta u}^T {\Phi} dS
 """
+
+import numpy as np
+from numpy.linalg import norm
+from scipy.sparse import csr_matrix
+from .stiffness_base import StiffnessBase
+
+DOUBLE_EPS = 1e-14
+
+# internal calculation unit
+LENGTH_UNIT = 'meter'
+ROT_ANGLE_UNIT = 'rad'
+FORCE_UNIT = 'kN'
+
+# derived units
+MOMENT_UNIT = FORCE_UNIT + "*" + ROT_ANGLE_UNIT
+AREA_UNIT = LENGTH_UNIT + "^2"
+AREA_INERTIA_UNIT = LENGTH_UNIT + "^4"
+PRESSURE_UNIT = FORCE_UNIT + "/" + LENGTH_UNIT + "^2"; # "kN/m^2" modulus
+DENSITY_UNIT  = FORCE_UNIT + "/" + LENGTH_UNIT + "^3"; # "kN/m^3"
+
 
 def axial_stiffness_matrix(L, A, E):
     """local stiffness matrix for a bar with only axial force at two ends
@@ -229,7 +243,7 @@ def global2local_transf_matrix(end_vert_u, end_vert_v, rot_y2x=0.0):
     if 3 == dim:
         c_z = (end_vert_v[2] - end_vert_u[2]) / L
         # TODO rotaxis
-        if abs(abs(c_z) - 1.0) < EPS:
+        if abs(abs(c_z) - 1.0) < DOUBLE_EPS:
             # the element is parallel to global z axis
             # cross product is not defined, in this case
             # it's just a rotation about the global z axis
@@ -254,6 +268,49 @@ def global2local_transf_matrix(end_vert_u, end_vert_v, rot_y2x=0.0):
         R[2,2] = 1.0
         # TODO check rotaxis
     return R
+
+
+def assemble_global_stiffness_matrix(k_list, nV, id_map, exist_e_ids=[]):
+    """[summary]
+    
+    Parameters
+    ----------
+    k_list : list of np array
+        a list of equal-sized global stiffness matrix
+    nV : int
+        number of vertices
+    id_map : np array
+        (nEx(2xnode_dof)) idex matrix:
+            M[element index] = [nodal dof index]
+        e.g. for a single beam
+            M[0, :] = [0, 1, 2, 3, 4, 5]
+
+    Return
+    ------
+    Ksp : scipy.sparse.csr_matrix
+    """
+    node_dof = 6
+    total_dof = node_dof * nV
+
+    if len(exist_e_ids)==0:
+        exist_e_ids = range(len(k_list))
+    else:
+        assert set(exist_e_ids) <= set(range(len(k_list)))
+
+    row = []
+    col = []
+    data = []
+    for e_id in exist_e_ids:
+        Ke = k_list[e_id]
+        assert Ke.shape == (node_dof*2, node_dof*2)
+        for i in range(node_dof*2):
+            for j in range(node_dof*2):
+                if abs(Ke[i,j]) > DOUBLE_EPS:
+                    row.append(id_map[e_id, i])
+                    col.append(id_map[e_id, j])
+                    data.append(Ke[i,j])
+    Ksp = csr_matrix((data, (row, col)), shape=(total_dof, total_dof))
+    return Ksp
 
 
 class NumpyStiffness(StiffnessBase):
@@ -345,3 +402,8 @@ class NumpyStiffness(StiffnessBase):
 
     def get_deformed_shape(self, exagg_ratio=1.0, disc=10):
         raise NotImplementedError()
+
+    ################################
+    # private functions
+    def _create_complete_global_stiffness_matrix(self):
+        pass
