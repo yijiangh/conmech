@@ -27,8 +27,9 @@ traction force {\Phi} on boundary S.
 """
 
 import numpy as np
-from numpy.linalg import norm
+from numpy.linalg import norm, solve
 from scipy.sparse import csr_matrix
+from numpy.polynomial.polynomial import polyvander, polyval, Polynomial
 from .stiffness_base import StiffnessBase
 
 DOUBLE_EPS = 1e-14
@@ -313,6 +314,13 @@ def assemble_global_stiffness_matrix(k_list, nV, id_map, exist_e_ids=[]):
     Ksp = csr_matrix((data, (row, col)), shape=(total_dof, total_dof))
     return Ksp
 
+# LINEAR_INTERP_POLY = (np.array([1, -1/L]),
+#                       np.array([0, 1/L]))
+# CUBIC_INTERP_POLY = (
+#     np.array([1, 0, -3/L**2, 2/L**3]),
+#     np.array([0, 1, -2/L, 1/L**2]),
+#     np.array([0, 0, 3/L**2, 2/L**3]),
+#     np.array([0, 0, -1/L, 1/L**2]))
 
 def get_element_shape_fn(end_u, end_v, d_u, d_v, exagg=1.0):
     """cubic polynomial interpolation given its boundary condition:
@@ -330,13 +338,6 @@ def get_element_shape_fn(end_u, end_v, d_u, d_v, exagg=1.0):
     poly_eval_fn : function handle
     """
     L = norm(np.array(end_u) - np.array(end_v))
-    LINEAR_INTERP_POLY = (np.array([1, -1/L]),
-                          np.array([0, 1/L]))
-    CUBIC_INTERP_POLY = (
-        np.array([1, 0, -3/L**2, 2/L**3]),
-        np.array([0, 1, -2/L, 1/L**2]),
-        np.array([0, 0, 3/L**2, 2/L**3]),
-        np.array([0, 0, -1/L, 1/L**2]))
 
     R3 = global2local_transf_matrix(end_u, end_v)
     R = np.zeros((12,12))
@@ -351,21 +352,27 @@ def get_element_shape_fn(end_u, end_v, d_u, d_v, exagg=1.0):
     u_poly = []
     for i in range(3):
         if i==0:
-            N = np.zeros(2)
-            dl = np.array([D_local[i], D_local[i+6]])
-            for j in range(2):
-                N += LINEAR_INTERP_POLY[j]*dl[j]
+            # linear monomials 1+x
+            A = polyvander([0, L], 1)
+            coeff = solve(A, [D_local[i], D_local[i+6]])
         else:
-            N = np.zeros(4)
-            dl = np.array([D_local[i], D_local[i+3], D_local[i+6], D_local[i+3+6]])
-            for j in range(4):
-                N += CUBIC_INTERP_POLY[j]*dl[j]
-        u_poly.append(N)
+            # cubic monomials
+            A = np.zeros((4, 4))
+            A[[0,2], :] = polyvander([0, L], 3)
+            c = np.hstack([Polynomial([1]*4).deriv().coef, [0]])
+            A[[1,3], :] = polyvander([0, L], 3) * c
+
+            # TODO careful about the sign
+            coeff = solve(A, [D_local[i], D_local[i+6]])
+        u_poly.append(coeff)
     
     def shape_fn(t):
-        assert t>=0 and t<=L
-        # d = np.zeros((3,1))
-        d = np.array([np.polynomial.polynomial.polyval(t, u_poly[i]) for i in range(3)])
+        assert t>=0 and t<=1.0
+        d = np.zeros(3)
+        # TODO: transf back to global
+        for i in range(3):
+            # d[i] = 
+        # d = np.array([np.polynomial.polynomial.polyval(t, u_poly[i]) for i in range(3)])
         return end_u + d
 
     return shape_fn
