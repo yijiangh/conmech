@@ -1,5 +1,5 @@
 import os
-from .frame_file_io import read_frame_json
+from .frame_file_io import read_frame_json, read_load_case_json
 
 class StiffnessBase(object):
     def __init__(self, vertices, elements, fixities, material_dicts, 
@@ -51,7 +51,10 @@ class StiffnessBase(object):
         raise NotImplementedError()
 
     def _parse_load_case_from_json(self, file_path):
-        raise NotImplementedError()
+        # TODO cpp engine only returns nodal load now
+        point_load, uniform_element_load, include_self_weight = \
+            read_load_case_json(file_path)
+        return point_load, uniform_element_load, include_self_weight
 
     #######################
     # Output write

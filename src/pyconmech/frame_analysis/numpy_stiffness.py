@@ -46,25 +46,15 @@ where [N] is the shape function, for example:
 """
 
 import numpy as np
+import scipy.sparse.linalg as SPLA
+import numpy.linalg as LA
 from numpy.linalg import norm, solve
 from scipy.sparse import csr_matrix
 from numpy.polynomial.polynomial import polyvander, polyval, Polynomial, polyfit
 from .stiffness_base import StiffnessBase
 
 DOUBLE_EPS = 1e-14
-
-# internal calculation unit
-LENGTH_UNIT = 'meter'
-ROT_ANGLE_UNIT = 'rad'
-FORCE_UNIT = 'kN'
-
-# derived units
-MOMENT_UNIT = FORCE_UNIT + "*" + ROT_ANGLE_UNIT
-AREA_UNIT = LENGTH_UNIT + "^2"
-AREA_INERTIA_UNIT = LENGTH_UNIT + "^4"
-PRESSURE_UNIT = FORCE_UNIT + "/" + LENGTH_UNIT + "^2"; # "kN/m^2" modulus
-DENSITY_UNIT  = FORCE_UNIT + "/" + LENGTH_UNIT + "^3"; # "kN/m^3"
-
+DEFAULT_GRAVITY_DIRECTION = [0.,0.,-1.]
 
 def axial_stiffness_matrix(L, A, E):
     """local stiffness matrix for a bar with only axial force at two ends
@@ -333,6 +323,38 @@ def assemble_global_stiffness_matrix(k_list, nV, id_map, exist_e_ids=[]):
     Ksp = csr_matrix((data, (row, col)), shape=(total_dof, total_dof))
     return Ksp
 
+###############################################
+
+def compute_lumped_uniformly_distributed_load(w_G, R_LG, L):
+    """Use fixed-end beam formula to lump uniformly distributed load 
+    to equivalent nodal loads
+    
+    Parameters
+    ----------
+    w_G : np array of size (3,)
+        uniformly distributed load vector in the global coordinate
+        unit: force unit / length unit
+    R_LG : np array of size (3,3)
+        element local2global transformation matrix
+    L : float
+        element length
+    """
+    assert 3 == w_G.shape[0]
+    lumped_L = np.zeros(12)
+    # nodal force
+    lumped_L[:3] = -w_G*L/2
+    lumped_L[6:9] = -w_G*L/2
+    # transform global load density to local density
+    w_L = - R_LG.dot(w_G)
+    # node 0, 1 local moment
+    M_L0 = np.array([0, -w_L[2]*(L**2)/12., w_L[1]*(L**2)/12.])
+    M_L1 = -M_L0
+    R_GL = R_LG.T
+    lumped_L[3:6] = R_GL.dot(M_L0)
+    lumped_L[9:12] = R_GL.dot(M_L1)
+    return lumped_L
+
+###############################################
 
 def interp_poly(d_u, d_v, L):
     """compute shape polynomial coeff for local x,y,z based on end nodal displacement value
@@ -376,6 +398,11 @@ def interp_poly(d_u, d_v, L):
     assert np.allclose(u_poly[0], polyfit([dx_u, L+dx_v], d_x, 1))
     return u_poly
     
+def turn_diagblock(R3):
+    R = np.zeros((12,12))
+    for i in range(4):
+        R[i*3:(i+1)*3, i*3:(i+1)*3] = R3
+    return R
 
 def get_element_shape_fn(end_u, end_v, d_u, d_v, exagg=1.0):
     """cubic polynomial interpolation given its boundary condition:
@@ -399,10 +426,7 @@ def get_element_shape_fn(end_u, end_v, d_u, d_v, exagg=1.0):
     assert np.allclose((R3.T).dot(R3), np.eye(3))
     assert np.allclose((R3).dot(R3.T), np.eye(3))
 
-    R = np.zeros((12,12))
-    for i in range(4):
-        R[i*3:(i+1)*3, i*3:(i+1)*3] = R3
-
+    R = turn_diagblock(R3)
     # compute end deflection in local ordinates
     D_global = np.hstack([d_u, d_v])
     D_local = exagg * R.dot(D_global)
@@ -450,61 +474,319 @@ def get_internal_reaction_fn(fu, fv):
         return np.array([polyval(t, u_poly[i]) for i in range(6)])
     return local_force_fn
 
+###############################################
+
+# internal calculation unit
+LENGTH_UNIT = 'meter'
+ROT_ANGLE_UNIT = 'rad'
+FORCE_UNIT = 'kN'
+
+# derived units
+MOMENT_UNIT = FORCE_UNIT + "*" + ROT_ANGLE_UNIT
+AREA_UNIT = LENGTH_UNIT + "^2"
+AREA_INERTIA_UNIT = LENGTH_UNIT + "^4"
+PRESSURE_UNIT = FORCE_UNIT + "/" + LENGTH_UNIT + "^2"; # "kN/m^2" modulus
+DENSITY_UNIT  = FORCE_UNIT + "/" + LENGTH_UNIT + "^3"; # "kN/m^3"
+
+class Material(object):
+    """convert material dict to comply with internal unit inside
+    These units comply with Karamba3D.
+    """
+    def __init__(self, mat_dict):
+        # length unit scale
+        len_scale = 1e-2
+        # kN/cm^2 => kN/m^2
+        pressure_scale = 1/len_scale**2
+        self.E = mat_dict['youngs_modulus'] * pressure_scale
+        self.G = mat_dict['shear_modulus'] * pressure_scale
+        self.mu = mat_dict['poisson_ratio']
+        # TODO check G and mu compatible
+        self.rho = mat_dict['density']
+        area_scale = len_scale**2
+        self.A = mat_dict['cross_sec_area'] * area_scale
+        inertia_scale = len_scale**4
+        self.Jx = mat_dict['Jx']*inertia_scale
+        self.Iy = mat_dict['Iy']*inertia_scale
+        self.Iz = mat_dict['Iz']*inertia_scale
+
+LENGTH_CONVERSION = {
+    'meter' : 1.0,
+    'millimeter' : 1e-3,
+}
+
+###############################################
 
 class NumpyStiffness(StiffnessBase):
     def __init__(self, vertices, elements, fixities, material_dicts, 
-        verbose=False, model_type='frame', output_json=False):
-        super(NumpyStiffness, self).__init__(vertices, elements, fixities, material_dicts, \
-            verbose, model_type, output_json)
+        verbose=False, model_type='frame', output_json=False, unit='meter'):
+        assert unit in LENGTH_CONVERSION
+        scale = LENGTH_CONVERSION['unit']
+        super(NumpyStiffness, self).__init__(scale*np.array(vertices), np.array(elements, dtype=int), 
+            fixities, material_dicts, verbose, model_type, output_json)
         # default displacement tolerance
         self._trans_tol = 1e-3
         self._rot_tol = np.pi/180 * 3
+        # gravity settings
+        self._include_self_weight_load = True
+        # dimension of the model
+        self._dim = 0
+        # self._full_node_dof = 6
+        # self._node_dof = -1
+        # internal states
+        self._is_init = False
+        self._id_map = None
+        self._v_id_map = None
+        # unit converted material properties per element
+        self._mats = [Material[md] for e, md in self._material_dicts.items()]
+        # (nE x (12x12)) list of element stiffness matrix
+        self._element_k_list = []
+        # (nE x (12x12)) block-diagnal global2local coordinate transformation matrix
+        self._rot_list = []
+        # (_ x (6)) dict of lumped element nodal load in global coordinate
+        self._element_lumped_nload_list = {}
+        # (nE x (12)) list of lumped GRAVITY element nodal load in global coordinate
+        self._element_gravity_nload_list = {}
+        # (nVx6), np array
+        self._nodal_load = None
+        # stored computation results
+        self._stored_existing_ids = []
+        self._stored_nodal_deformation = None
+        self._stored_element_reaction = None
+        self._stored_fixities_reaction = None
+        self._stored_compliance = None
+        # output settings
+        self._output_json_file_name = ""
+        self._output_json_file_path = ""
+        # used in non-frame model
+        # translational dof id in [0, ..., 2*node_dof-1]
+        self._xyz_dof_id = None
+        # elemental reaction dof id in [0, ..., 2*node_dof-1]
+        self._e_react_dof_id = None
+
+        self._init()
+
+    @property
+    def dim(self):
+        return self._dim
+
+    @property
+    def nV(self):
+        """number of vertices in the full model
+        """
+        return self._vertices.shape[0]
+
+    @property
+    def nE(self):
+        """number of elements in the full model
+        """
+        return self._elements.shape[0]
 
     #######################
     # Load input
-
-    def set_self_weight_load(self, gravity_direction, include_self_weight=True):
-        raise NotImplementedError()
-
-    def set_load(self, nodal_forces):
-        """input: #nL x 7 numpy matrix
-        """
-        raise NotImplementedError()
+    def set_self_weight_load(self, gravity_direction):
+        self._include_self_weight_load = True
+        assert gravity_direction.shape[0] == 3
+        self_weight_load_density = {}
+        for i in range(self.nE):
+            q_sw = self._mats[i].rho * self._mats[i].A;
+            w_G = gravity_direction * q_sw
+            self_weight_load_density[i] = w_G
+        self._element_gravity_nload_list = \
+            self.compute_element_uniformly_distributed_lumped_load(self_weight_load_density)
 
     def set_uniformly_distributed_loads(self, element_load_density):
-        raise NotImplementedError()
+        self._element_lumped_nload_list = \
+            self.compute_element_uniformly_distributed_lumped_load(element_load_density)
 
-    def _parse_load_case_from_json(self, file_path):
+    def set_load(self, nodal_forces):
         raise NotImplementedError()
 
     #######################
-    # Output write
-
+    # Compute functions
     def set_nodal_displacement_tol(self, transl_tol, rot_tol):
-        raise NotImplementedError()
+        # in meter, rad
+        self._trans_tol = transl_tol
+        self._rot_tol = rot_tol
 
     def solve(self, exist_element_ids=[], if_cond_num=True):
-        raise NotImplementedError()
+        # assume full structure if exist_element_ids is []
+        if len(exist_element_ids)==0:
+            exist_element_ids = range(self.nE)
+
+        total_dof = 6*self.nV
+        # assume all dof does not exist (-1)
+        # 0: free, -1: not exist, 1: fixed
+        dof_stat = np.ones(total_dof)*-1
+
+        # existing id set
+        exist_node_set = set()
+        for e in exist_element_ids:
+            exist_node_set.update(self._elements[e,:])
+            # turn the existing node's dof status to free (0)
+            dof_stat[self._id_map[e]] = np.zeros(12)
+
+        # assemble the list of fixed dof fixed list, 1x(nFv)
+        if len(set(self._fixties.keys())&exist_node_set) == 0:
+            return False
+        n_exist_fixed_nodes = 0
+        n_fixed_dof = 0
+        for fv_id, fix_dofs in self._fixties.items():
+            if fv_id in exist_node_set:
+                dof_stat[self._v_id_map[fv_id]] = fix_dofs
+                n_exist_fixed_nodes+=1
+                n_fixed_dof += sum(fix_dofs)
+        n_free_dof = 6*len(exist_node_set)-n_fixed_dof
+
+        # compute permutation map
+        free_tail = 0
+        fix_tail = 0
+        nonexist_tail = 6*len(exist_node_set)
+        id_map_RO = np.array(range(total_dof))
+        for i in range(total_dof):
+            if 0 == dof_stat[i]:
+                id_map_RO[free_tail] = i
+                free_tail += 1
+            if 1 == dof_stat[i]:
+                id_map_RO[fix_tail] = i
+                fix_tail += 1
+            if -1 == dof_stat[i]:
+                id_map_RO[nonexist_tail] = i
+                nonexist_tail += 1
+
+        # a row permuatation matrix (multiply left)
+        perm_data = []
+        perm_row = []
+        perm_col= []
+        for i in range(total_dof):
+            perm_row.append(i)
+            perm_col.append(id_map_RO[i])
+            perm_data.append(1)
+        Perm = csr_matrix((perm_data, (perm_row, perm_col)), shape=(total_dof, total_dof))
+        PermT = Perm.T
+
+        # permute the full stiffness matrix & carve the needed portion out
+        K_full_ = assemble_global_stiffness_matrix(self._element_k_list, \
+            self.nV, self._id_map, exist_element_ids)
+        K_perm = (Perm.dot(K_full_)).dot(PermT)
+        K_mm = K_perm[0:n_free_dof, 0:n_free_dof]
+        K_fm = K_perm[n_free_dof:n_free_dof+n_fixed_dof, 0:n_free_dof]
+
+        nodal_load_P_tmp = np.copy(self._nodal_load)
+        element_lumped_load = self._create_uniformly_distributed_lumped_load(exist_element_ids)
+        nodal_load_P_tmp += element_lumped_load
+        if self._include_self_weight_load:
+            load_sw = self._create_self_weight_load(exist_element_ids)
+        nodal_load_P_tmp += load_sw
+
+        U_m = np.zeros(n_free_dof)
+        if norm(nodal_load_P_tmp) > DOUBLE_EPS:
+            P_perm = Perm.dot(nodal_load_P_tmp) 
+            P_m = P_perm[0:n_free_dof]
+            P_f = P_perm[n_free_dof:n_free_dof+n_fixed_dof]
+
+            # https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.gmres.html#scipy.sparse.linalg.gmres
+            U_m, exit_code = SPLA.gmres(K_mm, U_m)
+            # TODO check errorcode when unstable
+            if exit_code != 0:
+                return False 
+            if self._verbose:
+                print('ERROR: Stiffness Solver fail! The sub-structure contains mechanism.')
+                print('Stiffness matrix condition number: {}'.format(LA.cond(K_mm.todense())))
+                if exit_code > 0:
+                    print('# iterations: {} - {}'.format(exit_code, 'convergence to tolerance not achieved'))
+                else:
+                    print('exit_code : {} - {}'.format(exit_code, 'illegal input or breakdown'))
+        # gathering results
+        self._stored_compliance = 0.5*U_m.dot(P_m)
+        # reaction
+        R = np.zeros(total_dof)
+        R[n_free_dof:n_free_dof+n_fixed_dof] = K_fm.dot(U_m) - P_f
+        R = PermT.dot(R)
+        # displacement
+        U = np.zeros(total_dof)
+        U[0:n_free_dof] = U_m
+        U = PermT.dot(U)
+
+        # raw result conversion        
+        self._stored_nodal_deformation = np.zeros((len(exist_node_set), 1+6), dtype=float)
+        for i, v in enumerate(list(exist_node_set)):
+            self._stored_nodal_deformation[i, :] = np.hstack([[v], U[self._v_id_map[v]]])
+
+        self._stored_fixities_reaction = np.zeros((n_exist_fixed_nodes, 1+6), dtype=float)
+        cnt = 0
+        for fv_id, fix_dofs in self._fixties.items():
+            if fv_id in exist_node_set:
+                self._stored_fixities_reaction[cnt, :] = np.hstack([[fv_id], R[fv_id*6:(fv_id+1)*6]])
+                cnt += 1
+
+        self._stored_element_reaction = np.zeros((len(exist_element_ids), 1+6), dtype=float)
+        for e in exist_element_ids:
+            Ue = U[self._id_map[e]]
+            eRF = self._rot_list[e].dot(self._element_k_list[e].dot(Ue))
+            self._stored_element_reaction[e, :] = np.hstack([[e], eRF])
+
+        return self.check_stiffness_criteria(self._stored_nodal_deformation, \
+            self._stored_fixities_reaction, self._stored_element_reaction)
 
     #######################
-    # Output export
+    # Public compute functions that are non-state-changing
+    def compute_element_uniformly_distributed_lumped_load(self, element_load_density):
+        """Use fixed-end beam formula to lump uniformly distributed load 
+        to equivalent nodal loads
+        
+        Parameters
+        ----------
+        element_load_density : dict: int->np array of size (3,)
+            load density dict that maps element id to load density vector of size 3
+        
+        Returns
+        -------
+        element_lumped_nload_list : dict: e_id : np array of size (3,)
+        """
+        # refer [MSA McGuire et al.] P111
+        # Loads between nodal points
+        # TODO avoid allocation here?
+        if not(3 == self._dim and 'frame' == self._model_type):
+            raise NotImplementedError()
+        element_lumped_nload_list = {i : np.zeros(6) for i in range(self.nE)}
+        for i, w_G in element_load_density.items():
+            end_u_id, end_v_id = self._elements[i,:]
+            end_u = self._vertices[end_u_id,:]
+            end_v = self._vertices[end_v_id,:]
+            L = norm(end_u-end_v)
+            R3 = global2local_transf_matrix(end_u, end_v)
+            lumped_L = compute_lumped_uniformly_distributed_load(w_G, R3, L)
+            element_lumped_nload_list[i] = lumped_L
+        return element_lumped_nload_list
 
-    def set_output_json_path(self, file_path, file_name):
-    # .def("set_output_json_path", &conmech::stiffness_checker::Stiffness::setOutputJsonPath,
-    #   py::arg("file_path"), py::arg("file_name"))
-        raise NotImplementedError()
-
-    def set_output_json(self, output_json=False):
-    # .def("set_output_json", &conmech::stiffness_checker::Stiffness::setOutputJson,
-    #   py::arg("output_json") = false)
-        raise NotImplementedError()
+    def compute_nodal_loads(self, nodal_forces):
+        ext_load = np.zeros(6*self.nV)
+        for v, nF in nodal_forces.items():
+            ext_load[v*6:(v+1)*6] = nF
+        return ext_load
+    
+    def check_stiffness_criteria(self, node_displ, fixities_reaction, element_reaction):
+        return True
 
     #######################
-    # Get functions
+    # Get functions - Main results
+    def has_stored_result(self):
+        raise NotImplementedError()
+
+    def get_solved_results(self):
+        raise NotImplementedError()
+
+    def get_max_nodal_deformation(self):
+        raise NotImplementedError()
+
+    def get_nodal_deformation_tol(self):
+        raise NotImplementedError()
 
     def get_frame_stat(self):
         return 
 
+    #######################
+    # Get functions - procedural data
     def get_lumped_nodal_loads(self, existing_ids=[]):
         raise NotImplementedError()
 
@@ -523,25 +805,83 @@ class NumpyStiffness(StiffnessBase):
     def get_node2dof_id_map(self):
         raise NotImplementedError()
 
-    def has_stored_result(self):
-        raise NotImplementedError()
-
-    def get_solved_results(self):
-        raise NotImplementedError()
-
-    def get_max_nodal_deformation(self):
-        raise NotImplementedError()
-
-    def get_nodal_deformation_tol(self):
-        raise NotImplementedError()
-
+    ################################
+    # Visualizations
     def get_original_shape(self):
         raise NotImplementedError()
 
     def get_deformed_shape(self, exagg_ratio=1.0, disc=10):
         raise NotImplementedError()
 
+    #######################
+    # Output export
+    def set_output_json_path(self, file_path, file_name):
+        raise NotImplementedError()
+
+    def set_output_json(self, output_json=False):
+        raise NotImplementedError()
+
     ################################
-    # private functions
-    def _create_complete_global_stiffness_matrix(self):
-        pass
+    # private functions - init & precompute
+    def _init(self, verbose=False):
+        self._dim = self._vertices.shape[1]
+        if self._dim != 3:
+            raise NotImplementedError()
+        if self._model_type != 'frame':
+            raise NotImplementedError()
+        # else:
+            # self._node_dof = 6
+            # self._xyz_dof_id = np.array(range(2*self._node_dof))
+            # self._e_react_dof_id = np.array(range(2*self._node_dof))
+        self._precompute_element_stiffness_matrices()
+        # node id-to-dof map
+        v_id_maps = np.zeros((self.nV, 6), dtype=int)
+        for i in range(self.nV):
+            v_id_maps[i] = np.array(range(i*6, (i+1)*6))
+        # element id-to-dof map
+        id_maps = np.zeros((self.nE, 12), dtype=int)
+        for i in range(self.nE):
+            end_u_id, end_v_id = self._elements[i,:]
+            v_id_maps[i] = np.hstack([v_id_maps[end_u_id,:], v_id_maps[end_v_id,:]])
+        # loads
+        self._nodal_load = np.zeros(self.nV*6)
+        if self._include_self_weight_load:
+            self.set_self_weight_load(DEFAULT_GRAVITY_DIRECTION)
+        self._is_init = True
+        if verbose:
+            print('NpStiffness init done.')
+
+    def _precompute_element_stiffness_matrices(self):
+        self._element_k_list = [np.zeros((12,12)) for i in range(self.nE)]
+        self._rot_list = [np.zeros((12,12)) for i in range(self.nE)]
+        for i in range(self.nE):
+            end_u_id, end_v_id = self._elements[i,:]
+            end_u = self._vertices[end_u_id,:]
+            end_v = self._vertices[end_v_id,:]
+            L = norm(end_u-end_v)
+            R3 = global2local_transf_matrix(end_u, end_v)
+            K_loc = create_local_stiffness_matrix(L, self._mats[i].A, self._mats[i].Jx,\
+                self._mats[i].Iy, self._mats[i].Iz, self._mats[i].E, self._mats[i].mu)
+            R_LG = turn_diagblock(R3) # 12x12
+            K_G = ((R_LG.T).dot(K_loc)).dot(R_LG)
+            self._element_k_list[i] = K_G
+            self._rot_list[i] = R_LG
+
+    ################################
+    # private functions - solve-time vector/matrix assembly
+    def _create_self_weight_load(self, exist_e_ids):
+        self_weight_P = np.zeros(self.nV * 6)
+        for e in exist_e_ids:
+            Qe = self._element_gravity_nload_list[e]
+            for j in range(self._id_map.shape[1]):
+                self_weight_P[self._id_map[e, j]] += Qe[j]
+        return self_weight_P
+    
+    def _create_uniformly_distributed_lumped_load(self, exist_e_ids):
+        element_lump_P = np.zeros(self.nV * 6)
+        for e in exist_e_ids:
+            if e in self._element_lumped_nload_list:
+                Qe = self._element_lumped_nload_list[e]
+                for j in range(self._id_map.shape[1]):
+                    element_lump_P[self._id_map[e, j]] += Qe[j]
+        return element_lump_P
