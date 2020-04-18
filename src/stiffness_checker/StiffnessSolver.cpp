@@ -30,7 +30,7 @@ bool StiffnessSolver::solveSparseSimplicialLDLT(
     auto Diag = solver.vectorD();
     for (int i = 0; i < Diag.size(); i++)
     {
-      if (std::abs(Diag[i]) < 1e-300)
+      if (std::abs(Diag[i]) < conmech::DOUBLE_EPS)
       {
         if (verbose)
         {
@@ -38,7 +38,7 @@ bool StiffnessSolver::solveSparseSimplicialLDLT(
           std::cerr << " d[" << i << "] = " << Diag[i] << std::endl;
         }
       }
-      if (Diag[i] < -1e-300)
+      if (Diag[i] < - conmech::DOUBLE_EPS)
       {
         if (verbose)
         {

@@ -113,7 +113,7 @@ def test_parse_material_properties_from_frame_json(test_data_dir):
         check_mat(i, mat_entry, err_msg, expect_failure=True)
 
 @pytest.mark.parse_element
-def test_parse_element_from_json(test_data_dir):
+def test_parse_element_from_json(test_data_dir, engine):
     file_name = 'bad_node_element_model.json'
     json_path = os.path.join(test_data_dir, file_name)
 
@@ -122,5 +122,5 @@ def test_parse_element_from_json(test_data_dir):
 
     with pytest.raises(RuntimeError) as excinfo:
         StiffnessChecker.from_frame_data(node_points, element_vids, fix_specs, material_dicts, \
-            unit='meter', model_type='frame', model_name=None, verbose=False)
+            unit='meter', model_type='frame', model_name=None, verbose=False, checker_engine=engine)
     assert str(excinfo.value) == 'there needs to be at least one support (fixed) vertex in the model!'

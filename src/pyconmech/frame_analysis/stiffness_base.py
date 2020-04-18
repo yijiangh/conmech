@@ -14,6 +14,9 @@ class StiffnessBase(object):
         self._trans_tol = None
         self._rot_tol = None
 
+        if len(self._fixties) == 0:
+            raise RuntimeError('there needs to be at least one support (fixed) vertex in the model!')
+
     @classmethod
     def from_json(cls, json_file_path=None, verbose=False):
         """init class from a frame json file
@@ -39,7 +42,7 @@ class StiffnessBase(object):
     #######################
     # Load input
 
-    def set_self_weight_load(self, gravity_direction, include_self_weight=True):
+    def set_self_weight_load(self, include_self_weight=True, gravity_direction=[0,0,-1]):
         raise NotImplementedError()
 
     def set_load(self, nodal_forces):
@@ -62,7 +65,7 @@ class StiffnessBase(object):
     def set_nodal_displacement_tol(self, transl_tol, rot_tol):
         raise NotImplementedError()
 
-    def solve(self, exist_element_ids=[], if_cond_num=True):
+    def solve(self, exist_element_ids=[], if_cond_num=False):
         raise NotImplementedError()
 
     #######################

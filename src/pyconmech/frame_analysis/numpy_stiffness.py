@@ -46,15 +46,16 @@ where [N] is the shape function, for example:
 """
 
 import numpy as np
+import scipy
 import scipy.sparse.linalg as SPLA
 import numpy.linalg as LA
 from numpy.linalg import norm, solve
-from scipy.sparse import csr_matrix
+from scipy.sparse import csc_matrix
 from numpy.polynomial.polynomial import polyvander, polyval, Polynomial, polyfit
 from .stiffness_base import StiffnessBase
 
 DOUBLE_EPS = 1e-14
-DEFAULT_GRAVITY_DIRECTION = [0.,0.,-1.]
+DEFAULT_GRAVITY_DIRECTION = np.array([0.,0.,-1.])
 
 def axial_stiffness_matrix(L, A, E):
     """local stiffness matrix for a bar with only axial force at two ends
@@ -298,7 +299,8 @@ def assemble_global_stiffness_matrix(k_list, nV, id_map, exist_e_ids=[]):
 
     Return
     ------
-    Ksp : scipy.sparse.csr_matrix
+    Ksp : scipy.sparse.csc_matrix
+        https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.sparse.csc_matrix.html#scipy.sparse.csc_matrix
     """
     node_dof = 6
     total_dof = node_dof * nV
@@ -320,7 +322,7 @@ def assemble_global_stiffness_matrix(k_list, nV, id_map, exist_e_ids=[]):
                     row.append(id_map[e_id, i])
                     col.append(id_map[e_id, j])
                     data.append(Ke[i,j])
-    Ksp = csr_matrix((data, (row, col)), shape=(total_dof, total_dof))
+    Ksp = csc_matrix((data, (row, col)), shape=(total_dof, total_dof), dtype=float)
     return Ksp
 
 ###############################################
@@ -443,6 +445,7 @@ def get_element_shape_fn(end_u, end_v, d_u, d_v, exagg=1.0):
 
 
 def get_internal_reaction_fn(fu, fv):
+    # TODO cubic interpolation when in-span load is applied
     # * linear monomials 1+x
     A_l = polyvander([0., 1.], 1)
     # * cubic monomials 1, x, x**2, x**3
@@ -520,7 +523,8 @@ class NumpyStiffness(StiffnessBase):
     def __init__(self, vertices, elements, fixities, material_dicts, 
         verbose=False, model_type='frame', output_json=False, unit='meter'):
         assert unit in LENGTH_CONVERSION
-        scale = LENGTH_CONVERSION['unit']
+        scale = LENGTH_CONVERSION[unit]
+        # TODO: no need for bookkeeping vertices data, having transf matrices suffices
         super(NumpyStiffness, self).__init__(scale*np.array(vertices), np.array(elements, dtype=int), 
             fixities, material_dicts, verbose, model_type, output_json)
         # default displacement tolerance
@@ -537,7 +541,7 @@ class NumpyStiffness(StiffnessBase):
         self._id_map = None
         self._v_id_map = None
         # unit converted material properties per element
-        self._mats = [Material[md] for e, md in self._material_dicts.items()]
+        self._mats = [Material(md) for md in self._material_dicts]
         # (nE x (12x12)) list of element stiffness matrix
         self._element_k_list = []
         # (nE x (12x12)) block-diagnal global2local coordinate transformation matrix
@@ -549,10 +553,11 @@ class NumpyStiffness(StiffnessBase):
         # (nVx6), np array
         self._nodal_load = None
         # stored computation results
+        self._has_stored_deformation = False
         self._stored_existing_ids = []
-        self._stored_nodal_deformation = None
-        self._stored_element_reaction = None
-        self._stored_fixities_reaction = None
+        self._stored_nD = None # nodal displacement, (nExistNode x 7) np array
+        self._stored_eR = None # element reaction, (nExistElement x 13) np array
+        self._stored_fR = None # fixities reaction, (nExistFixities x 6) np array
         self._stored_compliance = None
         # output settings
         self._output_json_file_name = ""
@@ -583,23 +588,35 @@ class NumpyStiffness(StiffnessBase):
 
     #######################
     # Load input
-    def set_self_weight_load(self, gravity_direction):
-        self._include_self_weight_load = True
-        assert gravity_direction.shape[0] == 3
-        self_weight_load_density = {}
-        for i in range(self.nE):
-            q_sw = self._mats[i].rho * self._mats[i].A;
-            w_G = gravity_direction * q_sw
-            self_weight_load_density[i] = w_G
-        self._element_gravity_nload_list = \
-            self.compute_element_uniformly_distributed_lumped_load(self_weight_load_density)
+    def set_self_weight_load(self, include_self_weight=True, gravity_direction=DEFAULT_GRAVITY_DIRECTION):
+        self._include_self_weight_load = include_self_weight
+        if include_self_weight:
+            assert len(gravity_direction) == 3
+            gravity_direction = np.array(gravity_direction)
+            self_weight_load_density = {}
+            for i in range(self.nE):
+                q_sw = self._mats[i].rho * self._mats[i].A;
+                w_G = gravity_direction * q_sw
+                self_weight_load_density[i] = w_G
+            self._element_gravity_nload_list = \
+                self.compute_element_uniformly_distributed_lumped_load(self_weight_load_density)
 
     def set_uniformly_distributed_loads(self, element_load_density):
         self._element_lumped_nload_list = \
             self.compute_element_uniformly_distributed_lumped_load(element_load_density)
 
     def set_load(self, nodal_forces):
-        raise NotImplementedError()
+        """[summary]
+        
+        Parameters
+        ----------
+        nodal_forces : np array of size (nLoadedNode, 7)
+            each row [node id, 6x1 load vector]
+        """
+        self._nodal_load = np.zeros(self.nV*6)
+        for i in range(nodal_forces.shape[0]):
+            v_id = int(nodal_forces[i,0])
+            self._nodal_load[self._v_id_map[v_id,:]] = nodal_forces[i,1:]
 
     #######################
     # Compute functions
@@ -608,7 +625,7 @@ class NumpyStiffness(StiffnessBase):
         self._trans_tol = transl_tol
         self._rot_tol = rot_tol
 
-    def solve(self, exist_element_ids=[], if_cond_num=True):
+    def solve(self, exist_element_ids=[], if_cond_num=False):
         # assume full structure if exist_element_ids is []
         if len(exist_element_ids)==0:
             exist_element_ids = range(self.nE)
@@ -616,7 +633,7 @@ class NumpyStiffness(StiffnessBase):
         total_dof = 6*self.nV
         # assume all dof does not exist (-1)
         # 0: free, -1: not exist, 1: fixed
-        dof_stat = np.ones(total_dof)*-1
+        dof_stat = np.ones(total_dof, dtype=int)*-1
 
         # existing id set
         exist_node_set = set()
@@ -626,32 +643,35 @@ class NumpyStiffness(StiffnessBase):
             dof_stat[self._id_map[e]] = np.zeros(12)
 
         # assemble the list of fixed dof fixed list, 1x(nFv)
-        if len(set(self._fixties.keys())&exist_node_set) == 0:
+        if len(set(self._fixties.keys()) & exist_node_set) == 0:
+            if self._verbose : print('Structure floating: no fixed node exists in the partial structure.')
             return False
         n_exist_fixed_nodes = 0
         n_fixed_dof = 0
         for fv_id, fix_dofs in self._fixties.items():
             if fv_id in exist_node_set:
-                dof_stat[self._v_id_map[fv_id]] = fix_dofs
+                dof_stat[self._v_id_map[fv_id,:]] = fix_dofs
                 n_exist_fixed_nodes+=1
                 n_fixed_dof += sum(fix_dofs)
         n_free_dof = 6*len(exist_node_set)-n_fixed_dof
 
         # compute permutation map
         free_tail = 0
-        fix_tail = 0
+        fix_tail = n_free_dof
         nonexist_tail = 6*len(exist_node_set)
         id_map_RO = np.array(range(total_dof))
         for i in range(total_dof):
             if 0 == dof_stat[i]:
                 id_map_RO[free_tail] = i
                 free_tail += 1
-            if 1 == dof_stat[i]:
+            elif 1 == dof_stat[i]:
                 id_map_RO[fix_tail] = i
                 fix_tail += 1
-            if -1 == dof_stat[i]:
+            elif -1 == dof_stat[i]:
                 id_map_RO[nonexist_tail] = i
                 nonexist_tail += 1
+            else:
+                raise ValueError
 
         # a row permuatation matrix (multiply left)
         perm_data = []
@@ -661,7 +681,7 @@ class NumpyStiffness(StiffnessBase):
             perm_row.append(i)
             perm_col.append(id_map_RO[i])
             perm_data.append(1)
-        Perm = csr_matrix((perm_data, (perm_row, perm_col)), shape=(total_dof, total_dof))
+        Perm = csc_matrix((perm_data, (perm_row, perm_col)), shape=(total_dof, total_dof))
         PermT = Perm.T
 
         # permute the full stiffness matrix & carve the needed portion out
@@ -671,12 +691,13 @@ class NumpyStiffness(StiffnessBase):
         K_mm = K_perm[0:n_free_dof, 0:n_free_dof]
         K_fm = K_perm[n_free_dof:n_free_dof+n_fixed_dof, 0:n_free_dof]
 
+        # TODO make P sparse
         nodal_load_P_tmp = np.copy(self._nodal_load)
         element_lumped_load = self._create_uniformly_distributed_lumped_load(exist_element_ids)
         nodal_load_P_tmp += element_lumped_load
         if self._include_self_weight_load:
             load_sw = self._create_self_weight_load(exist_element_ids)
-        nodal_load_P_tmp += load_sw
+            nodal_load_P_tmp += load_sw
 
         U_m = np.zeros(n_free_dof)
         if norm(nodal_load_P_tmp) > DOUBLE_EPS:
@@ -684,18 +705,52 @@ class NumpyStiffness(StiffnessBase):
             P_m = P_perm[0:n_free_dof]
             P_f = P_perm[n_free_dof:n_free_dof+n_fixed_dof]
 
+            cond_num = LA.cond(K_mm.toarray())
+            print('Condition number: {} ~ 1/eps ({})'.format(np.log(cond_num), np.log(1/DOUBLE_EPS)))
+
+            # https://scikit-sparse.readthedocs.io/en/latest/overview.html
+            # https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.sparse.linalg.SuperLU.html#scipy.sparse.linalg.SuperLU
+            K_LU = SPLA.splu(K_mm)
+            if not ((K_LU.perm_r == np.arange(K_mm.shape[0])).all() and (K_LU.U.diagonal()>-DOUBLE_EPS).all()):
+                print((K_LU.U.diagonal()>0))
+                print('ERROR: Stiffness Solver fail! Stiffness matrix not Positive Definite, the sub-structure might contain mechanism.')
+                input()
+                return False
+
+            if if_cond_num:
+                try:
+                    # eigen values from both ends of the spectrum
+                    eigvals = SPLA.eigsh(K_mm, k=2, which='BE', tol=1, return_eigenvectors=False) 
+                    if not np.all(eigvals > -DOUBLE_EPS):
+                        if self._verbose:
+                            print('Stiffness matrix not Positive Definite: largest eigenvalue {}'.format(eigvals))
+                        return False
+                except SPLA.eigen.arpack.ArpackNoConvergence as errmsg:
+                    # likely a condition number problem
+                    # https://math.stackexchange.com/questions/261295/to-invert-a-matrix-condition-number-should-be-less-than-what
+                    cond_num = np.log(LA.cond(K_mm.toarray()))
+                    if cond_num > -np.log(DOUBLE_EPS):
+                        if self._verbose:
+                            print('Condition number: {} > 1/eps ({})'.format(np.log(cond_num), -np.log(DOUBLE_EPS)))
+                        return False
+                    if self._verbose:
+                        print('Stiffness matrix condition number explosion: {}'.format(errmsg))
+                    # return False
+
+            U_m = K_LU.solve(P_m)
             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.gmres.html#scipy.sparse.linalg.gmres
-            U_m, exit_code = SPLA.gmres(K_mm, U_m)
-            # TODO check errorcode when unstable
-            if exit_code != 0:
-                return False 
-            if self._verbose:
-                print('ERROR: Stiffness Solver fail! The sub-structure contains mechanism.')
-                print('Stiffness matrix condition number: {}'.format(LA.cond(K_mm.todense())))
-                if exit_code > 0:
-                    print('# iterations: {} - {}'.format(exit_code, 'convergence to tolerance not achieved'))
-                else:
-                    print('exit_code : {} - {}'.format(exit_code, 'illegal input or breakdown'))
+            # U_m, exit_code = SPLA.gmres(K_mm, P_m, tol=1e-7)
+            # if exit_code != 0:
+            #     if self._verbose:
+            #         if exit_code > 0:
+            #             print('# iterations: {} - {}'.format(exit_code, 'convergence to tolerance not achieved'))
+            #         elif exit_code < 0:
+            #             print('exit_code : {} - {}'.format(exit_code, 'illegal input or breakdown'))
+            #     return False
+
+            # direct solve
+            # U_m = SPLA.spsolve(K_mm, P_m)
+
         # gathering results
         self._stored_compliance = 0.5*U_m.dot(P_m)
         # reaction
@@ -708,25 +763,28 @@ class NumpyStiffness(StiffnessBase):
         U = PermT.dot(U)
 
         # raw result conversion        
-        self._stored_nodal_deformation = np.zeros((len(exist_node_set), 1+6), dtype=float)
+        self._stored_nD = np.zeros((len(exist_node_set), 1+6), dtype=float)
         for i, v in enumerate(list(exist_node_set)):
-            self._stored_nodal_deformation[i, :] = np.hstack([[v], U[self._v_id_map[v]]])
+            self._stored_nD[i, :] = np.hstack([[v], U[self._v_id_map[v,:]]])
 
-        self._stored_fixities_reaction = np.zeros((n_exist_fixed_nodes, 1+6), dtype=float)
+        self._stored_fR = np.zeros((n_exist_fixed_nodes, 1+6), dtype=float)
         cnt = 0
         for fv_id, fix_dofs in self._fixties.items():
             if fv_id in exist_node_set:
-                self._stored_fixities_reaction[cnt, :] = np.hstack([[fv_id], R[fv_id*6:(fv_id+1)*6]])
+                self._stored_fR[cnt, :] = np.hstack([[fv_id], R[fv_id*6:(fv_id+1)*6]])
                 cnt += 1
 
-        self._stored_element_reaction = np.zeros((len(exist_element_ids), 1+6), dtype=float)
-        for e in exist_element_ids:
+        self._stored_eR = np.zeros((len(exist_element_ids), 1+12), dtype=float)
+        for i, e in enumerate(exist_element_ids):
             Ue = U[self._id_map[e]]
             eRF = self._rot_list[e].dot(self._element_k_list[e].dot(Ue))
-            self._stored_element_reaction[e, :] = np.hstack([[e], eRF])
+            self._stored_eR[i, :] = np.hstack([[e], eRF])
 
-        return self.check_stiffness_criteria(self._stored_nodal_deformation, \
-            self._stored_fixities_reaction, self._stored_element_reaction)
+        self._stored_existing_ids = np.copy(exist_element_ids)
+        self._has_stored_deformation = True
+
+        return self.check_stiffness_criteria(self._stored_nD, \
+            self._stored_fR, self._stored_eR)
 
     #######################
     # Public compute functions that are non-state-changing
@@ -765,45 +823,80 @@ class NumpyStiffness(StiffnessBase):
             ext_load[v*6:(v+1)*6] = nF
         return ext_load
     
-    def check_stiffness_criteria(self, node_displ, fixities_reaction, element_reaction):
-        return True
+    def check_stiffness_criteria(self, node_displ, fixities_reaction, element_reaction, ord=None):
+        # user can overwrite this function
+        nD_trans_max, nD_rot_max, _, _ = self.get_max_nodal_deformation(ord=ord)
+        return nD_trans_max < self._trans_tol
 
     #######################
     # Get functions - Main results
     def has_stored_result(self):
-        raise NotImplementedError()
+        return self._has_stored_deformation
 
     def get_solved_results(self):
-        raise NotImplementedError()
+        assert self.has_stored_result()
+        success = self.check_stiffness_criteria(self._stored_nD, self._stored_fR, self._stored_eR)
+        return (success, self._stored_nD, self._stored_fR, self._stored_eR)
 
-    def get_max_nodal_deformation(self):
-        raise NotImplementedError()
+    def get_compliance(self):
+        assert self.has_stored_result()
+        return self._stored_compliance
 
+    def get_max_nodal_deformation(self, ord=None):
+        assert self.has_stored_result()
+        # print(self._stored_nD)
+        # print(LA.norm(self._stored_nD[:,1:4], ord=ord, axis=1))
+        nD_trans_max = LA.norm(self._stored_nD[:,1:4], ord=ord, axis=1)
+        nD_rot_max = LA.norm(self._stored_nD[:,4:7], ord=ord, axis=1)
+        return (np.max(nD_trans_max), np.max(nD_rot_max),\
+                np.argmax(nD_trans_max), np.argmax(nD_rot_max))
+
+    # settings getters
     def get_nodal_deformation_tol(self):
-        raise NotImplementedError()
+        return (self._trans_tol, self._rot_tol)
 
     def get_frame_stat(self):
-        return 
+        return (self.nV, self.nE)
 
     #######################
     # Get functions - procedural data
     def get_lumped_nodal_loads(self, existing_ids=[]):
-        raise NotImplementedError()
+        """packing all applied nodal load and return the load vector
+        
+        Parameters
+        ----------
+        existing_ids : list of int, optional
+            existing element's indices, by default []
+        
+        Returns
+        -------
+        np array of size (nV * 6)
+
+        """
+        if len(existing_ids) == 0:
+            existing_ids = range(self.nE)
+        P = np.copy(self._nodal_load)
+        P += self._create_uniformly_distributed_lumped_load(existing_ids)
+        if self._include_self_weight_load:
+            P += self.get_gravity_nodal_loads(existing_ids)
+        return P
 
     def get_gravity_nodal_loads(self, existing_ids=[]):
-        raise NotImplementedError()
+        if len(existing_ids)==0:
+            existing_ids = range(self.nE)
+        return self._create_self_weight_load(existing_ids)
 
     def get_element_stiffness_matrices(self):
-        raise NotImplementedError()
+        return self._element_k_list
 
     def get_element_local2global_rot_matrices(self):
-        raise NotImplementedError()
+        return self._rot_list
 
     def get_element2dof_id_map(self):
-        raise NotImplementedError()
+        return self._id_map
 
     def get_node2dof_id_map(self):
-        raise NotImplementedError()
+        return self._v_id_map
 
     ################################
     # Visualizations
@@ -835,18 +928,18 @@ class NumpyStiffness(StiffnessBase):
             # self._e_react_dof_id = np.array(range(2*self._node_dof))
         self._precompute_element_stiffness_matrices()
         # node id-to-dof map
-        v_id_maps = np.zeros((self.nV, 6), dtype=int)
+        self._v_id_map = np.zeros((self.nV, 6), dtype=int)
         for i in range(self.nV):
-            v_id_maps[i] = np.array(range(i*6, (i+1)*6))
+            self._v_id_map[i, :] = np.array(range(i*6, (i+1)*6))
         # element id-to-dof map
-        id_maps = np.zeros((self.nE, 12), dtype=int)
+        self._id_map = np.zeros((self.nE, 12), dtype=int)
         for i in range(self.nE):
             end_u_id, end_v_id = self._elements[i,:]
-            v_id_maps[i] = np.hstack([v_id_maps[end_u_id,:], v_id_maps[end_v_id,:]])
+            self._id_map[i, :] = np.hstack([self._v_id_map[end_u_id,:], self._v_id_map[end_v_id,:]])
         # loads
         self._nodal_load = np.zeros(self.nV*6)
         if self._include_self_weight_load:
-            self.set_self_weight_load(DEFAULT_GRAVITY_DIRECTION)
+            self.set_self_weight_load(True, DEFAULT_GRAVITY_DIRECTION)
         self._is_init = True
         if verbose:
             print('NpStiffness init done.')

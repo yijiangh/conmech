@@ -2,6 +2,7 @@ from __future__ import print_function
 import os
 
 import pytest
+from termcolor import cprint
 import numpy as np
 from numpy.linalg import norm, multi_dot
 import random
@@ -20,9 +21,9 @@ def test_get_material_from_database():
     assert check_material_dict(PLA_MAT)
     assert check_material_dict(STEEL_S235_MAT)
 
-def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, include_sw=False,
+def repetitive_test_stiffness_checker(frame_file_path, engine, parsed_pt_loads=None, include_sw=False,
     n_attempts=50, existing_ids=[], expect_partial_ids_success=True, trans_tol=2e-3):
-    sc = StiffnessChecker.from_json(json_file_path=frame_file_path)
+    sc = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine=engine)
     sc.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
     assert not sc.has_stored_result()
     sc.set_nodal_displacement_tol(trans_tol=trans_tol)
@@ -76,7 +77,7 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
     # reinit
     st_time = time.time()
     for _ in range(n_attempts):
-        sc_new = StiffnessChecker.from_json(json_file_path=frame_file_path)
+        sc_new = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine=engine)
         sc_new.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
         sc_new.set_nodal_displacement_tol(trans_tol=trans_tol)
 
@@ -102,7 +103,7 @@ def repetitive_test_stiffness_checker(frame_file_path, parsed_pt_loads=None, inc
 @pytest.mark.parametrize("test_case, load_case", 
     [('tower', 'self_weight'), ('tower', 'point_load'), ('tower', 'self_weight+point_load'),
      ('topopt-100', 'self_weight'), ('topopt-100', 'point_load'), ('topopt-100', 'self_weight+point_load')])
-def test_stiffness_checker_solve_consistency(test_case, load_case, test_data_dir, n_attempts):
+def test_stiffness_checker_solve_consistency(test_case, load_case, test_data_dir, n_attempts, engine):
     if test_case == 'tower':
         file_name = 'tower_3D.json'
         load_file_name = 'tower_3D_load_case.json'
@@ -145,32 +146,32 @@ def test_stiffness_checker_solve_consistency(test_case, load_case, test_data_dir
 
     # repetitive tests
     print('################\nfull solve success checks')
-    repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
+    repetitive_test_stiffness_checker(json_path, engine, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
         n_attempts=n_attempts, existing_ids=[], expect_partial_ids_success=True, trans_tol=trans_tol)
 
     print('################\npartial solve success checks')
-    repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
+    repetitive_test_stiffness_checker(json_path, engine, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
         n_attempts=n_attempts, existing_ids=success_existing_ids, expect_partial_ids_success=True, trans_tol=trans_tol)
 
     print('################\npartial solve failure checks')
-    repetitive_test_stiffness_checker(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
+    repetitive_test_stiffness_checker(json_path, engine, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
         n_attempts=n_attempts, existing_ids=failed_existing_ids, expect_partial_ids_success=False, trans_tol=trans_tol)
 
 
 @pytest.mark.init_sc
-def test_init_stiffness_checker(test_data_dir):
+def test_init_stiffness_checker(test_data_dir, engine):
     # file_name = 'tower_3D_broken_lines.json'
     file_name = 'four-frame.json'
     file_path = os.path.join(test_data_dir, file_name)
 
     print('init StiffnessChecker from json file path...')
-    sc_from_json = StiffnessChecker.from_json(file_path, verbose=False)
+    sc_from_json = StiffnessChecker.from_json(file_path, verbose=False, checker_engine=engine)
 
     print('init StiffnessChecker from frame data...')
     nodes, elements, fix_specs, model_type, material_dicts, model_name, unit = \
         read_frame_json(file_path, verbose=True)
     sc_from_data = StiffnessChecker.from_frame_data(nodes, elements, fix_specs, material_dicts, 
-        unit=unit, model_type=model_type, model_name=model_name, verbose=False)
+        unit=unit, model_type=model_type, model_name=model_name, verbose=False, checker_engine=engine)
 
     assert sc_from_json.model_name == sc_from_data.model_name
     assert sc_from_json.model_type == sc_from_data.model_type
@@ -188,14 +189,14 @@ def test_init_stiffness_checker(test_data_dir):
 
 
 @pytest.mark.nodal_load
-def test_get_nodal_loads():
+def test_get_nodal_loads(engine):
     file_name = 'tower_3D.json'
     load_file_name = 'tower_3D_load_case.json'
     root_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(root_dir, '..', 'test_data', file_name)
     load_json_path = os.path.join(root_dir, '..', 'test_data', load_file_name)
 
-    sc = StiffnessChecker.from_json(json_file_path=json_path)
+    sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
     sc.set_self_weight_load(False)
     parsed_pt_loads, _, _ = read_load_case_json(load_json_path)
 
@@ -204,33 +205,51 @@ def test_get_nodal_loads():
 
     for node_id in parsed_pt_loads:
         assert node_id in fetched_nodal_loads
-        assert_equal(fetched_nodal_loads[node_id], parsed_pt_loads[node_id])
+        assert_equal(parsed_pt_loads[node_id], fetched_nodal_loads[node_id])
 
 
 @pytest.mark.neighnor_q
-def test_neighnor_query():
+def test_neighnor_query(engine):
     # TODO: not completed
     file_name = 'tower_3D.json'
     root_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(root_dir, '..', 'test_data', file_name)
 
-    sc = StiffnessChecker.from_json(json_file_path=json_path)
+    sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
     assert_equal(sc.fix_element_ids, [0,1,2,3,8,9,10,11,12,13,14,15])
     assert_equal(sc.get_element_connected_node_ids(fix_node_only=True), [0,1,2,3]) 
     assert_equal(sc.get_element_connected_node_ids(existing_ids=[0,3], fix_node_only=True), [1,2]) 
 
 
-def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_sw=False,
-        existing_ids=[], expect_partial_ids_success=True):
-    debug = False
-    sc = StiffnessChecker.from_json(json_file_path=frame_file_path)
+def repetitive_test_equilibrium(frame_file_path, engine, parsed_pt_loads=None, include_sw=False,
+        existing_ids=[], expect_partial_ids_success=True, debug=False, trans_tol=1e-3):
+    sc = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine=engine, verbose=True)
+    sc.set_nodal_displacement_tol(trans_tol=trans_tol)
     sc.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
     assert not sc.has_stored_result()
 
-    sol_success = sc.solve(existing_ids, eid_sanity_check=True)
+    scc = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine='cpp', verbose=True)
+    scc.set_nodal_displacement_tol(trans_tol=trans_tol)
+    scc.set_loads(point_loads=parsed_pt_loads, include_self_weight=include_sw)
+
+    scc_success = scc.solve(existing_ids, eid_sanity_check=False, if_cond_num=True)
+    scc_trans_tol, _ = scc.get_nodal_deformation_tol()
+    scc_max_t, _, scc_max_tid, _ = scc.get_max_nodal_deformation()
+    print('cpp Max trans deformation: Node #{}: {}|{}'.format(scc_max_tid, scc_max_t, scc_trans_tol))
+
+    sol_success = sc.solve(existing_ids, eid_sanity_check=False, if_cond_num=True)
+    if debug:
+        trans_tol, _ = sc.get_nodal_deformation_tol()
+        max_t, _, max_tid, _ = sc.get_max_nodal_deformation()
+        print('Max trans deformation: Node #{}: {}|{}'.format(max_tid, max_t, trans_tol))
+
+    if expect_partial_ids_success:
+        assert sol_success
+    else:
+        assert not sol_success
+        return
 
     assert sc.has_stored_result()
-    # comparision standard solutions
     success, nD, fR, eR = sc.get_solved_results()
     assert success == sol_success
     assert len(nD) == len(sc.get_element_connected_node_ids(existing_ids=existing_ids))
@@ -265,7 +284,8 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
     # element level checks
     #########################
 
-    print('testing per-element beam equation in local coordinate.')
+    print('='*10)
+    cprint('testing per-element beam equation (stress-strain) in local coordinate.')
     # see docs: 
     # https://conmech.readthedocs.io/en/latest/under_the_hood/stiffness_checker_intro.html
     local_stiffness_mats = sc.get_element_stiffness_matrices(in_local_coordinate=True)
@@ -276,8 +296,10 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
         eD_L = eR_LG_mats[e_id].dot(eD_G)
         eR_L = np.hstack([ eR[e_id][0], eR[e_id][1] ])
         assert_almost_equal(K_eL.dot(eD_L), eR_L)
+    cprint('Passed', 'green')
 
-    print('testing per-element beam equation in global coordinate.')
+    print('='*10)
+    cprint('testing per-element beam equation (stress-strain) in global coordinate.')
     global_stiffness_mats = sc.get_element_stiffness_matrices()
     for e_id in existing_e_ids:
         e = sc.elements[e_id]
@@ -286,20 +308,22 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
         eR_L = np.hstack([ eR[e_id][0], eR[e_id][1] ])
         eR_G = eR_LG_mats[e_id].transpose().dot(eR_L)
         assert_almost_equal(K_eG.dot(eD_G), eR_G)
+    cprint('Passed', 'green')
 
     #########################
     # node level checks
     #########################
 
     # test nodal equilibrium, from result elemental reaction force eR
+    print('='*10)
     print('testing nodal equilibrium, from result elemental reaction force')
+    fail_number = 0
     for n_id in existing_node_ids:
-        internal_force = 0
+        internal_force = np.zeros(6)
         if n_id in sc.fix_node_ids:
             fixity_reaction = fR[n_id]
         else:
             fixity_reaction = 0
-
         connected_e_id_set = all_node_e_neighbors[n_id]
         connected_e_ids = list(connected_e_id_set.intersection(existing_e_ids))
         assert connected_e_ids, 'existing node should at least has one element connected!'
@@ -308,8 +332,7 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
             local_id = e.index(n_id) 
             eR_LG = eR_LG_mats[e_id]
             eR_L = np.hstack([ eR[e_id][0], eR[e_id][1] ])
-            internal_force += eR_LG.transpose().dot(eR_L)[local_id*6 : local_id*6 + 6]
-        
+            internal_force += (eR_LG.T).dot(eR_L)[local_id*6 : local_id*6 + 6]
         if debug:
             try:
                 assert_almost_equal(fixity_reaction + nodal_loads[n_id], internal_force)
@@ -318,20 +341,23 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
                     n_id, n_id in sc.fix_node_ids, connected_e_ids, 
                     fixity_reaction + nodal_loads[n_id], internal_force,
                     fixity_reaction + nodal_loads[n_id] - internal_force))
-                print('\x1b[6;30;43m' + '{}'.format(err_msg) + '\x1b[0m')
+                cprint('{}'.format(err_msg), 'red')
+                fail_number += 1
         else:
             assert_almost_equal(fixity_reaction + nodal_loads[n_id], internal_force)
+    cprint('Passed : {}/{}'.format(len(existing_node_ids)-fail_number, len(existing_node_ids)), 'green' if fail_number==0 else 'yellow')
 
     # test nodal force equilibrium, from nodal deformation
+    print('='*10)
     print('testing nodal equilibrium, from nodal deformation')
     local_stiffness_mats = sc.get_element_stiffness_matrices(in_local_coordinate=True)
     global_stiffness_mats = sc.get_element_stiffness_matrices()
+    fail_number = 0
     for n_id in existing_node_ids:
         if n_id in sc.fix_node_ids:
             fixity_reaction = fR[n_id]
         else:
             fixity_reaction = 0
-
         connected_e_id_set = all_node_e_neighbors[n_id]
         connected_e_ids = list(connected_e_id_set.intersection(existing_e_ids))
         e_reaction_node_sum = 0
@@ -351,7 +377,6 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
             
             e_reaction_node = e_reaction[local_id*6 : local_id*6 + 6]
             e_reaction_node_sum += e_reaction_node
-
         if debug:
             try:
                 assert_almost_equal(fixity_reaction + nodal_loads[n_id], e_reaction_node_sum)
@@ -360,16 +385,20 @@ def repetitive_test_equilibrium(frame_file_path, parsed_pt_loads=None, include_s
                     n_id, n_id in sc.fix_node_ids, connected_e_ids, 
                     fixity_reaction + nodal_loads[n_id], e_reaction_node_sum,
                     fixity_reaction + nodal_loads[n_id] - e_reaction_node_sum))
-                print('\x1b[6;30;43m' + '{}'.format(err_msg) + '\x1b[0m')
+                cprint('{}'.format(err_msg), 'red')
+                fail_number += 1
         else:
             assert_almost_equal(fixity_reaction + nodal_loads[n_id], e_reaction_node_sum)
+    cprint('Passed : {}/{}'.format(len(existing_node_ids)-fail_number, len(existing_node_ids)), 'green' if fail_number==0 else 'yellow')
 
 
 @pytest.mark.equil_check
 @pytest.mark.parametrize("test_case, load_case", 
-    [('tower', 'self_weight'), ('tower', 'point_load'), ('tower', 'self_weight+point_load'),
-     ('topopt-100', 'self_weight'), ('topopt-100', 'point_load'), ('topopt-100', 'self_weight+point_load')])
-def test_nodal_equilibrium(test_case, load_case):
+    [('tower', 'self_weight'), ('tower', 'point_load'), ('tower', 'self_weight+point_load'),])
+    # [('topopt-100', 'self_weight'), ('topopt-100', 'point_load'), ('topopt-100', 'self_weight+point_load')])
+    # [('topopt-100', 'self_weight'),])
+def test_nodal_equilibrium(test_case, load_case, engine, debug):
+    trans_tol = 1e-3
     if test_case == 'tower':
         file_name = 'tower_3D.json'
         load_file_name = 'tower_3D_load_case.json'
@@ -377,6 +406,7 @@ def test_nodal_equilibrium(test_case, load_case):
         # some parts are floating in this partial ids
         failed_existing_ids = [0, 4, 7, 8, 9] 
         if load_case == 'self_weight' or load_case == 'self_weight+point_load':
+            trans_tol = 0.23
             success_existing_ids = [0, 1, 2, 3, 4, 5, 6, 10, 13]
         else:
             success_existing_ids = [0,1,2,3,8,9,10,11,12,13,14,15]
@@ -405,21 +435,23 @@ def test_nodal_equilibrium(test_case, load_case):
     else:
         assert False, 'not supported load case!'
     
+    print('\n******************')
+    cprint('test case: {} - {} | {}'.format(test_case, load_case, engine), 'yellow')
     print('\n################\nfull solve success node equilibirum checks')
-    repetitive_test_equilibrium(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
-        existing_ids=[], expect_partial_ids_success=True)
+    repetitive_test_equilibrium(json_path, engine, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
+        existing_ids=[], expect_partial_ids_success=True, debug=debug)
 
-    print('\n################\npartial solve success node equilibirum checks')
-    repetitive_test_equilibrium(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
-        existing_ids=success_existing_ids, expect_partial_ids_success=True)
+    # print('\n################\npartial solve success node equilibirum checks')
+    # repetitive_test_equilibrium(json_path, engine, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
+    #     existing_ids=success_existing_ids, expect_partial_ids_success=True, debug=debug, trans_tol=trans_tol)
 
-    print('\n################\npartial solve failure node equilibirum checks')
-    repetitive_test_equilibrium(json_path, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
-        existing_ids=failed_existing_ids, expect_partial_ids_success=False)
+    # print('\n################\npartial solve failure node equilibirum checks')
+    # repetitive_test_equilibrium(json_path, engine, parsed_pt_loads=parsed_pt_loads, include_sw=include_sw, \
+    #     existing_ids=failed_existing_ids, expect_partial_ids_success=False, debug=debug)
 
 
-def repetitive_check_gravity_validity(frame_file_path, existing_ids=[], expect_partial_ids_success=True):
-    sc = StiffnessChecker.from_json(json_file_path=frame_file_path)
+def repetitive_check_gravity_validity(frame_file_path, engine, existing_ids=[], expect_partial_ids_success=True):
+    sc = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine=engine)
 
     print('\n################\n [0,0,-100] gravity direction')
     sc.set_loads(include_self_weight=True, gravity_direction=[0,0,-100])
@@ -479,7 +511,7 @@ def repetitive_check_gravity_validity(frame_file_path, existing_ids=[], expect_p
 @pytest.mark.gravity_check
 @pytest.mark.parametrize("test_case", 
     [('tower'), ('topopt-100')])
-def test_self_weight_validity(test_case):
+def test_self_weight_validity(test_case, engine):
     if test_case == 'tower':
         file_name = 'tower_3D.json'
         success_existing_ids = list(range(8))
@@ -495,10 +527,10 @@ def test_self_weight_validity(test_case):
     json_path = os.path.join(root_dir, '..', 'test_data', file_name)
 
     print('\n################\nfull solve success gravity validity checks')
-    repetitive_check_gravity_validity(json_path, existing_ids=[], expect_partial_ids_success=True)
+    repetitive_check_gravity_validity(json_path, engine, existing_ids=[], expect_partial_ids_success=True)
 
     print('\n################\npartial solve success gravity validity checks')
-    repetitive_check_gravity_validity(json_path, existing_ids=success_existing_ids, expect_partial_ids_success=True)
+    repetitive_check_gravity_validity(json_path, engine, existing_ids=success_existing_ids, expect_partial_ids_success=True)
 
 
 @pytest.mark.uniform_load_check
@@ -508,7 +540,7 @@ def test_self_weight_validity(test_case):
         43, 44, 51, 52, 53, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, \
         108, 109, 110, 111, 112, 113, 114, 115, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131])
      ])
-def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids):
+def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids, engine):
     if test_case == 'tower':
         file_name = 'tower_3D.json'
     elif test_case == 'topopt-100':
@@ -518,7 +550,7 @@ def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids):
 
     root_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(root_dir, '..', 'test_data', file_name)
-    sc = StiffnessChecker.from_json(json_file_path=json_path)
+    sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
 
     # gravity load agreement check
     # _, uniform_element_load, _ = read_load_case_json(load_json_path)
@@ -543,7 +575,7 @@ def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids):
     sc.solve(exist_element_ids=existing_e_ids)
     _, ul_nD, ul_fR, ul_eR = sc.get_solved_results()
 
-    sw_sc = StiffnessChecker.from_json(json_file_path=json_path)
+    sw_sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
     sw_sc.set_loads(include_self_weight=True)
     sw_sc.solve(exist_element_ids=existing_e_ids)
     _, sw_nD, sw_fR, sw_eR = sw_sc.get_solved_results()
@@ -559,7 +591,7 @@ def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids):
 # @pytest.mark.ignore(reason='not fully developed')
 @pytest.mark.uniform_load_check
 @pytest.mark.analy_compare
-def test_uniformly_distributed_load_with_analytical_solution():
+def test_uniformly_distributed_load_with_analytical_solution(engine):
     """ analytical example in 
             Matrix Structural Analysis 2rd edition, McGuire, Gallagher, Ziemian
             Example 5.8, Page 116 (p.137 in the PDF)
@@ -575,7 +607,7 @@ def test_uniformly_distributed_load_with_analytical_solution():
     json_path = os.path.join(root_dir, '..', 'test_data', file_name)
     load_json_path = os.path.join(root_dir, '..', 'test_data', load_file_name)
 
-    sc = StiffnessChecker.from_json(json_file_path=json_path)
+    sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
     point_load, uniform_element_load, include_sw = read_load_case_json(load_json_path)
     sc.set_loads(point_loads=point_load, uniform_distributed_load=uniform_element_load, include_self_weight=include_sw)
     sc.set_nodal_displacement_tol(trans_tol=0.024, rot_tol=0.006)
@@ -603,7 +635,7 @@ def test_uniformly_distributed_load_with_analytical_solution():
 
     print('compare analytical res: w reinit')
     for _ in range(test_iters):
-        re_sc = StiffnessChecker.from_json(json_file_path=json_path)
+        re_sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
         point_load, uniform_element_load, include_sw = read_load_case_json(load_json_path)
         re_sc.set_loads(point_loads=point_load, uniform_distributed_load=uniform_element_load, include_self_weight=include_sw)
         re_sc.set_nodal_displacement_tol(trans_tol=0.024, rot_tol=0.006)

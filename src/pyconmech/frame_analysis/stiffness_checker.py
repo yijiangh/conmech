@@ -14,7 +14,12 @@ from collections import defaultdict, OrderedDict
 import numpy as np
 from numpy.linalg import norm
 
-from _pystiffness_checker import _StiffnessChecker
+DEFAULT_ENGINE = 'cpp'
+try:
+    from _pystiffness_checker import _StiffnessChecker
+except ImportError:
+    DEFAULT_ENGINE = 'numpy'
+from .numpy_stiffness import NumpyStiffness
 from pyconmech.frame_analysis.frame_file_io import read_frame_json, write_frame_json
 
 class StiffnessChecker(object):
@@ -25,7 +30,7 @@ class StiffnessChecker(object):
     """
 
     def __init__(self, node_points=None, elements=None, fix_specs=None, material_dicts=None,  
-        unit='meter', model_type='frame', model_name=None, verbose=False, checker_engine=None):
+        unit='meter', model_type='frame', model_name=None, verbose=False, checker_engine=DEFAULT_ENGINE):
         """Init fn for stiffness_checker
 
         By default, self-weight load is applied. Disable by ``StiffnessChecker.set_self_weight_load(False)``
@@ -48,8 +53,10 @@ class StiffnessChecker(object):
             model's name, by default None
         verbose : bool, optional
             verbose output (passed into cpp engine), by default False
-        checker_engine : class instance, optional
-            ``_StiffnessChecker`` generated from cpp backend, or a numpy-based python solver (not implemented yet), by default None
+        checker_engine : str, optional
+            'cpp' : ``_StiffnessChecker`` : generated from cpp backend
+            'numpy' : ``NumpyStiffness`` : numpy-based python solver
+            by default 'cpp'
         
         Raises
         ------
@@ -61,6 +68,14 @@ class StiffnessChecker(object):
             raise NotImplementedError('truss model is not supported now...')
         self._model_type = model_type
         #
+        if checker_engine == 'cpp':
+            fixities = np.array([[int(key)] + fix_dofs for key, fix_dofs in fix_specs.items()], dtype=np.int32)
+            checker_engine = _StiffnessChecker(np.array(node_points, dtype=np.float64), np.array(elements, dtype=np.int32), fixities, \
+                material_dicts, verbose=verbose)
+        elif checker_engine == 'numpy':
+            checker_engine = NumpyStiffness(node_points, elements, fix_specs, material_dicts, verbose, model_type, False, unit)
+        else:
+            raise NotImplementedError('Engine not exist: {}'.format(checker_engine))
         self._sc_ins = checker_engine
         self._sc_ins.set_self_weight_load(True)
         #
@@ -73,7 +88,7 @@ class StiffnessChecker(object):
         self.set_nodal_displacement_tol()
 
     @classmethod
-    def from_json(cls, json_file_path=None, verbose=False):
+    def from_json(cls, json_file_path=None, verbose=False, checker_engine=DEFAULT_ENGINE):
         """init class from a frame json file
         
         Parameters
@@ -89,19 +104,15 @@ class StiffnessChecker(object):
             [description]
         """
         assert os.path.exists(json_file_path), "json file not exists!"
-        # TODO: argument switch for numpy engine
-        checker_engine = _StiffnessChecker(json_file_path=json_file_path, verbose=verbose)
-
         node_points, elements, fix_specs, model_type, material_dicts, model_name, unit = \
             read_frame_json(json_file_path, verbose=verbose)
-
         return cls(node_points=node_points, elements=elements, fix_specs=fix_specs, \
                    model_type=model_type, material_dicts=material_dicts, unit=unit, model_name=model_name, verbose=verbose, \
                    checker_engine=checker_engine)
 
     @classmethod
     def from_frame_data(cls, node_points, elements, fix_specs, material_dicts, 
-        unit='meter', model_type='frame', model_name=None, verbose=False):
+        unit='meter', model_type='frame', model_name=None, verbose=False, checker_engine=DEFAULT_ENGINE):
         """init class from frame data
         
         Parameters
@@ -122,18 +133,14 @@ class StiffnessChecker(object):
             model's name, by default None
         verbose : bool, optional
             verbose output, passed into cpp backend, by default False
+        checker_engine : str, optional
+            'cpp' or 'numpy'
         
         Returns
         -------
         StiffnessChecker
             class instance
         """
-        # convert to np array
-        fixities = np.array([[int(key)] + fix_dofs for key, fix_dofs in fix_specs.items()], dtype=np.int32)
-        checker_engine = _StiffnessChecker(np.array(node_points, dtype=np.float64), np.array(elements, dtype=np.int32), fixities, \
-            material_dicts, verbose=verbose)
-        checker_engine.set_self_weight_load(True)
-
         return cls(node_points=node_points, elements=elements, fix_specs=fix_specs, \
                    model_type=model_type, material_dicts=material_dicts, unit=unit, model_name=model_name, verbose=verbose, \
                    checker_engine=checker_engine)
@@ -273,7 +280,7 @@ class StiffnessChecker(object):
             {element_id : [wx, wy, wz]}, in global cooridinate
         """
         self._sc_ins.set_self_weight_load(include_self_weight=include_self_weight, gravity_direction=gravity_direction)
-        if point_loads:
+        if point_loads is not None and len(point_loads)!=0:
             pt_loads = []
             for vid, vload in point_loads.items():
                 pt_loads.append([vid] + vload)
@@ -372,19 +379,22 @@ class StiffnessChecker(object):
         success, nD_np, fR_np, eR_np = self._sc_ins.get_solved_results()
         nD = {}
         for row in nD_np:
-            if int(row[0]) in existing_n_ids:
-                nD[int(row[0])] = np.array(row[1:7])
+            v_id = int(row[0])
+            if v_id in existing_n_ids:
+                nD[v_id] = np.array(row[1:7])
         fR = {}
         for row in fR_np:
-            if int(row[0]) in existing_n_ids and int(row[0]) in self.fix_node_ids:
-                fR[int(row[0])] = np.array(row[1:7])
+            v_id = int(row[0])
+            if v_id in existing_n_ids and v_id in self.fix_node_ids:
+                fR[v_id] = np.array(row[1:7])
         eR = {}
         for row in eR_np:
-            if int(row[0]) in existing_e_ids:
+            e_id = int(row[0])
+            if e_id in existing_e_ids:
                 e_r = {}
                 e_r[0] = np.array(row[1:7])
                 e_r[1] = np.array(row[7:13])
-                eR[int(row[0])] = e_r
+                eR[e_id] = e_r
         return success, nD, fR, eR
 
     def get_max_nodal_deformation(self):
@@ -746,7 +756,7 @@ class StiffnessChecker(object):
     # ==========================================================================
 
     def get_original_shape(self, disc=1, draw_full_shape=True):
-        pass
+        raise NotImplementedError()
 
     def get_deformed_shape(self, disc=10, exagg_ratio=1.0):
-        pass
+        raise NotImplementedError()
