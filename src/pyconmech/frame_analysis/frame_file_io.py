@@ -11,6 +11,7 @@ import os
 import json
 import datetime
 from collections import OrderedDict
+import warnings
 
 '''length scale conversion to meter'''
 LENGTH_SCALE_CONVERSION = {
@@ -101,16 +102,21 @@ def check_material_dict(mat_dict):
         valid or not
     ------
     """
-    valid = "youngs_modulus" in mat_dict and \
-            "youngs_modulus_unit" in mat_dict and \
-            "density" in mat_dict and \
-            "density_unit" in mat_dict and \
-            "poisson_ratio" in mat_dict and \
-            "cross_sec_area" in mat_dict and \
-            "Jx" in mat_dict and \
-            "Iy" in mat_dict and \
-            "Iz" in mat_dict
-
+    if not ("youngs_modulus" in mat_dict and "youngs_modulus_unit" in mat_dict):
+        err_msg = 'Young\'s modulus property value not specified!'
+        raise RuntimeError(err_msg)
+    if not ("density" in mat_dict and "density_unit" in mat_dict):
+        err_msg = 'Density not specified!'
+        raise RuntimeError(err_msg)
+    if not ("poisson_ratio" in mat_dict or 'shear_modulus' in mat_dict):
+        err_msg = 'Both shear modulus and poisson_ratio not specified!'
+        raise RuntimeError(err_msg)
+    if not "cross_sec_area" in mat_dict:
+        err_msg = 'Cross section area property value not specified!'
+        raise RuntimeError(err_msg)
+    if not ("Jx" in mat_dict and "Iy" in mat_dict and "Iz" in mat_dict):
+        err_msg = 'Jx, Iy or Iz not specified!'
+        raise RuntimeError(err_msg)
     # TODO: do other unit conversions
     unit_valid = mat_dict["youngs_modulus_unit"] == 'kN/cm2' and \
                  mat_dict["density_unit"] == 'kN/m3' and \
@@ -118,7 +124,9 @@ def check_material_dict(mat_dict):
                  mat_dict["Jx_unit"] == 'centimeter^4' and \
                  mat_dict["Iy_unit"] == 'centimeter^4' and \
                  mat_dict["Iz_unit"] == 'centimeter^4'
-    return valid and unit_valid
+    if not unit_valid:
+        warnings.warn('Material unit not consistent to the standard one! Be careful!')
+    return True
 
 
 def extract_model_name_from_path(file_path):
@@ -126,8 +134,10 @@ def extract_model_name_from_path(file_path):
     return forename.split(os.sep)[-1]
 
 
-def read_frame_json(file_path, verbose=False):
-    """[summary]
+def read_frame_json(file_path, verbose=False, strict_check=True):
+    """parse a frame structure out of a json file
+    
+    Note: node point coordinates are converted to meter in this function.
     
     Parameters
     ----------
@@ -135,11 +145,13 @@ def read_frame_json(file_path, verbose=False):
         [description]
     verbose : bool, optional
         [description], by default False
+    strict_check : bool, optional
+        raise if unit/missing attribute detected, by default True
     
     Returns
     -------
     node_points
-        list of [x,y,z]
+        list of [x,y,z], note that the unit is converted to meter
     element_vids, 
         list of [v_id, v_id]
     fix_node_ids
@@ -171,15 +183,29 @@ def read_frame_json(file_path, verbose=False):
     element_vids = parse_elements(json_data)
     node_points = parse_node_points(json_data, scale=scale, dim=dim)
     fix_specs = parse_fixed_nodes(json_data, dim)
+    # unit converted!
+    unit = 'meter'
 
-    if 'uniform_cross_section' in json_data and \
-       'uniform_material_properties' in json_data and \
-       'material_properties' in json_data and \
-       json_data["uniform_cross_section"] and \
-       json_data["uniform_material_properties"]:
-        material_dicts = [json_data['material_properties']] * len(element_vids)
+    material_dicts = []
+    if 'uniform_cross_section' in json_data and 'uniform_material_properties' in json_data:
+        if json_data["uniform_cross_section"] and json_data["uniform_material_properties"]:
+            assert 'material_properties' in json_data
+            if strict_check:
+                check_material_dict(json_data['material_properties'])
+            material_dicts = [json_data['material_properties']] * len(element_vids)
+        else:
+            for json_element in json_data['element_list']:
+                if strict_check:
+                    check_material_dict(json_element['material_properties'])
+                material_dicts.append(json_element['material_properties'])
     else:
-        material_dicts = [json_element['material_properties'] for json_element in json_data['element_list']]
+        msg = 'Missing attributes in json: uniform_cross_section or uniform_material_properties!'
+        if strict_check:
+            raise RuntimeError(msg)
+        else:
+            warnings.warn(msg)
+            for json_element in json_data['element_list']:
+                material_dicts.append(json_element['material_properties'])
 
     if 'node_num' in json_data:
         num_node = json_data['node_num']

@@ -36,12 +36,11 @@ def test_frame_file_io(test_data_dir):
     assert unit == back_unit
 
 @pytest.mark.parse_mat
-def test_parse_material_properties_from_frame_json(test_data_dir):
+def test_parse_material_properties_from_frame_json(test_data_dir, engine):
     file_name = 'bad_material_properties_model.json'
     json_path = os.path.join(test_data_dir, file_name)
 
-    node_points, element_vids, fix_specs, model_type, material_dicts, model_name, unit = \
-        read_frame_json(json_path)
+    node_points, element_vids, fix_specs, model_type, material_dicts, model_name, unit = read_frame_json(json_path, strict_check=False)
 
     # initial file no problem
     mat_entry = ''
@@ -117,8 +116,8 @@ def test_parse_element_from_json(test_data_dir, engine):
     file_name = 'bad_node_element_model.json'
     json_path = os.path.join(test_data_dir, file_name)
 
-    node_points, element_vids, fix_specs, model_type, material_dicts, model_name, unit = \
-        read_frame_json(json_path)
+    node_points, element_vids, fix_specs, model_type, material_dicts, model_name, _ = \
+        read_frame_json(json_path, strict_check=False)
 
     with pytest.raises(RuntimeError) as excinfo:
         StiffnessChecker.from_frame_data(node_points, element_vids, fix_specs, material_dicts, \

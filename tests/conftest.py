@@ -5,6 +5,7 @@ def pytest_addoption(parser):
     parser.addoption('--viewer', action='store_true', help='enable viewer for visualization.')
     parser.addoption(
         "--engine",
+        choices={'cpp', 'numpy'},
         action="append",
         default=[],
         help="list of checker engines",
@@ -27,7 +28,11 @@ def viewer(request):
 
 def pytest_generate_tests(metafunc):
     if "engine" in metafunc.fixturenames:
-        metafunc.parametrize("engine", metafunc.config.getoption("engine"))
+        engine_opts = metafunc.config.getoption("engine")
+        if len(engine_opts) > 0:
+            metafunc.parametrize("engine", engine_opts)
+        else:
+            metafunc.parametrize("engine", ['cpp', 'numpy'])
 
 @pytest.fixture
 def debug(request):

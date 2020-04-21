@@ -43,7 +43,7 @@ def assert_aleq_sparse(A, B, atol = 1e-14):
     assert index_match!=0, 'number of nonzero id not matched: {}'.format(index_match)
     assert np.allclose(v1,v2, atol=atol)
 
-@pytest.mark.skip()
+@pytest.mark.skip('not fully developed')
 @pytest.mark.np_wip
 def test_2Dbeam_stiffness_matrix(viewer):
     # base on example 4.8-4.12, p.79 [MGZ2000]

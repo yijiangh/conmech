@@ -12,6 +12,9 @@ namespace stiffness_checker
   /**
    * @brief parse frame data from a given json entry
    * 
+   * @note Length unit for nodal load is converted to METER.
+   *       Units in Material is converted to the units written in SharedConst.h
+   * 
    * @param[in] json_data 
    * @param[out] V : #V x 3 matrix of vertex coordinates
    * @param[out] E : #E x 2 matrix of indices of end points into V
@@ -24,11 +27,10 @@ namespace stiffness_checker
                       Eigen::MatrixXd& V, Eigen::MatrixXi& E, Eigen::MatrixXi& Fixities, 
                       std::vector<conmech::material::Material>& materials);
 
-  bool parseFrameJson(const std::string& file_path, 
-                      Eigen::MatrixXd& V, Eigen::MatrixXi& E, Eigen::MatrixXi& Fixities, 
-                      std::vector<conmech::material::Material>& materials);
-
   /**
+   * @brief 
+   * 
+   * @note: TODO there is no explicit check on the force/moment unit now.
    *
    * @param file_path target load case json file path
    * @param[out] Load a ((num_loaded_node) x (full_node_dof + 1)) Eigen double matrix

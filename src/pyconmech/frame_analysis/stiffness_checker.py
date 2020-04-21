@@ -46,7 +46,7 @@ class StiffnessChecker(object):
         material_dicts : dict, optional
             #E x material property dictionary, see ``pyconmech.database.material_properties`` for examples, by default None
         unit : str, optional
-            unit used in the ``node_points``, by default 'meter'
+            length unit used in the ``node_points``, by default 'meter'
         model_type : str, optional
             structural model type, can be ``frame`` or ``truss``, by default 'frame'
         model_name : str, optional
@@ -67,7 +67,6 @@ class StiffnessChecker(object):
         if model_type == 'truss':
             raise NotImplementedError('truss model is not supported now...')
         self._model_type = model_type
-        #
         if checker_engine == 'cpp':
             fixities = np.array([[int(key)] + fix_dofs for key, fix_dofs in fix_specs.items()], dtype=np.int32)
             checker_engine = _StiffnessChecker(np.array(node_points, dtype=np.float64), np.array(elements, dtype=np.int32), fixities, \
@@ -104,10 +103,11 @@ class StiffnessChecker(object):
             [description]
         """
         assert os.path.exists(json_file_path), "json file not exists!"
-        node_points, elements, fix_specs, model_type, material_dicts, model_name, unit = \
+        # * node point coordinate unit is converted to *meter* inside read_frame_json
+        node_points, elements, fix_specs, model_type, material_dicts, model_name, _ = \
             read_frame_json(json_file_path, verbose=verbose)
         return cls(node_points=node_points, elements=elements, fix_specs=fix_specs, \
-                   model_type=model_type, material_dicts=material_dicts, unit=unit, model_name=model_name, verbose=verbose, \
+                   model_type=model_type, material_dicts=material_dicts, unit='meter', model_name=model_name, verbose=verbose, \
                    checker_engine=checker_engine)
 
     @classmethod

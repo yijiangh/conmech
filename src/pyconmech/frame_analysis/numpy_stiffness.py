@@ -344,10 +344,10 @@ def compute_lumped_uniformly_distributed_load(w_G, R_LG, L):
     assert 3 == w_G.shape[0]
     lumped_L = np.zeros(12)
     # nodal force
-    lumped_L[:3] = -w_G*L/2
-    lumped_L[6:9] = -w_G*L/2
+    lumped_L[:3] = w_G*L/2
+    lumped_L[6:9] = w_G*L/2
     # transform global load density to local density
-    w_L = - R_LG.dot(w_G)
+    w_L = R_LG.dot(w_G)
     # node 0, 1 local moment
     M_L0 = np.array([0, -w_L[2]*(L**2)/12., w_L[1]*(L**2)/12.])
     M_L1 = -M_L0
@@ -501,9 +501,12 @@ class Material(object):
         # kN/cm^2 => kN/m^2
         pressure_scale = 1/len_scale**2
         self.E = mat_dict['youngs_modulus'] * pressure_scale
-        self.G = mat_dict['shear_modulus'] * pressure_scale
-        self.mu = mat_dict['poisson_ratio']
-        # TODO check G and mu compatible
+        if 'poisson_ratio' in mat_dict:
+            self.mu = mat_dict['poisson_ratio']
+            G = mu2G(self.mu, self.E)
+            # if 'shear_modulus' in mat_dict:
+                # assert abs(G - mat_dict['shear_modulus'] * pressure_scale) / G > 1e-6
+            self.G = G
         self.rho = mat_dict['density']
         area_scale = len_scale**2
         self.A = mat_dict['cross_sec_area'] * area_scale
@@ -692,12 +695,14 @@ class NumpyStiffness(StiffnessBase):
         K_fm = K_perm[n_free_dof:n_free_dof+n_fixed_dof, 0:n_free_dof]
 
         # TODO make P sparse
+        # assemble load vector
         nodal_load_P_tmp = np.copy(self._nodal_load)
         element_lumped_load = self._create_uniformly_distributed_lumped_load(exist_element_ids)
         nodal_load_P_tmp += element_lumped_load
         if self._include_self_weight_load:
             load_sw = self._create_self_weight_load(exist_element_ids)
             nodal_load_P_tmp += load_sw
+        # nodal_load_P_tmp *= -1
 
         U_m = np.zeros(n_free_dof)
         if norm(nodal_load_P_tmp) > DOUBLE_EPS:
@@ -705,41 +710,68 @@ class NumpyStiffness(StiffnessBase):
             P_m = P_perm[0:n_free_dof]
             P_f = P_perm[n_free_dof:n_free_dof+n_fixed_dof]
 
-            cond_num = LA.cond(K_mm.toarray())
-            print('Condition number: {} ~ 1/eps ({})'.format(np.log(cond_num), np.log(1/DOUBLE_EPS)))
+            # TODO preconditioning K_mm by K_mm.diagonal()
+            # Ax = b
+            # (D1 A D2) x_ = (D1) b
+            # x = D2 x_
+            # take D1 = D2 = [ 1/sqrt(a_{ii}) ]
 
+            # TODO Karamba warning when plugging PLA's properties in
+            # Material #0 : For isotropic materials 
+            # G must be larger than E/3 and smaller than E/2. 
+            # If this condition is not fulfilled the material behaves very strange. 
+            # It may lead to an unstable structure. May cause errors in exported models.
+            D_diag = np.array([1/np.sqrt(a) for a in K_mm.diagonal()])
+            D = scipy.sparse.diags(D_diag, format='csc')
+            K_mm_precond = (D.dot(K_mm)).dot(D)
+
+            # cond_num = LA.cond(K_mm.toarray())
+            # print('Condition number: {} ~ 1/eps ({})'.format(np.log(cond_num), np.log(1/DOUBLE_EPS)))
+            after_cond_num = LA.cond(K_mm_precond.toarray())
+            print('Precond Condition number: {} ~ 1/eps ({})'.format(np.log(after_cond_num), np.log(1/DOUBLE_EPS)))
+
+            # TODO serialize and check PD and conditioning
             # https://scikit-sparse.readthedocs.io/en/latest/overview.html
             # https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.sparse.linalg.SuperLU.html#scipy.sparse.linalg.SuperLU
-            K_LU = SPLA.splu(K_mm)
-            if not ((K_LU.perm_r == np.arange(K_mm.shape[0])).all() and (K_LU.U.diagonal()>-DOUBLE_EPS).all()):
-                print((K_LU.U.diagonal()>0))
-                print('ERROR: Stiffness Solver fail! Stiffness matrix not Positive Definite, the sub-structure might contain mechanism.')
-                input()
+            K_LU = SPLA.splu(K_mm_precond)
+            _, d, _ = scipy.linalg.ldl(K_mm_precond.toarray())
+
+            print('K_LU', np.sum(K_LU.U.diagonal()<-DOUBLE_EPS))
+            print('D', np.sum(d.diagonal()<-DOUBLE_EPS))
+
+            # * positive definiteness can be checked by
+            #   - LDLt, check if D is all positive
+            #   - two ends of the spectrum are positive
+            # TODO which one is more stable? faster?
+            if((d.diagonal()<-DOUBLE_EPS).any()):
+            # if (K_LU.perm_r != np.arange(K_mm_precond.shape[0])).all() or (K_LU.U.diagonal()<-DOUBLE_EPS).any():
+                if self._verbose : 
+                    print('ERROR: Stiffness Solver fail! Stiffness matrix not Positive Definite, the sub-structure might contain mechanism.')
                 return False
 
-            if if_cond_num:
-                try:
-                    # eigen values from both ends of the spectrum
-                    eigvals = SPLA.eigsh(K_mm, k=2, which='BE', tol=1, return_eigenvectors=False) 
-                    if not np.all(eigvals > -DOUBLE_EPS):
-                        if self._verbose:
-                            print('Stiffness matrix not Positive Definite: largest eigenvalue {}'.format(eigvals))
-                        return False
-                except SPLA.eigen.arpack.ArpackNoConvergence as errmsg:
-                    # likely a condition number problem
-                    # https://math.stackexchange.com/questions/261295/to-invert-a-matrix-condition-number-should-be-less-than-what
-                    cond_num = np.log(LA.cond(K_mm.toarray()))
-                    if cond_num > -np.log(DOUBLE_EPS):
-                        if self._verbose:
-                            print('Condition number: {} > 1/eps ({})'.format(np.log(cond_num), -np.log(DOUBLE_EPS)))
-                        return False
-                    if self._verbose:
-                        print('Stiffness matrix condition number explosion: {}'.format(errmsg))
-                    # return False
+            # if if_cond_num:
+            #     try:
+            #         # eigen values from both ends of the spectrum
+            #         eigvals = SPLA.eigsh(K_mm_precond, k=2, which='BE', tol=1e-2, return_eigenvectors=False) 
+            #         if not np.all(eigvals > -DOUBLE_EPS):
+            #             if self._verbose:
+            #                 print('Stiffness matrix not Positive Definite: largest eigenvalue {}'.format(eigvals))
+            #             return False
+            #     except SPLA.eigen.arpack.ArpackNoConvergence as errmsg:
+            #         # likely a condition number problem
+            #         # https://math.stackexchange.com/questions/261295/to-invert-a-matrix-condition-number-should-be-less-than-what
+            #         cond_num = np.log(LA.cond(K_mm_precond.toarray()))
+            #         if cond_num > -np.log(DOUBLE_EPS):
+            #             if self._verbose:
+            #                 print('Condition number: {} > 1/eps ({})'.format(np.log(cond_num), -np.log(DOUBLE_EPS)))
+            #             return False
+            #         if self._verbose:
+            #             print('Stiffness matrix condition number explosion: {}'.format(errmsg))
+            #         # return False
 
-            U_m = K_LU.solve(P_m)
+            U_m_pred = K_LU.solve(D.dot(P_m))
             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.gmres.html#scipy.sparse.linalg.gmres
-            # U_m, exit_code = SPLA.gmres(K_mm, P_m, tol=1e-7)
+            # U_m, exit_code = SPLA.gmres(K_mm_precond, P_m, tol=1e-7)
             # if exit_code != 0:
             #     if self._verbose:
             #         if exit_code > 0:
@@ -750,6 +782,9 @@ class NumpyStiffness(StiffnessBase):
 
             # direct solve
             # U_m = SPLA.spsolve(K_mm, P_m)
+
+            # undo the precondition
+            U_m = D_diag * U_m_pred
 
         # gathering results
         self._stored_compliance = 0.5*U_m.dot(P_m)
@@ -806,7 +841,13 @@ class NumpyStiffness(StiffnessBase):
         # TODO avoid allocation here?
         if not(3 == self._dim and 'frame' == self._model_type):
             raise NotImplementedError()
-        element_lumped_nload_list = {i : np.zeros(6) for i in range(self.nE)}
+        if isinstance(element_load_density, np.ndarray):
+            assert element_load_density.shape[1] == 4
+            tmp_dict = {}
+            for row in element_load_density:
+                tmp_dict[int(row[0])] = row[1:]
+            element_load_density = tmp_dict
+        element_lumped_nload_list = {i : np.zeros(12) for i in range(self.nE)}
         for i, w_G in element_load_density.items():
             end_u_id, end_v_id = self._elements[i,:]
             end_u = self._vertices[end_u_id,:]
@@ -814,6 +855,7 @@ class NumpyStiffness(StiffnessBase):
             L = norm(end_u-end_v)
             R3 = global2local_transf_matrix(end_u, end_v)
             lumped_L = compute_lumped_uniformly_distributed_load(w_G, R3, L)
+            assert lumped_L.shape[0] == 12
             element_lumped_nload_list[i] = lumped_L
         return element_lumped_nload_list
 

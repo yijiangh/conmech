@@ -28,7 +28,8 @@ exec(read('src', 'pyconmech', '__version__.py'), about)
 requirements = [
     'numpy',
     'scipy',
-    'matplotlib', # TODO pin version?
+    # 'scikit-sparse' *Nix only
+    # 'matplotlib', # TODO pin version?
 ]
 
 # TODO: let user choose to use cpp engine or not

@@ -6,34 +6,40 @@
 
 namespace
 {
-double convertLengthScale(const nlohmann::json& unit)
-{
-  if ("millimeter" == unit || "mm" == unit)
+  /**
+   * @brief get length unit conversion scale to *METER*
+   * 
+   * @param unit 
+   * @return double 
+   */
+  double convertLengthScale(const nlohmann::json& unit)
   {
-    return 0.001;
-  }
-  if ("centimeter" == unit || "cm" == unit)
-  {
-    return 0.01;
-  }
-  if ("meter" == unit || "m" == unit)
-  {
-    // ! default unit inside stiffness_checker
+    if ("millimeter" == unit || "mm" == unit)
+    {
+      return 0.001;
+    }
+    if ("centimeter" == unit || "cm" == unit)
+    {
+      return 0.01;
+    }
+    if ("meter" == unit || "m" == unit)
+    {
+      // ! default unit inside stiffness_checker
+      return 1;
+    }
+    if ("inch" == unit || "in" == unit)
+    {
+      return 0.0254;
+    }
+    if ("foot" == unit || "ft" == unit)
+    {
+      return 0.3048;
+    }
+
+    // default millimeter
+    std::cout << "WARNING: unrecognized length unit in the input json file. Using millimeter by default." << std::endl;
     return 1;
   }
-  if ("inch" == unit || "in" == unit)
-  {
-    return 0.0254;
-  }
-  if ("foot" == unit || "ft" == unit)
-  {
-    return 0.3048;
-  }
-
-  // default millimeter
-  std::cout << "WARNING: unrecognized length unit in the input json file. Using millimeter by default." << std::endl;
-  return 1;
-}
 }
 
 namespace conmech
@@ -168,6 +174,7 @@ bool parseLoadCaseJson(const std::string &file_path, Eigen::MatrixXd& Load, bool
   }
   nlohmann::json document;
   is >> document;
+  // TODO check unit
 
 	int dim = int(document["dimension"]);
 	int node_full_dof = 0;
