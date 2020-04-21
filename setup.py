@@ -27,7 +27,7 @@ exec(read('src', 'pyconmech', '__version__.py'), about)
 # requirements = read('requirements.txt').split('\n')
 requirements = [
     'numpy',
-    'scipy',
+    'scipy>=1.4.1',
     # 'scikit-sparse' *Nix only
     # 'matplotlib', # TODO pin version?
 ]

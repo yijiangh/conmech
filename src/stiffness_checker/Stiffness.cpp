@@ -600,7 +600,10 @@ bool Stiffness::solve(
 
   if (0 == n_Fixities)
   {
-    throw std::runtime_error("Not stable: At least one node needs to be fixed in the considered substructure!");
+    if (verbose_){
+      std::cout << "Not stable: At least one node needs to be fixed in the considered substructure!" << std::endl;
+    }
+    return false;
   }
 
   // count supp_dof and res_dof to init K_slice

@@ -656,6 +656,10 @@ class NumpyStiffness(StiffnessBase):
                 dof_stat[self._v_id_map[fv_id,:]] = fix_dofs
                 n_exist_fixed_nodes+=1
                 n_fixed_dof += sum(fix_dofs)
+        if n_fixed_dof == 0:
+            if self._verbose:
+                print('Not stable: At least one node needs to be fixed in the considered substructure!')
+            return False
         n_free_dof = 6*len(exist_node_set)-n_fixed_dof
 
         # compute permutation map
@@ -710,46 +714,52 @@ class NumpyStiffness(StiffnessBase):
             P_m = P_perm[0:n_free_dof]
             P_f = P_perm[n_free_dof:n_free_dof+n_fixed_dof]
 
-            # TODO preconditioning K_mm by K_mm.diagonal()
-            # Ax = b
-            # (D1 A D2) x_ = (D1) b
-            # x = D2 x_
-            # take D1 = D2 = [ 1/sqrt(a_{ii}) ]
-
             # TODO Karamba warning when plugging PLA's properties in
             # Material #0 : For isotropic materials 
             # G must be larger than E/3 and smaller than E/2. 
             # If this condition is not fulfilled the material behaves very strange. 
             # It may lead to an unstable structure. May cause errors in exported models.
+
+            # * preconditioning K_mm by K_mm.diagonal()
+            # Ax = b
+            # (D1 A D2) x_ = (D1) b
+            # x = D2 x_
+            # take D1 = D2 = [ 1/sqrt(a_{ii}) ]
             D_diag = np.array([1/np.sqrt(a) for a in K_mm.diagonal()])
             D = scipy.sparse.diags(D_diag, format='csc')
             K_mm_precond = (D.dot(K_mm)).dot(D)
 
-            # cond_num = LA.cond(K_mm.toarray())
-            # print('Condition number: {} ~ 1/eps ({})'.format(np.log(cond_num), np.log(1/DOUBLE_EPS)))
-            after_cond_num = LA.cond(K_mm_precond.toarray())
-            print('Precond Condition number: {} ~ 1/eps ({})'.format(np.log(after_cond_num), np.log(1/DOUBLE_EPS)))
-
             # TODO serialize and check PD and conditioning
-            # https://scikit-sparse.readthedocs.io/en/latest/overview.html
             # https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.sparse.linalg.SuperLU.html#scipy.sparse.linalg.SuperLU
-            K_LU = SPLA.splu(K_mm_precond)
-            _, d, _ = scipy.linalg.ldl(K_mm_precond.toarray())
-
-            print('K_LU', np.sum(K_LU.U.diagonal()<-DOUBLE_EPS))
-            print('D', np.sum(d.diagonal()<-DOUBLE_EPS))
+            # * sparse LU decomposition
+            # See 'Symmetric or diagonally dominant problems' in: https://portal.nersc.gov/project/sparse/superlu/faq.html
+            # tell SuperLU to enter the Symmetric Mode, see example:
+            # https://github.com/xiaoyeli/superlu/blob/a3d5233770f0caad4bc4578b46d3b26af99e9c19/EXAMPLE/dlinsol1.c#L60
+            try:
+                K_LU = SPLA.splu(K_mm_precond, diag_pivot_thresh=0, options=dict(SymmetricMode=True)) 
+            except RuntimeError as exception:
+                if self._verbose:
+                    print ('Sparse solve error: {}'.format(exception))
+                return False
 
             # * positive definiteness can be checked by
             #   - LDLt, check if D is all positive
             #   - two ends of the spectrum are positive
             # TODO which one is more stable? faster?
-            if((d.diagonal()<-DOUBLE_EPS).any()):
-            # if (K_LU.perm_r != np.arange(K_mm_precond.shape[0])).all() or (K_LU.U.diagonal()<-DOUBLE_EPS).any():
+
+            if not (K_LU.U.diagonal()>-DOUBLE_EPS).all():
+                # https://gist.github.com/omitakahiro/c49e5168d04438c5b20c921b928f1f5d
+                # https://docs.scipy.org/doc/scipy-1.4.1/reference/generated/scipy.sparse.linalg.SuperLU.html#scipy.sparse.linalg.SuperLU
+                # Note: the permutation is not checker here
+                print('perm: ', (K_LU.perm_r == np.arange(K_mm_precond.shape[0])).all() )
+                # when a diagonal entry is smaller than the threshold, the code will still choose an off-diagonal pivot.
+                # That is, the row permutation P_r may not be Identity.
                 if self._verbose : 
                     print('ERROR: Stiffness Solver fail! Stiffness matrix not Positive Definite, the sub-structure might contain mechanism.')
                 return False
 
-            # if if_cond_num:
+            # * checking spectrum positive
+            # if False:
             #     try:
             #         # eigen values from both ends of the spectrum
             #         eigvals = SPLA.eigsh(K_mm_precond, k=2, which='BE', tol=1e-2, return_eigenvectors=False) 
@@ -769,7 +779,11 @@ class NumpyStiffness(StiffnessBase):
             #             print('Stiffness matrix condition number explosion: {}'.format(errmsg))
             #         # return False
 
-            U_m_pred = K_LU.solve(D.dot(P_m))
+
+            # ? Method 1: direct solve
+            # U_m_pred = SPLA.spsolve(K_mm_precond, D.dot(P_m))
+
+            # ? Method 2: CG variant
             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.gmres.html#scipy.sparse.linalg.gmres
             # U_m, exit_code = SPLA.gmres(K_mm_precond, P_m, tol=1e-7)
             # if exit_code != 0:
@@ -780,8 +794,8 @@ class NumpyStiffness(StiffnessBase):
             #             print('exit_code : {} - {}'.format(exit_code, 'illegal input or breakdown'))
             #     return False
 
-            # direct solve
-            # U_m = SPLA.spsolve(K_mm, P_m)
+            # ? Method 3: SuperLU
+            U_m_pred = K_LU.solve(D.dot(P_m))
 
             # undo the precondition
             U_m = D_diag * U_m_pred

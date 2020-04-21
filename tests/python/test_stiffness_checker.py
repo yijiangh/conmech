@@ -394,9 +394,9 @@ def repetitive_test_equilibrium(frame_file_path, engine, parsed_pt_loads=None, i
 
 @pytest.mark.equil_check
 @pytest.mark.parametrize("test_case, load_case", 
-    # [('tower', 'self_weight'), ('tower', 'point_load'), ('tower', 'self_weight+point_load'),
-    #  ('topopt-100', 'self_weight'), ('topopt-100', 'point_load'), ('topopt-100', 'self_weight+point_load')])
-    [('topopt-100', 'self_weight'),])
+    [('tower', 'self_weight'), ('tower', 'point_load'), ('tower', 'self_weight+point_load'),
+     ('topopt-100', 'self_weight'), ('topopt-100', 'point_load'), ('topopt-100', 'self_weight+point_load')])
+    # [('topopt-100', 'self_weight'),])
 def test_nodal_equilibrium(test_case, load_case, engine, debug):
     trans_tol = 1e-3
     if test_case == 'tower':
