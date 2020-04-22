@@ -2,7 +2,6 @@ import pytest
 import numpy as np
 from numpy.testing import assert_array_almost_equal_nulp, assert_array_almost_equal
 from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from scipy.sparse import find
 import scipy.sparse.linalg as SPLIN
 from pyconmech.frame_analysis import create_local_stiffness_matrix, global2local_transf_matrix, \
