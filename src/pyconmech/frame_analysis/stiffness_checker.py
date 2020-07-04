@@ -77,7 +77,7 @@ class StiffnessChecker(object):
             raise NotImplementedError('Engine not exist: {}'.format(checker_engine))
         self._sc_ins = checker_engine
         self._sc_ins.set_self_weight_load(True)
-        #
+        # For now, we keep two copies of the following data: one in this wrapper class, one in the solve instance
         self._node_points = node_points or []
         self._elements = elements or []
         self._fix_specs = fix_specs or {}

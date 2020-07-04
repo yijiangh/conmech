@@ -1,0 +1,262 @@
+{
+  "model_name": "2D_truss",
+  "unit": "meter",
+  "generate_time": "07/03/2020 19:28:46",
+  "node_num": 7,
+  "element_num": 11,
+  "nodes": [
+    {
+      "point": {
+        "X": -10.000000000000014,
+        "Y": 0.0,
+        "Z": 0.0
+      },
+      "node_id": 0,
+      "is_grounded": true,
+      "fixities": [
+        true,
+        true,
+        true,
+        true,
+        false,
+        true
+      ]
+    },
+    {
+      "point": {
+        "X": -3.3134576745478412,
+        "Y": 0.0,
+        "Z": 0.0
+      },
+      "node_id": 1,
+      "is_grounded": false,
+      "fixities": [
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ]
+    },
+    {
+      "point": {
+        "X": 3.3134576745478403,
+        "Y": 0.0,
+        "Z": 0.0
+      },
+      "node_id": 2,
+      "is_grounded": false,
+      "fixities": [
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ]
+    },
+    {
+      "point": {
+        "X": 9.9999999999999787,
+        "Y": 0.0,
+        "Z": 0.0
+      },
+      "node_id": 3,
+      "is_grounded": true,
+      "fixities": [
+        false,
+        true,
+        true,
+        true,
+        false,
+        true
+      ]
+    },
+    {
+      "point": {
+        "X": -7.0383895200352722,
+        "Y": 0.0,
+        "Z": 3.8689101415937435
+      },
+      "node_id": 4,
+      "is_grounded": false,
+      "fixities": [
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ]
+    },
+    {
+      "point": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 5.0000000000000071
+      },
+      "node_id": 5,
+      "is_grounded": false,
+      "fixities": [
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ]
+    },
+    {
+      "point": {
+        "X": 7.0383895200352375,
+        "Y": 0.0,
+        "Z": 3.8689101415937435
+      },
+      "node_id": 6,
+      "is_grounded": false,
+      "fixities": [
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "end_node_ids": [
+        0,
+        1
+      ],
+      "element_id": 0,
+      "layer_id": -1,
+      "bending_stiff": true
+    },
+    {
+      "end_node_ids": [
+        1,
+        2
+      ],
+      "element_id": 1,
+      "layer_id": -1,
+      "bending_stiff": true
+    },
+    {
+      "end_node_ids": [
+        2,
+        3
+      ],
+      "element_id": 2,
+      "layer_id": -1,
+      "bending_stiff": true
+    },
+    {
+      "end_node_ids": [
+        0,
+        4
+      ],
+      "element_id": 3,
+      "layer_id": -1,
+      "bending_stiff": true
+    },
+    {
+      "end_node_ids": [
+        4,
+        5
+      ],
+      "element_id": 4,
+      "layer_id": -1,
+      "bending_stiff": true
+    },
+    {
+      "end_node_ids": [
+        5,
+        6
+      ],
+      "element_id": 5,
+      "layer_id": -1,
+      "bending_stiff": true
+    },
+    {
+      "end_node_ids": [
+        6,
+        3
+      ],
+      "element_id": 6,
+      "layer_id": -1,
+      "bending_stiff": false
+    },
+    {
+      "end_node_ids": [
+        6,
+        2
+      ],
+      "element_id": 7,
+      "layer_id": -1,
+      "bending_stiff": false
+    },
+    {
+      "end_node_ids": [
+        2,
+        5
+      ],
+      "element_id": 8,
+      "layer_id": -1,
+      "bending_stiff": false
+    },
+    {
+      "end_node_ids": [
+        5,
+        1
+      ],
+      "element_id": 9,
+      "layer_id": -1,
+      "bending_stiff": false
+    },
+    {
+      "end_node_ids": [
+        1,
+        4
+      ],
+      "element_id": 10,
+      "layer_id": -1,
+      "bending_stiff": false
+    }
+  ],
+  "cross_secs": [
+    {
+      "family": "W",
+      "name": "W4X13",
+      "elemIds": [
+        ""
+      ],
+      "A": 0.00247,
+      "A_unit": "cm^2",
+      "Jx": 6.29E-08,
+      "Jx_unit": "cm^4",
+      "Iy": 4.7E-06,
+      "Iy_unit": "cm^4",
+      "Iz": 1.61E-06,
+      "Iz_unit": "cm^4"
+    }
+  ],
+  "materials": [
+    {
+      "family": "Steel",
+      "name": "Steel",
+      "type_name": "ISO",
+      "elemIds": [],
+      "E": 210000000.0,
+      "E_unit": "kN/cm^2",
+      "G12": 80760000.0,
+      "G12_unit": "kN/cm^2",
+      "fy": 235000.0,
+      "fy_unit": "kN/cm^2",
+      "density": 78.5,
+      "density_unit": "kN/m^3"
+    }
+  ]
+}

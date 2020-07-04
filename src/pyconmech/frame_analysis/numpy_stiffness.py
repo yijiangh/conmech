@@ -131,7 +131,7 @@ def torsional_stiffness_matrix(L, J, G):
     return axial_stiffness_matrix(L, J, G)
 
 
-def bending_stiffness_matrix(L, E, Iz, axis=2):
+def bending_stiffness_matrix(L, E, Iz, axis=2, cr1=np.inf, cr2=np.inf):
     """stiffness matrix of uniform beam element without the 
     transverse shear deformation
 
@@ -166,6 +166,10 @@ def bending_stiffness_matrix(L, E, Iz, axis=2):
             Iz = \int_A y^2 dA
     axis: int
         1 = local y axis , 2 = local z axis, default to 2
+    cr1: float
+        rotational stiffness at the first end of the beam, default to infinite (rigid joint)
+    cr2: float
+        rotational stiffness at the second end of the beam, default to infinite (rigid joint)
 
     Return
     ------
@@ -173,11 +177,32 @@ def bending_stiffness_matrix(L, E, Iz, axis=2):
     """
     K = np.zeros([4,4])
     sign = 1. if axis==2 else -1.
-    K[0,:] = np.array([12.,      sign*6*L, -12.,      sign*6*L])
-    K[1,:] = np.array([sign*6*L, 4*(L**2), sign*-6*L, 2*(L**2)])
+    if cr1 > 1e12 and cr2 > 1e12:
+        # both ends rigid, bypass 1/np.inf complication
+        inv_alpha1 = 0.0
+        inv_alpha2 = 0.0
+        alpha = 1.
+    # elif cr1 < 1e-12 and cr2 < 1e-12:
+    else:
+        inv_alpha1 = E * Iz / (cr1 * L)
+        inv_alpha2 = E * Iz / (cr2 * L)
+        alpha = 1. / (1 + 4*inv_alpha1 + 4*inv_alpha2 + 12*inv_alpha1*inv_alpha2)
+
+    # * the original rigid end formula
+    # K[0,:] = np.array([12.,      sign*6*L, -12.,      sign*6*L])
+    # K[1,:] = np.array([sign*6*L, 4*(L**2), sign*-6*L, 2*(L**2)])
+    # K[2,:] = -K[0,:]
+    # K[3,:] = np.array([sign*6*L, 2*(L**2), -sign*6*L, 4*(L**2)])
+    # K *= (E*Iz/L**3)
+
+    # * the modified formula for joint rotational stiffness
+    # See [GMZ] p.394
+    K[0,:] = np.array([12./L**2 * (1+inv_alpha1+inv_alpha2), sign*6/L*(1+2*inv_alpha2), -12./L**2 * (1+inv_alpha1+inv_alpha2), sign*6/L*(1+2*inv_alpha1)])
+    K[1,:] = np.array([sign*6/L*(1+2*inv_alpha2),            4*(1 + 3*inv_alpha2),      sign*(-6/L)*(1+2*inv_alpha2),          2])
     K[2,:] = -K[0,:]
-    K[3,:] = np.array([sign*6*L, 2*(L**2), -sign*6*L, 4*(L**2)])
-    K *= (E*Iz/L**3)
+    K[3,:] = np.array([sign*6/L*(1+2*inv_alpha1),            2,                         sign*(-6/L)*(1+2*inv_alpha1),          4*(1 + 3*inv_alpha2)])
+    K *= alpha*E*Iz/L
+
     return K
 
 def mu2G(mu, E):
@@ -186,7 +211,7 @@ def mu2G(mu, E):
 def G2mu(G, E):
     return E/(2*G)-1
 
-def create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, mu):
+def create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, mu, ct1=[np.inf]*3, ct2=[np.inf]*3, cr1=[np.inf]*3, cr2=[np.inf]*3):
     """complete 12x12 stiffness matrix for a bisymmetrical member.
 
         Since for small displacements the axial force effects, torsion,
@@ -211,6 +236,22 @@ def create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, mu):
         Young's modulus
     mu : float
         Poisson ratio
+    ct1 : list of three float
+        [Tx, Ty, Tz]
+        translational spring stiffness at joint 1, set to 0 will release the corresponding dof
+        default to np.inf (rigid joint)
+    ct2 : list of three float
+        [Tx, Ty, Tz]
+        translational spring stiffness at joint 2, set to 0 will release the corresponding dof
+        default to np.inf (rigid joint)
+    cr1 : list of three float
+        [Rx, Ry, Rz]
+        rotational spring stiffness at joint 1, set to 0 will release the corresponding dof
+        default to np.inf (rigid joint)
+    cr2 : list of three float
+        [Rx, Ry, Rz]
+        rotational spring stiffness at joint 2, set to 0 will release the corresponding dof
+        default to np.inf (rigid joint)
     
     Returns
     -------
@@ -401,6 +442,16 @@ def interp_poly(d_u, d_v, L):
     return u_poly
     
 def turn_diagblock(R3):
+    """compile a 4x4 block-diagonal matrix
+
+    Parameters
+    ----------
+    R3 : 3x3 numpy array
+
+    Returns
+    -------
+    12x12 numpy array
+    """
     R = np.zeros((12,12))
     for i in range(4):
         R[i*3:(i+1)*3, i*3:(i+1)*3] = R3
@@ -698,7 +749,7 @@ class NumpyStiffness(StiffnessBase):
         K_mm = K_perm[0:n_free_dof, 0:n_free_dof]
         K_fm = K_perm[n_free_dof:n_free_dof+n_fixed_dof, 0:n_free_dof]
 
-        # TODO make P sparse
+        # TODO make the load vector P sparse
         # assemble load vector
         nodal_load_P_tmp = np.copy(self._nodal_load)
         element_lumped_load = self._create_uniformly_distributed_lumped_load(exist_element_ids)
