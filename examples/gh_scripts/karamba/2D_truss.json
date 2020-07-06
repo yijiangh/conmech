@@ -1,51 +1,17 @@
 {
   "model_name": "2D_truss",
   "unit": "meter",
-  "generate_time": "07/03/2020 19:28:46",
-  "node_num": 7,
-  "element_num": 11,
+  "generate_time": "07/06/2020 13:57:23",
+  "node_num": 3,
+  "element_num": 2,
   "nodes": [
     {
       "point": {
-        "X": -10.000000000000014,
+        "X": 0.0,
         "Y": 0.0,
-        "Z": 0.0
+        "Z": 5.0000000000000071
       },
-      "node_id": 0,
-      "is_grounded": true,
-      "fixities": [
-        true,
-        true,
-        true,
-        true,
-        false,
-        true
-      ]
-    },
-    {
-      "point": {
-        "X": -3.3134576745478412,
-        "Y": 0.0,
-        "Z": 0.0
-      },
-      "node_id": 1,
-      "is_grounded": false,
-      "fixities": [
-        false,
-        true,
-        false,
-        true,
-        false,
-        true
-      ]
-    },
-    {
-      "point": {
-        "X": 3.3134576745478403,
-        "Y": 0.0,
-        "Z": 0.0
-      },
-      "node_id": 2,
+      "node_ind": 0,
       "is_grounded": false,
       "fixities": [
         false,
@@ -60,31 +26,14 @@
       "point": {
         "X": 9.9999999999999787,
         "Y": 0.0,
-        "Z": 0.0
+        "Z": 8.8817841970012523E-16
       },
-      "node_id": 3,
+      "node_ind": 1,
       "is_grounded": true,
       "fixities": [
-        false,
         true,
         true,
         true,
-        false,
-        true
-      ]
-    },
-    {
-      "point": {
-        "X": -7.0383895200352722,
-        "Y": 0.0,
-        "Z": 3.8689101415937435
-      },
-      "node_id": 4,
-      "is_grounded": false,
-      "fixities": [
-        false,
-        true,
-        false,
         true,
         false,
         true
@@ -92,33 +41,16 @@
     },
     {
       "point": {
-        "X": 0.0,
+        "X": -10.000000000000014,
         "Y": 0.0,
-        "Z": 5.0000000000000071
+        "Z": 0.0
       },
-      "node_id": 5,
-      "is_grounded": false,
+      "node_ind": 2,
+      "is_grounded": true,
       "fixities": [
-        false,
         true,
-        false,
         true,
-        false,
-        true
-      ]
-    },
-    {
-      "point": {
-        "X": 7.0383895200352375,
-        "Y": 0.0,
-        "Z": 3.8689101415937435
-      },
-      "node_id": 6,
-      "is_grounded": false,
-      "fixities": [
-        false,
         true,
-        false,
         true,
         false,
         true
@@ -127,110 +59,56 @@
   ],
   "elements": [
     {
-      "end_node_ids": [
+      "end_node_inds": [
         0,
         1
       ],
-      "element_id": 0,
-      "layer_id": -1,
-      "bending_stiff": true
+      "elem_tag": "beams_truss",
+      "elem_ind": 0,
+      "layer_ind": -1,
+      "bending_stiff": false
     },
     {
-      "end_node_ids": [
-        1,
-        2
-      ],
-      "element_id": 1,
-      "layer_id": -1,
-      "bending_stiff": true
-    },
-    {
-      "end_node_ids": [
+      "end_node_inds": [
         2,
-        3
+        0
       ],
-      "element_id": 2,
-      "layer_id": -1,
+      "elem_tag": "beams",
+      "elem_ind": 1,
+      "layer_ind": -1,
       "bending_stiff": true
-    },
+    }
+  ],
+  "joints": [
     {
-      "end_node_ids": [
-        0,
-        4
+      "c_conditions": [
+        [
+          null,
+          null,
+          null,
+          null,
+          843835000.0,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          843835000.0,
+          null
+        ]
       ],
-      "element_id": 3,
-      "layer_id": -1,
-      "bending_stiff": true
-    },
-    {
-      "end_node_ids": [
-        4,
-        5
-      ],
-      "element_id": 4,
-      "layer_id": -1,
-      "bending_stiff": true
-    },
-    {
-      "end_node_ids": [
-        5,
-        6
-      ],
-      "element_id": 5,
-      "layer_id": -1,
-      "bending_stiff": true
-    },
-    {
-      "end_node_ids": [
-        6,
-        3
-      ],
-      "element_id": 6,
-      "layer_id": -1,
-      "bending_stiff": false
-    },
-    {
-      "end_node_ids": [
-        6,
-        2
-      ],
-      "element_id": 7,
-      "layer_id": -1,
-      "bending_stiff": false
-    },
-    {
-      "end_node_ids": [
-        2,
-        5
-      ],
-      "element_id": 8,
-      "layer_id": -1,
-      "bending_stiff": false
-    },
-    {
-      "end_node_ids": [
-        5,
-        1
-      ],
-      "element_id": 9,
-      "layer_id": -1,
-      "bending_stiff": false
-    },
-    {
-      "end_node_ids": [
-        1,
-        4
-      ],
-      "element_id": 10,
-      "layer_id": -1,
-      "bending_stiff": false
+      "elem_tags": [
+        "beams_truss"
+      ]
     }
   ],
   "cross_secs": [
     {
       "family": "W",
       "name": "W4X13",
-      "elemIds": [
+      "elem_tags": [
         ""
       ],
       "A": 0.00247,
@@ -248,7 +126,7 @@
       "family": "Steel",
       "name": "Steel",
       "type_name": "ISO",
-      "elemIds": [],
+      "elem_tags": [],
       "E": 210000000.0,
       "E_unit": "kN/cm^2",
       "G12": 80760000.0,
