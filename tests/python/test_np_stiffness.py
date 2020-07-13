@@ -6,7 +6,7 @@ from scipy.sparse import find
 import scipy.sparse.linalg as SPLIN
 from pyconmech.frame_analysis import create_local_stiffness_matrix, global2local_transf_matrix, \
     assemble_global_stiffness_matrix, get_element_shape_fn, get_internal_reaction_fn
-from pyconmech.frame_analysis import bending_stiffness_matrix
+from pyconmech.frame_analysis import bending_stiffness_matrix, axial_stiffness_matrix
 
 # from pyconmech.frame_analysis import numpy_stiffness
 
@@ -240,5 +240,94 @@ def test_transf_matrix():
 
 @pytest.mark.rot_stiff
 def test_rotational_stiffness():
-    Kz = bending_stiffness_matrix(1.0, 1.0, 1.0, cr1=0, cr2=0)
+    print('*'*10)
+    L = 10.0
+    E = 300.0
+    Iz = 2.0
+
+    Kz = bending_stiffness_matrix(L, E, Iz, cr1=0, cr2=0)
+    assert_array_almost_equal(Kz, np.zeros((4,4)))
+    print('Both released passed.')
+
+    K = np.zeros((4,4))
+    sign = 1
+    K[0,:] = np.array([12.,      sign*6*L, -12.,      sign*6*L])
+    K[1,:] = np.array([sign*6*L, 4*(L**2), sign*-6*L, 2*(L**2)])
+    K[2,:] = -K[0,:]
+    K[3,:] = np.array([sign*6*L, 2*(L**2), -sign*6*L, 4*(L**2)])
+    K *= (E*Iz/L**3)
+    Kz = bending_stiffness_matrix(L, E, Iz, cr1=np.inf, cr2=np.inf)
+    assert_array_almost_equal(Kz, K)
+    print('Both fixed passed.')
+
+    K = np.array([[0,3/L,-3/L**2,0], [0,0,-3/L,0], [0,0,0,0], [0,0,0,0]])
+    K += K.T
+    K += np.diag([3/L**2,3,3/L**2, 0])
+    K *= E*Iz/L
+    Kz = bending_stiffness_matrix(L, E, Iz, cr1=np.inf, cr2=0)
+    assert_array_almost_equal(Kz, K)
+
+    K = np.array([[0,0,-3/L**2,3/L], [0,0,0,0], [0,0,0,-3/L], [0,0,0,0]])
+    K += K.T
+    K += np.diag([3/L**2,0,3/L**2, 3])
+    K *= E*Iz/L
+    Kz = bending_stiffness_matrix(L, E, Iz, cr1=0, cr2=np.inf)
+    assert_array_almost_equal(Kz, K)
+    print('One fixed one released passed.')
+
+    Kz = bending_stiffness_matrix(L, E, Iz, cr1=0, cr2=0.4)
+    assert_array_almost_equal(Kz[1,:], np.zeros(4))
+    assert_array_almost_equal(Kz[:,1], np.zeros(4))
     print(Kz)
+    Kz = bending_stiffness_matrix(L, E, Iz, cr1=0.4, cr2=0.)
+    assert_array_almost_equal(Kz[3,:], np.zeros(4))
+    assert_array_almost_equal(Kz[0,3], np.zeros(4))
+    print(Kz)
+    print('One rot stiff one released passed.')
+
+    Kz = bending_stiffness_matrix(L, E, Iz, cr1=np.inf, cr2=0.4)
+    print(Kz)
+    Kz = bending_stiffness_matrix(L, E, Iz, cr1=0.4, cr2=np.inf)
+    print(Kz)
+    print('One rot stiff one fixed passed.')
+
+    Kz = bending_stiffness_matrix(L, E, Iz, cr1=0.4, cr2=0.4)
+    print(Kz)
+    print('Both rot stiff passed.')
+
+@pytest.mark.axial_stiff
+def test_axial_stiffness():
+    print('*'*10)
+    L = 1.0
+    A = 0.02
+    E = 2e4
+
+    Ka = axial_stiffness_matrix(L, A, E, cr1=0, cr2=0)
+    assert_array_almost_equal(Ka, np.zeros((2,2)))
+    print('Both released passed.')
+
+    K = np.ones([2,2])
+    K[0,1] = -1.
+    K[1,0] = -1.
+    K *= (E*A/L)
+    Ka = axial_stiffness_matrix(L, A, E, cr1=np.inf, cr2=np.inf)
+    assert_array_almost_equal(Ka, K)
+    print('Both fixed passed.')
+
+    Ka = axial_stiffness_matrix(L, A, E, cr1=0, cr2=np.inf)
+    assert_array_almost_equal(Ka, np.zeros((2,2)))
+    Ka = axial_stiffness_matrix(L, A, E, cr1=np.inf, cr2=0)
+    assert_array_almost_equal(Ka, np.zeros((2,2)))
+    Ka = axial_stiffness_matrix(L, A, E, cr1=0, cr2=0.4)
+    assert_array_almost_equal(Ka, np.zeros((2,2)))
+    Ka = axial_stiffness_matrix(L, A, E, cr1=0.4, cr2=0)
+    assert_array_almost_equal(Ka, np.zeros((2,2)))
+    print('One joint released passed.')
+
+    Ka = axial_stiffness_matrix(L, A, E, cr1=0.4, cr2=0.5)
+    K = np.ones([2,2])
+    K[0,1] = -1.
+    K[1,0] = -1.
+    K *= 1/(L/(E*A)+ 1/0.4 + 1/0.5)
+    assert_array_almost_equal(Ka, K)
+    print('Both joints rotational stiffness passed.')

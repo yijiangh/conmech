@@ -12,14 +12,13 @@ from numpy.testing import assert_equal, assert_almost_equal
 
 from pyconmech import StiffnessChecker
 from pyconmech.frame_analysis import read_frame_json, write_frame_json, read_load_case_json, check_material_dict
-from pyconmech.database import MATERIAL_PROPERTY_DATABASE
+# from pyconmech.database import MATERIAL_PROPERTY_DATABASE
 
-
-def test_get_material_from_database():
-    PLA_MAT = MATERIAL_PROPERTY_DATABASE['PLA']
-    STEEL_S235_MAT = MATERIAL_PROPERTY_DATABASE['Steel-S235']
-    assert check_material_dict(PLA_MAT)
-    assert check_material_dict(STEEL_S235_MAT)
+# def test_get_material_from_database():
+#     PLA_MAT = MATERIAL_PROPERTY_DATABASE['PLA']
+#     STEEL_S235_MAT = MATERIAL_PROPERTY_DATABASE['Steel-S235']
+#     assert check_material_dict(PLA_MAT)
+#     assert check_material_dict(STEEL_S235_MAT)
 
 def repetitive_test_stiffness_checker(frame_file_path, engine, parsed_pt_loads=None, include_sw=False,
     n_attempts=50, existing_ids=[], expect_partial_ids_success=True, trans_tol=2e-3):

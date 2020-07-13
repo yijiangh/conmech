@@ -55,9 +55,10 @@ from numpy.polynomial.polynomial import polyvander, polyval, Polynomial, polyfit
 from .stiffness_base import StiffnessBase
 
 DOUBLE_EPS = 1e-14
+DOUBLE_INF = 1e14
 DEFAULT_GRAVITY_DIRECTION = np.array([0.,0.,-1.])
 
-def axial_stiffness_matrix(L, A, E):
+def axial_stiffness_matrix(L, A, E, cr1=np.inf, cr2=np.inf):
     """local stiffness matrix for a bar with only axial force at two ends
 
             AE/L (u1 - u2) = F1
@@ -96,6 +97,10 @@ def axial_stiffness_matrix(L, A, E):
         cross section area
     E : [type]
         Young's modulus
+    cr1: float
+        rotational stiffness at the first end of the beam, default to infinite (rigid joint)
+    cr2: float
+        rotational stiffness at the second end of the beam, default to infinite (rigid joint)
 
     Return
     ------
@@ -104,11 +109,19 @@ def axial_stiffness_matrix(L, A, E):
     K = np.ones([2,2])
     K[0,1] = -1.
     K[1,0] = -1.
-    K *= (A*E/L)
+    d_inv = 0.0
+    if abs(cr1) < DOUBLE_EPS or abs(cr2) < DOUBLE_EPS:
+        # cr1 = cr2 = 0, fully released
+        d_inv = 0.0
+    else:
+        cr1_inv = 1/cr1 if cr1<DOUBLE_INF else 0.0
+        cr2_inv = 1/cr2 if cr2<DOUBLE_INF else 0.0
+        d_inv = 1.0 / (L/(E*A) + cr1_inv + cr2_inv) 
+    K *= d_inv
     return K
 
 
-def torsional_stiffness_matrix(L, J, G):
+def torsional_stiffness_matrix(L, J, G, cr1=np.inf, cr2=np.inf):
     """[summary]
 
     [Mx1, Mx2]' = ((GJ)/L) * [[1,-1], [-1,1]] [theta_x1, theta_x2]
@@ -123,17 +136,20 @@ def torsional_stiffness_matrix(L, J, G):
         the polar moment of inertia of the cross section.
     G : [type]
         modulus of rigidity
+    cr1: float
+        rotational stiffness at the first end of the beam, default to infinite (rigid joint)
+    cr2: float
+        rotational stiffness at the second end of the beam, default to infinite (rigid joint)
 
     Return
     ------
     K_tor_x : 2x2 numpy array
     """
-    return axial_stiffness_matrix(L, J, G)
+    return axial_stiffness_matrix(L, J, G, cr1=cr1, cr2=cr2)
 
 
 def bending_stiffness_matrix(L, E, Iz, axis=2, cr1=np.inf, cr2=np.inf):
-    """stiffness matrix of uniform beam element without the 
-    transverse shear deformation
+    """stiffness matrix of uniform beam element without the transverse shear deformation
 
     Here the stress-strain (\sigma ~ \epsilon) turns into 
     bending moment-curvature (M ~ \kappa).
@@ -177,16 +193,50 @@ def bending_stiffness_matrix(L, E, Iz, axis=2, cr1=np.inf, cr2=np.inf):
     """
     K = np.zeros([4,4])
     sign = 1. if axis==2 else -1.
-    if cr1 > 1e12 and cr2 > 1e12:
-        # both ends rigid, bypass 1/np.inf complication
-        inv_alpha1 = 0.0
-        inv_alpha2 = 0.0
-        alpha = 1.
-    # elif cr1 < 1e-12 and cr2 < 1e-12:
+    assert abs(E) > DOUBLE_EPS and abs(Iz) > DOUBLE_EPS
+    a1 = cr1*L/E*Iz # k1 = a1 * EI/L
+    a2 = cr2*L/E*Iz # k2 = a2 * EI/L
+    # a = a1*a2 / (a1*a2 + 4*a1 + 4*a2 + 12)
+    # aa = a * (1 + (a1+a2)/(a1*a2))
+    # a2_2 = a * (1 + 2/a2)
+    # a2_3 = a * (1 + 3/a2)
+    # a1_2 = a * (1 + 2/a1)
+    # a1_3 = a * (1 + 3/a1)
+    if abs(a1) < DOUBLE_INF and abs(a2) < DOUBLE_INF:
+        a_demo = a1*a2 + 4*a1 + 4*a2 + 12
+        a = a1*a2 / a_demo
+        aa = (a1*a2 + a1 +a2) / a_demo
+        a2_2 = (a2 + 2)*a1 / a_demo
+        a2_3 = (a2 + 3)*a1 / a_demo
+        a1_2 = (a1 + 2)*a2 / a_demo
+        a1_3 = (a1 + 3)*a2 / a_demo
+    elif abs(a1) < DOUBLE_EPS and abs(a2) > DOUBLE_INF:
+        # a1=0, a2 = inf
+        # a = a1 / (a1 + 4)
+        a = 0.0
+        aa = 0.25
+        a2_2 = 0.0
+        a2_3 = 0.0
+        a1_2 = 0.5
+        a1_3 = 0.75
+    elif abs(a2) < DOUBLE_EPS and abs(a1) > DOUBLE_INF:
+        a = 0.0
+        aa = 0.25
+        a1_2 = 0.0
+        a1_3 = 0.0
+        a2_2 = 0.5
+        a2_3 = 0.75
     else:
-        inv_alpha1 = E * Iz / (cr1 * L)
-        inv_alpha2 = E * Iz / (cr2 * L)
-        alpha = 1. / (1 + 4*inv_alpha1 + 4*inv_alpha2 + 12*inv_alpha1*inv_alpha2)
+        assert abs(a1) > DOUBLE_EPS and abs(a2) > DOUBLE_EPS
+        inv_a1 = 0.0 if abs(a1) > DOUBLE_INF else 1/a1
+        inv_a2 = 0.0 if abs(a2) > DOUBLE_INF else 1/a2
+        inv_a_demo = 1+4*inv_a1+4*inv_a2+12*inv_a1*inv_a2
+        a = 1 / inv_a_demo
+        aa = (1+inv_a1+inv_a2) / inv_a_demo
+        a2_2 = (1+2*inv_a1) / inv_a_demo
+        a2_3 = (1+3*inv_a1) / inv_a_demo
+        a1_2 = (1+2*inv_a2) / inv_a_demo
+        a1_3 = (1+3*inv_a2) / inv_a_demo
 
     # * the original rigid end formula
     # K[0,:] = np.array([12.,      sign*6*L, -12.,      sign*6*L])
@@ -197,11 +247,11 @@ def bending_stiffness_matrix(L, E, Iz, axis=2, cr1=np.inf, cr2=np.inf):
 
     # * the modified formula for joint rotational stiffness
     # See [GMZ] p.394
-    K[0,:] = np.array([12./L**2 * (1+inv_alpha1+inv_alpha2), sign*6/L*(1+2*inv_alpha2), -12./L**2 * (1+inv_alpha1+inv_alpha2), sign*6/L*(1+2*inv_alpha1)])
-    K[1,:] = np.array([sign*6/L*(1+2*inv_alpha2),            4*(1 + 3*inv_alpha2),      sign*(-6/L)*(1+2*inv_alpha2),          2])
+    K[0,:] = np.array([12./L**2*aa, sign*6/L*a2_2, -12./L**2*aa, sign*6/L*a1_2])
+    K[1,:] = np.array([sign*6/L*a2_2, 4*a2_3, sign*(-6/L)*a2_2, 2*a])
     K[2,:] = -K[0,:]
-    K[3,:] = np.array([sign*6/L*(1+2*inv_alpha1),            2,                         sign*(-6/L)*(1+2*inv_alpha1),          4*(1 + 3*inv_alpha2)])
-    K *= alpha*E*Iz/L
+    K[3,:] = np.array([sign*6/L*a1_2, 2*a, sign*(-6/L)*a1_2, 4*a1_3])
+    K *= E*Iz/L
 
     return K
 
