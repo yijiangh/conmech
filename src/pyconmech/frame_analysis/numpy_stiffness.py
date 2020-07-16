@@ -51,12 +51,56 @@ import scipy.sparse.linalg as SPLA
 import numpy.linalg as LA
 from numpy.linalg import norm, solve
 from scipy.sparse import csc_matrix
-from numpy.polynomial.polynomial import polyvander, polyval, Polynomial, polyfit
 from .stiffness_base import StiffnessBase
 
 DOUBLE_EPS = 1e-14
 DOUBLE_INF = 1e14
 DEFAULT_GRAVITY_DIRECTION = np.array([0.,0.,-1.])
+
+############################################
+
+# internal calculation unit
+LENGTH_UNIT = 'meter'
+ROT_ANGLE_UNIT = 'rad'
+FORCE_UNIT = 'kN'
+
+# derived units
+MOMENT_UNIT = FORCE_UNIT + "*" + ROT_ANGLE_UNIT
+AREA_UNIT = LENGTH_UNIT + "2"
+AREA_INERTIA_UNIT = LENGTH_UNIT + "4"
+PRESSURE_UNIT = FORCE_UNIT + "/" + LENGTH_UNIT + "2"; # "kN/m^2" modulus
+DENSITY_UNIT  = FORCE_UNIT + "/" + LENGTH_UNIT + "3"; # "kN/m^3"
+
+LENGTH_CONVERSION = {
+    'meter' : 1.0,
+    'millimeter' : 1e-3,
+}
+
+class Material(object):
+    """convert material dict to comply with internal unit inside
+    These units comply with Karamba3D.
+    """
+    def __init__(self, mat_dict):
+        # length unit scale
+        len_scale = 1e-2
+        # kN/cm^2 => kN/m^2
+        pressure_scale = 1/len_scale**2
+        self.E = mat_dict['youngs_modulus'] * pressure_scale
+        if 'poisson_ratio' in mat_dict:
+            self.mu = mat_dict['poisson_ratio']
+            G = mu2G(self.mu, self.E)
+            # if 'shear_modulus' in mat_dict:
+                # assert abs(G - mat_dict['shear_modulus'] * pressure_scale) / G > 1e-6
+            self.G = G
+        self.rho = mat_dict['density']
+        area_scale = len_scale**2
+        self.A = mat_dict['cross_sec_area'] * area_scale
+        inertia_scale = len_scale**4
+        self.Jx = mat_dict['Jx']*inertia_scale
+        self.Iy = mat_dict['Iy']*inertia_scale
+        self.Iz = mat_dict['Iz']*inertia_scale
+
+############################################
 
 def axial_stiffness_matrix(L, A, E, cr1=np.inf, cr2=np.inf):
     """local stiffness matrix for a bar with only axial force at two ends
@@ -307,20 +351,23 @@ def create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, mu, ct1=[np.inf]*3, ct2=[
     -------
     K : 12x12 numpy array
     """
+    assert ct1[1] > DOUBLE_INF and ct2[1] > DOUBLE_INF, 'local y axis translational dof release not implemented!'
+    assert ct1[2] > DOUBLE_INF and ct2[2] > DOUBLE_INF, 'local z axis translational dof release not implemented!'
+
     G = mu2G(mu, E)
     # Fx1, Fx2 : u1, u2
     # 0, 6 : 0, 6
-    axial_x_k = axial_stiffness_matrix(L, A, E)
+    axial_x_k = axial_stiffness_matrix(L, A, E, cr1=ct1[0], cr2=ct2[0])
     # Mx1, Mx2 : \theta_x1, \theta_x2
     # 3, 9 : 3, 9
-    tor_x_k = torsional_stiffness_matrix(L, Jx, G)
+    tor_x_k = torsional_stiffness_matrix(L, Jx, G, cr1=cr1[0], cr2=cr2[0])
 
     # Fy1, Mz1, Fy2, Mz2 : v1, \theta_z1, v2, \theta_z2
     # 1, 5, 7, 11 : 1, 5, 7, 11
-    bend_z_k = bending_stiffness_matrix(L, E, Iz, axis=2)
+    bend_z_k = bending_stiffness_matrix(L, E, Iz, axis=2, cr1=cr1[2], cr2=cr2[2])
     # Fz1, My1, Fz2, My2 : v1, \theta_z1, v2, \theta_z2
     # 2, 4, 8, 10 : 2, 4, 8, 10
-    bend_y_k = bending_stiffness_matrix(L, E, Iz, axis=1)
+    bend_y_k = bending_stiffness_matrix(L, E, Iz, axis=1, cr1=cr1[1], cr2=cr2[1])
 
     K = np.zeros([12,12])
     K[np.ix_([0,6], [0,6])] += axial_x_k
@@ -341,6 +388,9 @@ def global2local_transf_matrix(end_vert_u, end_vert_v, rot_y2x=0.0):
     c_x = (end_vert_v[0] - end_vert_u[0])/L
     c_y = (end_vert_v[1] - end_vert_u[1])/L
     R = np.zeros([3,3])
+
+    if rot_y2x != 0.0:
+        raise NotImplementedError('rotation around local axis not implemented!')
 
     if 3 == dim:
         c_z = (end_vert_v[2] - end_vert_u[2]) / L
@@ -371,6 +421,23 @@ def global2local_transf_matrix(end_vert_u, end_vert_v, rot_y2x=0.0):
         # TODO check rotaxis
     return R
 
+def turn_diagblock(R3):
+    """compile a 4x4 block-diagonal matrix
+
+    Parameters
+    ----------
+    R3 : 3x3 numpy array
+
+    Returns
+    -------
+    12x12 numpy array
+    """
+    R = np.zeros((12,12))
+    for i in range(4):
+        R[i*3:(i+1)*3, i*3:(i+1)*3] = R3
+    return R
+
+###############################################
 
 def assemble_global_stiffness_matrix(k_list, nV, id_map, exist_e_ids=[]):
     """assemble element stiffness matrix into a sparse system stiffness matrix
@@ -446,180 +513,6 @@ def compute_lumped_uniformly_distributed_load(w_G, R_LG, L):
     lumped_L[3:6] = R_GL.dot(M_L0)
     lumped_L[9:12] = R_GL.dot(M_L1)
     return lumped_L
-
-###############################################
-
-def interp_poly(d_u, d_v, L):
-    """compute shape polynomial coeff for local x,y,z based on end nodal displacement value
-
-    Parameters
-    ----------
-    d_u : 6x1 np array
-        nodal u's displacement in local coordinate
-    d_v : 6x1 np array
-    L : float
-        element length
-
-    Return
-    ------
-    u_poly : (3x4) np array
-        each row is polynomail coeff vector
-    """
-    D_local = np.hstack([d_u, d_v])
-    dx_u, dx_v = (D_local[0], D_local[6])
-    # * linear monomials 1+x
-    A_l = polyvander([dx_u, L+dx_v], 1)
-
-    # * cubic monomials 1, x, x**2, x**3
-    A_c = np.zeros((4, 4))
-    A_c[[0,2], :] = polyvander([dx_u, L+dx_v], 3)
-    # c = np.hstack([Polynomial([1]*4).deriv().coef, [0]])
-    # A[[1,3], :] = polyvander([0, L], 3) * c # apply entrywise mul on each row
-    # * derivative of the monomials
-    c = np.array([1,2,3])
-    A_c[[1,3], 1:] = polyvander([dx_u, L+dx_v], 2) * c
-
-    # polynomial evaluated at node pts
-    # notice the negative sign here to make sign convention agree
-    # coefficents of the polynomial functions under monomial basis
-    d_x = [dx_u, dx_v]
-    d_y = [D_local[1], D_local[5], D_local[7], D_local[11]]
-    d_z = [D_local[2], -D_local[4], D_local[8], -D_local[10]]
-    u_poly = [solve(A_l, d_x),
-              solve(A_c, d_y),
-              solve(A_c, d_z)]
-    assert np.allclose(u_poly[0], polyfit([dx_u, L+dx_v], d_x, 1))
-    return u_poly
-    
-def turn_diagblock(R3):
-    """compile a 4x4 block-diagonal matrix
-
-    Parameters
-    ----------
-    R3 : 3x3 numpy array
-
-    Returns
-    -------
-    12x12 numpy array
-    """
-    R = np.zeros((12,12))
-    for i in range(4):
-        R[i*3:(i+1)*3, i*3:(i+1)*3] = R3
-    return R
-
-def get_element_shape_fn(end_u, end_v, d_u, d_v, exagg=1.0):
-    """cubic polynomial interpolation given its boundary condition:
-        d = [u1, du1/dx, u2, du2/dx]
-    
-    Parameters
-    ----------
-    d : [type]
-        [description]
-    L : float
-        element length
-
-    Return
-    ------
-    poly_eval_fn : function handle
-        shape_fn(t) -> np array of size (3,), node pts in global coordinate
-        time parameter reparameterized to [0,1.0]
-    """
-    L = norm(end_u - end_v)
-    R3 = global2local_transf_matrix(end_u, end_v)
-    assert np.allclose((R3.T).dot(R3), np.eye(3))
-    assert np.allclose((R3).dot(R3.T), np.eye(3))
-
-    R = turn_diagblock(R3)
-    # compute end deflection in local ordinates
-    D_global = np.hstack([d_u, d_v])
-    D_local = exagg * R.dot(D_global)
-
-    dx_u, dx_v = (D_local[0], D_local[6])
-    u_poly = interp_poly(D_local[:6], D_local[6:12], L)
-
-    def shape_fn(t):
-        assert t>=0 and t<=1.0
-        d = np.array([polyval(dx_u + t*(L+dx_v-dx_u), u_poly[i]) for i in range(3)])
-        pt_t = end_u + np.array([t*L, 0, 0])
-        return (pt_t + R3.T.dot(d))
-    return shape_fn
-
-
-def get_internal_reaction_fn(fu, fv):
-    # TODO cubic interpolation when in-span load is applied
-    # * linear monomials 1+x
-    A_l = polyvander([0., 1.], 1)
-    # * cubic monomials 1, x, x**2, x**3
-    A_c = np.zeros((4, 4))
-    A_c[[0,2], :] = polyvander([0., 1.], 3)
-    # * derivative of the monomials
-    c = np.array([1,2,3])
-    A_c[[1,3], 1:] = polyvander([0., 1.], 2) * c
-
-    # polynomial evaluated at node pts
-    # notice the negative sign here to make sign convention agree
-    # coefficents of the polynomial functions under monomial basis
-    # - linear interpolation for Nx, Fy, Fz, Tx
-    u_poly = [solve(A_l, [fu[i], fv[i]]) for i in range(6)]
-    # - cubic interpolation for moments, shear as tangents
-    # Mz = [fu[5], -fu[1], fv[5], -fv[1]]
-    # My = [fu[4], fu[2], fv[4], fv[2]]
-    # u_poly.extend([solve(A_c, My), solve(A_c, Mz)])
-
-    # Vz = dMy/dx 
-    # assert np.allclose(-u_poly[1], Polynomial(u_poly[5]).deriv().coef)
-    print((-fu[1], Polynomial(u_poly[5]).deriv().coef))
-    # -Vy = dMz/dx 
-    # assert np.allclose(u_poly[2], Polynomial(u_poly[4]).deriv().coef)
-    print((-u_poly[2], Polynomial(u_poly[4]).deriv().coef))
-
-    def local_force_fn(t):
-        assert t>=0 and t<=1.0
-        return np.array([polyval(t, u_poly[i]) for i in range(6)])
-    return local_force_fn
-
-###############################################
-
-# internal calculation unit
-LENGTH_UNIT = 'meter'
-ROT_ANGLE_UNIT = 'rad'
-FORCE_UNIT = 'kN'
-
-# derived units
-MOMENT_UNIT = FORCE_UNIT + "*" + ROT_ANGLE_UNIT
-AREA_UNIT = LENGTH_UNIT + "^2"
-AREA_INERTIA_UNIT = LENGTH_UNIT + "^4"
-PRESSURE_UNIT = FORCE_UNIT + "/" + LENGTH_UNIT + "^2"; # "kN/m^2" modulus
-DENSITY_UNIT  = FORCE_UNIT + "/" + LENGTH_UNIT + "^3"; # "kN/m^3"
-
-class Material(object):
-    """convert material dict to comply with internal unit inside
-    These units comply with Karamba3D.
-    """
-    def __init__(self, mat_dict):
-        # length unit scale
-        len_scale = 1e-2
-        # kN/cm^2 => kN/m^2
-        pressure_scale = 1/len_scale**2
-        self.E = mat_dict['youngs_modulus'] * pressure_scale
-        if 'poisson_ratio' in mat_dict:
-            self.mu = mat_dict['poisson_ratio']
-            G = mu2G(self.mu, self.E)
-            # if 'shear_modulus' in mat_dict:
-                # assert abs(G - mat_dict['shear_modulus'] * pressure_scale) / G > 1e-6
-            self.G = G
-        self.rho = mat_dict['density']
-        area_scale = len_scale**2
-        self.A = mat_dict['cross_sec_area'] * area_scale
-        inertia_scale = len_scale**4
-        self.Jx = mat_dict['Jx']*inertia_scale
-        self.Iy = mat_dict['Iy']*inertia_scale
-        self.Iz = mat_dict['Iz']*inertia_scale
-
-LENGTH_CONVERSION = {
-    'meter' : 1.0,
-    'millimeter' : 1e-3,
-}
 
 ###############################################
 
