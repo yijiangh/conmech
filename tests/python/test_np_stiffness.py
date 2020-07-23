@@ -349,7 +349,6 @@ def test_2Dbeam_stiffness_matrix(viewer):
 
     #     plt.show()
 
-
 def test_transf_matrix():
     pt1 = np.array([0,0,0])
     pt2 = np.array([1,0,0])
@@ -453,28 +452,32 @@ def test_axial_stiffness():
 
 @pytest.mark.pointup_truss
 def test_joint_release_solve():
-    A = 0.00247 # m2
-    Jx = 6.29e-08 # m4
-    Iy = 4.7e-06 # m4
-    Iz = 1.61e-06 # m4
-    E = 21000.0*1e4 # kN/m2
-    G12 = 8076.0*1e4 # kN/m2 
+    A =  0.002 # m2
+    Jx = 3.6630108993439872e-08 # m4
+    Iy = 3.3194666666666672e-06
+    Iz = 1.3341666666666669e-06
+
+    E = 210000000.0 # kN/m2
+    G12 = 80760000.0 # kN/m2 
     mu = G2mu(G12, E)
     assert mu < 0.5 and mu > 0
 
-    # V = np.array([[-10.,0,0], [0,0,5.], [10., 0., 0.]])
-    # T = np.array([[0,1], [1,2]], dtype=int)
+    V = np.array([[-10.,0,0], [0,0,5.], [10., 0., 0.]])
+    T = np.array([[0,1], [1,2]], dtype=int)
     nV = 3
     nE = 2
 
-    V = np.array([[-10.,0,0], [0,0,0.], [-10.,0,0]])
-    T = np.array([[0,1], [1,2]], dtype=int)
+    # V = np.array([[-10.,0,0], [0,0,5.], [10.,0,0]])
+    # T = np.array([[0,1], [1,2]], dtype=int)
     # nV = 2
     # nE = 1
 
-    ebending = [True, True]
-    # ebending = [False, False]
+    # ebending = [True, True]
+    ebending = [False, False]
     e_cr_y = [[np.inf, np.inf], [np.inf, np.inf]]
+    # e_cr_y = [[np.inf, 0.004], [0.008, np.inf]]
+    # e_cr_y = [[np.inf, 0.004], [np.inf, 0.008]]
+    # e_cr_y = [[np.inf, 0.0], [0.0, np.inf]]
     # e_cr_y = [[np.inf, 0.75], [0.5, np.inf]]
     for i in range(2):
         if not ebending[i]:
@@ -504,25 +507,25 @@ def test_joint_release_solve():
     # compute permutation map
     total_dof = nV*6
     dof_stat = np.ones(total_dof, dtype=int)*-1
-    # dof_stat[id_map[0,:6]] = [1,1,1,1,int(not ebending[0]),1]
-    # dof_stat[id_map[0,6:]] = [0,1,0,1,int(not (ebending[0] or ebending[1])),1]
-    # dof_stat[id_map[1,6:]] = [1,1,1,1,int(not ebending[1]),1]
-    dof_stat[id_map[0,:6]] = [1,1,1,1,1,1]
-    dof_stat[id_map[0,6:]] = [0,1,0,1,0,1]
-    dof_stat[id_map[1,6:]] = [1,1,1,1,1,1]
+    dof_stat[id_map[0,:6]] = [1,1,1,1,int(not ebending[0]),1]
+    dof_stat[id_map[0,6:]] = [0,1,0,1,int(not (ebending[0] or ebending[1])),1]
+    dof_stat[id_map[1,6:]] = [1,1,1,1,int(not ebending[1]),1]
+    # dof_stat[id_map[0,:6]] = [1,1,1,1,0,1]
+    # dof_stat[id_map[0,6:]] = [0,1,0,1,0,1]
+    # dof_stat[id_map[1,6:]] = [1,1,1,1,0,1]
     cprint('dof specs:', 'green')
     print(dof_stat[id_map[0,:6]])
     print(dof_stat[id_map[0,6:]])
-    # print(dof_stat[id_map[1,6:]])
+    print(dof_stat[id_map[1,6:]])
 
     n_fixed_dof = np.sum(dof_stat)
     n_free_dof = total_dof - n_fixed_dof
 
     # load vector
     P = np.zeros(total_dof)
-    # P[2] = -10.0 #kN
-    P[6+2] = -1.0 #kN
-    # P[12+2] = -10.0 #kN
+    P[2] = -10.0 #kN
+    P[6+2] = -10.0 #kN
+    P[12+2] = -10.0 #kN
 
     free_tail = 0
     fix_tail = n_free_dof
