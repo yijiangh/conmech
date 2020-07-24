@@ -14,13 +14,14 @@ from collections import defaultdict, OrderedDict
 import numpy as np
 from numpy.linalg import norm
 
-DEFAULT_ENGINE = 'cpp'
-try:
-    from _pystiffness_checker import _StiffnessChecker
-except ImportError:
-    DEFAULT_ENGINE = 'numpy'
+DEFAULT_ENGINE = 'numpy'
+# DEFAULT_ENGINE = 'cpp'
+# try:
+#     from _pystiffness_checker import _StiffnessChecker
+# except ImportError:
+#     DEFAULT_ENGINE = 'numpy'
 from .numpy_stiffness import NumpyStiffness
-from pyconmech.frame_analysis.frame_file_io import read_frame_json, write_frame_json
+from pyconmech.frame_analysis.frame_file_io import read_frame_json
 
 class StiffnessChecker(object):
     """stiffness checking instance for 3D frame deformation analysis
@@ -29,7 +30,7 @@ class StiffnessChecker(object):
     
     """
 
-    def __init__(self, node_points=None, elements=None, fix_specs=None, material_dicts=None,  
+    def __init__(self, nodes=None, elements=None, supports=None, material_dicts=None,  
         unit='meter', model_type='frame', model_name=None, verbose=False, checker_engine=DEFAULT_ENGINE):
         """Init fn for stiffness_checker
 
@@ -68,9 +69,10 @@ class StiffnessChecker(object):
             raise NotImplementedError('truss model is not supported now...')
         self._model_type = model_type
         if checker_engine == 'cpp':
-            fixities = np.array([[int(key)] + fix_dofs for key, fix_dofs in fix_specs.items()], dtype=np.int32)
-            checker_engine = _StiffnessChecker(np.array(node_points, dtype=np.float64), np.array(elements, dtype=np.int32), fixities, \
-                material_dicts, verbose=verbose)
+            # fixities = np.array([[int(key)] + fix_dofs for key, fix_dofs in fix_specs.items()], dtype=np.int32)
+            # checker_engine = _StiffnessChecker(np.array(node_points, dtype=np.float64), np.array(elements, dtype=np.int32), fixities, \
+            #     material_dicts, verbose=verbose)
+            raise NotImplementedError()
         elif checker_engine == 'numpy':
             checker_engine = NumpyStiffness(node_points, elements, fix_specs, material_dicts, verbose, model_type, False, unit)
         else:

@@ -1,10 +1,13 @@
 import os
-from .frame_file_io import read_frame_json, read_load_case_json
+from pyconmech.frame_analysis.frame_file_io import read_frame_json, read_load_case_json
+    
+##################################################
+# Stiffness Backend Template
 
 class StiffnessBase(object):
-    def __init__(self, vertices, elements, fixities, material_dicts, 
+    def __init__(self, nodes, elements, fixities, material_dicts, 
         verbose=False, model_type='frame', output_json=False):
-        self._vertices = vertices
+        self._nodes = vertices
         self._elements = elements
         self._fixties = fixities
         self._material_dicts = material_dicts
@@ -85,7 +88,7 @@ class StiffnessBase(object):
     # Get functions
 
     def get_frame_stat(self):
-        return 
+        raise NotImplementedError()
 
     def get_lumped_nodal_loads(self, existing_ids=[]):
         raise NotImplementedError()
