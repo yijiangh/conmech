@@ -1,23 +1,49 @@
 import os
+import warnings
 from pyconmech.frame_analysis.frame_file_io import read_frame_json, read_load_case_json
     
 ##################################################
 # Stiffness Backend Template
 
 class StiffnessBase(object):
-    def __init__(self, nodes, elements, fixities, material_dicts, 
-        verbose=False, model_type='frame', output_json=False):
-        self._nodes = vertices
+    def __init__(self, nodes, elements, supports, materials, crosssecs, 
+        joints=None, verbose=False, output_json=False):
+        self._nodes = nodes
         self._elements = elements
-        self._fixties = fixities
-        self._material_dicts = material_dicts
+
+        # turn lists into dicts
+        self._supports = {}
+        for support in supports:
+            self._supports[support.node_ind] = support
+
+        self._joints = {}
+        if joints is not None:
+            for joint in joints:
+                for e_tag in joint.elem_tags:
+                    if e_tag in self._joints:
+                        warnings.warn('Multiple joints assigned to the same element tag!')
+                    self._joints[e_tag] = joint
+
+        self._materials = {}
+        for mat in materials:
+            for e_tag in mat.elem_tags:
+                if e_tag in self._materials:
+                    warnings.warn('Multiple materials assigned to the same element tag!')
+                self._materials[e_tag] = mat
+
+        self._crosssecs = {}
+        for cs in crosssecs:
+            for e_tag in cs.elem_tags:
+                if e_tag in self._crosssecs:
+                    warnings.warn('Multiple materials assigned to the same element tag!')
+                self._crosssecs[e_tag] = cs
+
         self._verbose = verbose
-        self._model_type = model_type
         self._output_json = output_json
         self._trans_tol = None
         self._rot_tol = None
 
-        if len(self._fixties) == 0:
+        if len(self._supports) == 0:
             raise RuntimeError('there needs to be at least one support (fixed) vertex in the model!')
 
     @classmethod
@@ -37,10 +63,10 @@ class StiffnessBase(object):
             [description]
         """
         assert os.path.exists(json_file_path), "json file not exists!"
-        node_points, elements, fix_specs, model_type, material_dicts, _, unit = \
+        nodes, elements, supports, joints, materials, crosssecs, _, _ = \
             read_frame_json(json_file_path, verbose=verbose)
-        return cls(node_points, elements, fix_specs, material_dicts, 
-            model_type=model_type, verbose=verbose)
+        return cls(nodes, elements, supports, materials, crosssecs, 
+            joints=joints, verbose=verbose)
 
     #######################
     # Load input
@@ -49,8 +75,6 @@ class StiffnessBase(object):
         raise NotImplementedError()
 
     def set_load(self, nodal_forces):
-        """input: #nL x 7 numpy matrix
-        """
         raise NotImplementedError()
 
     def set_uniformly_distributed_loads(self, element_load_density):

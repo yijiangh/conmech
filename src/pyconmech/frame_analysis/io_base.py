@@ -1,3 +1,12 @@
+class Model(object):
+    def __init__(self, nodes, elements, supports, joints, crosssecs, materials):
+        self.nodes = nodes
+        self.elements = elements
+        self.supports = supports
+        self.joints = joints
+        self.crosssecs = crosssecs
+        self.materials = materials
+
 class Node(object):
     def __init__(self, point, node_ind, is_grounded):
         self.point = point
@@ -57,7 +66,7 @@ class CrossSec(object):
         self.Jx = Jx
         self.Iy = Iy
         self.Iz = Iz
-        self.elem_tags = elem_tags or [""]
+        self.elem_tags = elem_tags if elem_tags else [""]
         self.family = family
         self.name = name
 
@@ -86,7 +95,7 @@ class Material(object):
         self.mu = G2mu(G12, E)
         self.fy = fy
         self.density = density
-        self.elem_tags = elem_tags or [""]
+        self.elem_tags = elem_tags if elem_tags else [""]
         self.family = family
         self.name = name
         self.type_name = type_name
@@ -98,3 +107,39 @@ class Material(object):
     def to_data(self):
         raise NotImplementedError()
 
+class PointLoad(object):
+    def __init__(self, force, moment, node_ind):
+        self.force = force
+        self.moment = moment
+        self.node_ind = node_ind
+
+    @classmethod
+    def from_data(cls, data):
+        return cls(data['force'], data['moment'], data['node_ind'])
+
+    def to_data(self):
+        raise NotImplementedError()
+
+class UniformlyDistLoad(object):
+    def __init__(self, q, load, elem_tags):
+        self.q = q
+        self.load = load
+        self.elem_tags = elem_tags
+
+    @classmethod
+    def from_data(cls, data):
+        return cls(data['q'], data['load'], data['elem_tags'])
+
+    def to_data(self):
+        raise NotImplementedError()
+
+class GravityLoad(object):
+    def __init__(self, force=[0,0,-1]):
+        self.force = force
+
+    @classmethod
+    def from_data(cls, data):
+        return cls(data['force'])
+
+    def to_data(self):
+        raise NotImplementedError()

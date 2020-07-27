@@ -1,4 +1,6 @@
 import pytest
+import os
+from termcolor import cprint
 from numpy.testing import assert_array_almost_equal_nulp, assert_array_almost_equal
 
 import numpy as np
@@ -8,12 +10,15 @@ import scipy.sparse.linalg as SPLA
 from scipy.sparse import csc_matrix
 from matplotlib import pyplot as plt
 from scipy.sparse import find
+
 from pyconmech.frame_analysis import create_local_stiffness_matrix, global2local_transf_matrix, \
     assemble_global_stiffness_matrix
 from pyconmech.frame_analysis.visualization import get_element_shape_fn, get_internal_reaction_fn
-from pyconmech.frame_analysis.numpy_stiffness import bending_stiffness_matrix, axial_stiffness_matrix, mu2G, G2mu, \
+from pyconmech.frame_analysis.numpy_stiffness import bending_stiffness_matrix, axial_stiffness_matrix, \
     turn_diagblock
-from termcolor import cprint
+from pyconmech.frame_analysis.io_base import mu2G, G2mu
+from pyconmech import StiffnessChecker
+from pyconmech.frame_analysis.frame_file_io import read_load_case_json
 
 # from pyconmech.frame_analysis import numpy_stiffness
 
@@ -54,6 +59,59 @@ def assert_aleq_sparse(A, B, atol = 1e-14):
     assert index_match!=0, 'number of nonzero id not matched: {}'.format(index_match)
     assert np.allclose(v1,v2, atol=atol)
 
+
+@pytest.mark.flat_beam_json
+def test_2Dbeam_stiffness_matrix_parsed(test_data_dir, engine):
+    # base on example 4.8-4.12, p.79 [MGZ2000]
+    file_name = 'mgz_flat_beam.json'
+    load_file_name = 'mgz_flat_beam_loads.json'
+    json_path = os.path.join(test_data_dir, file_name)
+    load_path = os.path.join(test_data_dir, load_file_name)
+
+    sc = StiffnessChecker.from_json(json_path, verbose=True, checker_engine=engine)
+    point_loads, uniform_element_loads, gravity_load = read_load_case_json(load_path)
+    assert gravity_load is None
+    sc.set_loads(point_loads, uniform_element_loads, gravity_load)
+
+    sc.solve()
+    result = sc.get_result_data(output_frame_transf=True)
+    nD = result['node_displacement']
+    fR = result['fixity_reaction']
+    eR = result['element_reaction']
+
+    u_ans = np.array([0.024, 0.046, -19.15, -0.00088, -0.00530])
+    u_ans[:3] *= 1e-3
+    # assert_aleq_gmz_array(u_ans, U[[6, 6*2, 6*2+1, 6+5, 6*2+5]], precision=1)
+    nD0 = nD[0]['displacement']
+    nD1 = nD[1]['displacement']
+    nD2 = nD[2]['displacement']
+    assert_aleq_gmz_array(u_ans, np.array([nD1[0], nD2[0], nD2[1], nD1[5], nD2[5]]), precision=1)
+
+    # R_xa, R_ya, Rm_za, R_yb
+    # textbook moment reaction unit kN m
+    R_ans = np.array([-3.6, -3.3, -8.8, 6.85])
+    node_a_fr = fR[0]['reaction']
+    node_b_fr = fR[1]['reaction']
+    node_c_fr = fR[2]['reaction']
+    # // (God knows what type of hand-calc precision the authors were using...)
+    # assert_aleq_gmz_array(R_ans, R[[0, 1, 5, 6+1]], precision=0)
+    assert_aleq_gmz_array(R_ans, np.array([node_a_fr[0], node_a_fr[1], node_a_fr[5], node_b_fr[1]]), precision=0)
+
+    eR0 = eR[0]['reaction']
+    eR1 = eR[1]['reaction']
+    assert_array_almost_equal(node_a_fr, eR0[0])
+    assert_array_almost_equal(node_b_fr, np.array(eR0[1]) + np.array(eR1[0]))
+
+    K_full = sc.get_global_stiffness_matrix()
+    u_test = np.hstack([nD0, nD1, nD2])
+    f_test = np.zeros(6*3)
+    f_test[[6*2, 6*2+1]] = [5/np.sqrt(2), -5/np.sqrt(2)]
+    r_test = np.hstack([node_a_fr, node_b_fr, node_c_fr])
+    assert_array_almost_equal(K_full.dot(u_test), f_test + r_test)
+
+    Perm, ((n_free_dof, n_fixed_dof)) = sc.get_dof_permutation_matrix()
+    assert_array_almost_equal((Perm.dot(K_full).dot(u_test))[:n_free_dof], Perm.dot(f_test)[:n_free_dof])
+
 @pytest.mark.flat_beam
 def test_2Dbeam_stiffness_matrix(viewer):
     # base on example 4.8-4.12, p.79 [MGZ2000]
@@ -74,7 +132,7 @@ def test_2Dbeam_stiffness_matrix(viewer):
     # area and inertia
     cross_sec = {}
     cross_sec[0] = {
-        'A' : 6*1e3, #mm2
+        'A' : 6000, #mm2
         'Iz' : 200*1e6, # mm4
         'Jx' : 300*1e3, #mm4
     }
@@ -91,7 +149,7 @@ def test_2Dbeam_stiffness_matrix(viewer):
     T = np.array([[0,1], [1,2]], dtype=int)
 
     # element id : dof id map
-    id_map = np.vstack([np.array(range(i*6, (i+2)*6)) for i in range(nE)])
+    id_map = np.vstack([np.array(range(i*5, (i+2)*6)) for i in range(nE)])
 
     def compute_R(e):
         R_3 = global2local_transf_matrix(V[e[0],:], V[e[1],:]) #, rot_y2x=np.pi)
@@ -507,9 +565,14 @@ def test_joint_release_solve():
     # compute permutation map
     total_dof = nV*6
     dof_stat = np.ones(total_dof, dtype=int)*-1
-    dof_stat[id_map[0,:6]] = [1,1,1,1,int(not ebending[0]),1]
-    dof_stat[id_map[0,6:]] = [0,1,0,1,int(not (ebending[0] or ebending[1])),1]
-    dof_stat[id_map[1,6:]] = [1,1,1,1,int(not ebending[1]),1]
+    dof_stat[id_map[0,:6]] = [1,1,1,int(not ebending[0]),int(not ebending[0]),int(not ebending[0])]
+    dof_stat[id_map[0,6:]] = [0,1,0,int(not (ebending[0] or ebending[1])),int(not (ebending[0] or ebending[1])),int(not (ebending[0] or ebending[1]))]
+    dof_stat[id_map[1,6:]] = [1,1,1,int(not ebending[1]),int(not ebending[1]),int(not ebending[1])]
+
+    # dof_stat[id_map[0,:6]] = [1,1,1,1,int(not ebending[0]),1]
+    # dof_stat[id_map[0,6:]] = [0,1,0,1,int(not (ebending[0] or ebending[1])),1]
+    # dof_stat[id_map[1,6:]] = [1,1,1,1,int(not ebending[1]),1]
+
     # dof_stat[id_map[0,:6]] = [1,1,1,1,0,1]
     # dof_stat[id_map[0,6:]] = [0,1,0,1,0,1]
     # dof_stat[id_map[1,6:]] = [1,1,1,1,0,1]

@@ -13,7 +13,7 @@ import datetime
 from collections import OrderedDict
 import warnings
 
-from pyconmech.frame_analysis.io_base import Node, Element, Support, Joint, CrossSec, Material
+from pyconmech.frame_analysis.io_base import Node, Element, Support, Joint, CrossSec, Material, PointLoad, UniformlyDistLoad, GravityLoad
 
 '''length scale conversion to meter'''
 LENGTH_SCALE_CONVERSION = {
@@ -22,7 +22,7 @@ LENGTH_SCALE_CONVERSION = {
 }
 
 def parse_point(json_point, scale=1.0):
-    return [scale*json_point['X'], scale*json_point['Y'], scale*json_point['Z']]
+    return [scale*json_point[0], scale*json_point[1], scale*json_point[2]]
 
 def parse_nodes(node_data, scale=1.0):
     nodes = []
@@ -72,6 +72,8 @@ def read_frame_json(file_path, verbose=False, strict_check=True):
     """parse a frame structure out of a json file
     
     Note: node point coordinates are converted to meter in this function.
+
+    # TODO merge into Model base class .from_json
     
     Parameters
     ----------
@@ -180,61 +182,61 @@ def write_frame_json(file_path, nodes, elements, fixity_specs, material_dicts,
     unif_cross_sec=False, unif_material=False, unit=None, model_type='frame', model_name=None, indent=None, check_material=True):
     raise NotImplementedError()
 
-    data = OrderedDict()
-    data['model_name'] = model_name if model_name else extract_model_name_from_path(file_path)
-    data['model_type'] = model_type
-    if not unit:
-        print('WARNING: No unit is given in write_frame_json: assuming meter.')
-        unit = 'meter'
-    else:
-        assert unit in LENGTH_SCALE_CONVERSION, 'length unit not supported! please use {}'.format(LENGTH_SCALE_CONVERSION.keys())
-    data['unit'] = unit
-    data['generate_time'] = str(datetime.datetime.now())
-    data['dimension'] = len(nodes[0])
-    data['node_num'] = len(nodes)
-    data['element_num'] = len(elements)
-    data['uniform_cross_section'] = unif_cross_sec
-    data['uniform_material_properties'] = unif_material
-    if unif_cross_sec and unif_material:
-        data['material_properties'] = material_dicts[0] if isinstance(material_dicts, list) else material_dicts
-        if check_material: assert(check_material_dict(data['material_properties']))
-    else:
-        data['material_properties'] = {}
-        if check_material:
-            for mat_dict in material_dicts:
-                assert(check_material_dict(mat_dict))
-        assert(len(material_dicts) == len(elements))
+    # data = OrderedDict()
+    # data['model_name'] = model_name if model_name else extract_model_name_from_path(file_path)
+    # data['model_type'] = model_type
+    # if not unit:
+    #     print('WARNING: No unit is given in write_frame_json: assuming meter.')
+    #     unit = 'meter'
+    # else:
+    #     assert unit in LENGTH_SCALE_CONVERSION, 'length unit not supported! please use {}'.format(LENGTH_SCALE_CONVERSION.keys())
+    # data['unit'] = unit
+    # data['generate_time'] = str(datetime.datetime.now())
+    # data['dimension'] = len(nodes[0])
+    # data['node_num'] = len(nodes)
+    # data['element_num'] = len(elements)
+    # data['uniform_cross_section'] = unif_cross_sec
+    # data['uniform_material_properties'] = unif_material
+    # if unif_cross_sec and unif_material:
+    #     data['material_properties'] = material_dicts[0] if isinstance(material_dicts, list) else material_dicts
+    #     if check_material: assert(check_material_dict(data['material_properties']))
+    # else:
+    #     data['material_properties'] = {}
+    #     if check_material:
+    #         for mat_dict in material_dicts:
+    #             assert(check_material_dict(mat_dict))
+    #     assert(len(material_dicts) == len(elements))
 
-    data['node_list'] = []
-    for i, node in enumerate(nodes):
-        assert len(node) == data['dimension'], 'node coordinate not in the same dimension!'
-        node_data = OrderedDict()
-        node_data['point'] = OrderedDict()
-        node_data['point']['X'] = node[0] * LENGTH_SCALE_CONVERSION[unit]
-        node_data['point']['Y'] = node[1] * LENGTH_SCALE_CONVERSION[unit]
-        if data['dimension'] == 3:
-            node_data['point']['Z'] = node[2] * LENGTH_SCALE_CONVERSION[unit]
-        node_data['node_id'] = i
-        node_data['is_grounded'] = i in fixity_specs
-        if fixity_specs:
-            node_data['fixities'] = fixity_specs[i] if node_data['is_grounded'] else []
-        else:
-            node_data['fixities'] = [1] * 6 if node_data['is_grounded'] else []
-        data['node_list'].append(node_data)
+    # data['node_list'] = []
+    # for i, node in enumerate(nodes):
+    #     assert len(node) == data['dimension'], 'node coordinate not in the same dimension!'
+    #     node_data = OrderedDict()
+    #     node_data['point'] = OrderedDict()
+    #     node_data['point']['X'] = node[0] * LENGTH_SCALE_CONVERSION[unit]
+    #     node_data['point']['Y'] = node[1] * LENGTH_SCALE_CONVERSION[unit]
+    #     if data['dimension'] == 3:
+    #         node_data['point']['Z'] = node[2] * LENGTH_SCALE_CONVERSION[unit]
+    #     node_data['node_id'] = i
+    #     node_data['is_grounded'] = i in fixity_specs
+    #     if fixity_specs:
+    #         node_data['fixities'] = fixity_specs[i] if node_data['is_grounded'] else []
+    #     else:
+    #         node_data['fixities'] = [1] * 6 if node_data['is_grounded'] else []
+    #     data['node_list'].append(node_data)
 
-    data['element_list'] = []
-    for i, element in enumerate(elements):
-        element_data = OrderedDict()
-        element_data['end_node_ids'] = list([int(v) for v in element])
-        element_data['element_id'] = i
-        element_data['material_properties'] = {} if unif_cross_sec and unif_material else material_dicts[i]
-        data['element_list'].append(element_data)
+    # data['element_list'] = []
+    # for i, element in enumerate(elements):
+    #     element_data = OrderedDict()
+    #     element_data['end_node_ids'] = list([int(v) for v in element])
+    #     element_data['element_id'] = i
+    #     element_data['material_properties'] = {} if unif_cross_sec and unif_material else material_dicts[i]
+    #     data['element_list'].append(element_data)
 
-    with open(file_path, 'w+') as outfile:
-        if indent:
-            json.dump(data, outfile, indent=indent)
-        else:
-            json.dump(data, outfile)
+    # with open(file_path, 'w+') as outfile:
+    #     if indent:
+    #         json.dump(data, outfile, indent=indent)
+    #     else:
+    #         json.dump(data, outfile)
 
 
 def read_load_case_json(file_path):
@@ -242,7 +244,6 @@ def read_load_case_json(file_path):
 
     Note: 
     - For now, only support `kN` for force unit, `kN-m` for moment unit
-    - Gravity is assumed to be along the negative global z axis.
     - Element uniform load is converted to global coordinate in this function
     
     Parameters
@@ -251,33 +252,16 @@ def read_load_case_json(file_path):
     
     Returns
     -------
-    point_load : dict 
-        {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]}, in global coordinate
-    uniform_element_load : dict 
-        {node_id : [wx, wy, wz]}, in global coordinate
-    include_self_weight : bool 
-        include self-weight or not, now only supports gravity in global z direction
+    point_load : list 
+    uniform_element_load : list 
+    gravity_load : object or None 
     """
     assert os.path.exists(file_path) and "json file path does not exist!"
     with open(file_path, 'r') as f:
         json_data = json.loads(f.read())
 
-    # version specific sanity checks
-    assert json_data['dimension'] == 3, 'model dimension != 3 not supported now!'
-    # TODO: do unit conversion here
-    assert json_data['force_unit'] == 'kN'
-    assert json_data['moment_unit'] == 'kN-m'
-
-    point_load = {}
-    uniform_element_load = {}
-    include_self_weight = json_data['include_self_weight'] if 'include_self_weight' in json_data else False
-    for pl_data in json_data['point_load_list']:
-        point_load[pl_data['applied_node_id']] = [pl_data['Fx'], pl_data['Fy'], pl_data['Fz'], 
-                                                 pl_data['Mx'], pl_data['My'], pl_data['Mz']]
-
-    if 'uniformly_distributed_element_load_list' in json_data:
-        for el_data in json_data['uniformly_distributed_element_load_list']:
-            assert el_data['description_frame'] == 'global', 'only description in the global frame supported now!'
-            uniform_element_load[el_data['applied_element_id']] = [el_data['wx'], el_data['wy'], el_data['wz']]
+    point_loads = [PointLoad.from_data(pl) for pl in json_data['ploads']]
+    uniform_element_loads = [UniformlyDistLoad.from_data(el) for el in json_data['eloads']]
+    gravity_load = None if 'gravity' not in json_data else json_data['gravity']
     
-    return point_load, uniform_element_load, include_self_weight
+    return point_loads, uniform_element_loads, gravity_load

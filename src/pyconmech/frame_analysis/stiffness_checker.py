@@ -15,11 +15,12 @@ import numpy as np
 from numpy.linalg import norm
 
 DEFAULT_ENGINE = 'numpy'
-# DEFAULT_ENGINE = 'cpp'
-# try:
-#     from _pystiffness_checker import _StiffnessChecker
-# except ImportError:
-#     DEFAULT_ENGINE = 'numpy'
+CPP_AVAILABLE = False
+try:
+    from _pystiffness_checker import _StiffnessChecker
+    CPP_AVAILABLE = True
+except ImportError:
+    pass
 from .numpy_stiffness import NumpyStiffness
 from pyconmech.frame_analysis.frame_file_io import read_frame_json
 
@@ -30,8 +31,8 @@ class StiffnessChecker(object):
     
     """
 
-    def __init__(self, nodes=None, elements=None, supports=None, material_dicts=None,  
-        unit='meter', model_type='frame', model_name=None, verbose=False, checker_engine=DEFAULT_ENGINE):
+    def __init__(self, nodes=None, elements=None, supports=None, materials=None, crosssecs=None, joints=None,
+        unit='meter', model_name=None, verbose=False, checker_engine=DEFAULT_ENGINE):
         """Init fn for stiffness_checker
 
         By default, self-weight load is applied. Disable by ``StiffnessChecker.set_self_weight_load(False)``
@@ -65,28 +66,27 @@ class StiffnessChecker(object):
             raise if ``model_type`` is set to ``truss``
         """
         self._model_name = model_name or ''
-        if model_type == 'truss':
-            raise NotImplementedError('truss model is not supported now...')
-        self._model_type = model_type
         if checker_engine == 'cpp':
+            assert CPP_AVAILABLE, 'cpp backend not compiled!'
             # fixities = np.array([[int(key)] + fix_dofs for key, fix_dofs in fix_specs.items()], dtype=np.int32)
-            # checker_engine = _StiffnessChecker(np.array(node_points, dtype=np.float64), np.array(elements, dtype=np.int32), fixities, \
+            # checker_engine_ins = _StiffnessChecker(np.array(node_points, dtype=np.float64), np.array(elements, dtype=np.int32), fixities, \
             #     material_dicts, verbose=verbose)
             raise NotImplementedError()
         elif checker_engine == 'numpy':
-            checker_engine = NumpyStiffness(node_points, elements, fix_specs, material_dicts, verbose, model_type, False, unit)
+            checker_engine_ins = NumpyStiffness(nodes, elements, supports, materials, crosssecs, joints, verbose, False, unit)
         else:
             raise NotImplementedError('Engine not exist: {}'.format(checker_engine))
-        self._sc_ins = checker_engine
+        self._sc_ins = checker_engine_ins
         self._sc_ins.set_self_weight_load(True)
-        # For now, we keep two copies of the following data: one in this wrapper class, one in the solve instance
-        self._node_points = node_points or []
-        self._elements = elements or []
-        self._fix_specs = fix_specs or {}
-        if not (len(fix_specs) > 0 and all([len(fix_dofs) == 3 or len(fix_dofs) == 6 for fix_dofs in fix_specs.values()])):
-            raise RuntimeError('there needs to be at least one support (fixed) vertex in the model!')
-        self._material_dicts = material_dicts
         self.set_nodal_displacement_tol()
+
+        # TODO For now, we keep two copies of the following data: one in this wrapper class, one in the solve instance
+        self._nodes = nodes or []
+        self._elements = elements or []
+        self._supports = self._sc_ins._supports
+        if not len(supports) > 0: 
+            #and all([len(fix_dofs) == 3 or len(fix_dofs) == 6 for fix_dofs in fix_specs.values()])):
+            raise RuntimeError('there needs to be at least one support (fixed) vertex in the model!')
 
     @classmethod
     def from_json(cls, json_file_path=None, verbose=False, checker_engine=DEFAULT_ENGINE):
@@ -106,46 +106,11 @@ class StiffnessChecker(object):
         """
         assert os.path.exists(json_file_path), "json file not exists!"
         # * node point coordinate unit is converted to *meter* inside read_frame_json
-        node_points, elements, fix_specs, model_type, material_dicts, model_name, _ = \
+        nodes, elements, supports, joints, materials, crosssecs, model_name, unit = \
             read_frame_json(json_file_path, verbose=verbose)
-        return cls(node_points=node_points, elements=elements, fix_specs=fix_specs, \
-                   model_type=model_type, material_dicts=material_dicts, unit='meter', model_name=model_name, verbose=verbose, \
-                   checker_engine=checker_engine)
-
-    @classmethod
-    def from_frame_data(cls, node_points, elements, fix_specs, material_dicts, 
-        unit='meter', model_type='frame', model_name=None, verbose=False, checker_engine=DEFAULT_ENGINE):
-        """init class from frame data
-        
-        Parameters
-        ----------
-        node_points : list of 3-float list, optional
-            ``#V x 3`` matrix of vertex coordinates, by default None
-        elements : list of 2-int list, optional
-            ``#E x 2`` matrix of element end point indices, by default None
-        fix_specs : dict, optional
-            ``{node_id : fixity_spec}``, where ``fixity_spec`` is a 6-dof 0-1 to specify dof fixed (1) or free(0), by default None
-        material_dicts : dict, optional
-            #E x material property dictionary, see ``pyconmech.database.material_properties`` for examples, by default None
-        unit : str, optional
-            unit used in the ``node_points``, by default 'meter'
-        model_type : str, optional
-            structural model type, can be ``frame`` or ``truss``, by default 'frame'
-        model_name : str, optional
-            model's name, by default None
-        verbose : bool, optional
-            verbose output, passed into cpp backend, by default False
-        checker_engine : str, optional
-            'cpp' or 'numpy'
-        
-        Returns
-        -------
-        StiffnessChecker
-            class instance
-        """
-        return cls(node_points=node_points, elements=elements, fix_specs=fix_specs, \
-                   model_type=model_type, material_dicts=material_dicts, unit=unit, model_name=model_name, verbose=verbose, \
-                   checker_engine=checker_engine)
+        return cls(nodes=nodes, elements=elements, supports=supports, \
+                   materials=materials, joints=joints, crosssecs=crosssecs, verbose=verbose, \
+                   model_name=model_name, unit=unit, checker_engine=checker_engine)
 
     # ==========================================================================
     # properties
@@ -158,24 +123,26 @@ class StiffnessChecker(object):
     @property
     def node_points(self):
         """
+        # TODO should return `Node`
         
         Returns
         -------
-        list of 3-float list
+        list of Node
             ``#V x 3`` matrix of vertex coordinates, by default None
         """
-        return self._node_points
+        return np.array([n.point for n in self._nodes])
     
     @property
     def elements(self):
         """
+        # TODO should return `Element`
 
         Returns
         -------
         list of 2-int list
             ``#E x 2`` matrix of element end point indices, by default None
         """
-        return self._elements
+        return [e.end_node_inds for e in self._elements]
     
     @property
     def fix_node_ids(self):
@@ -185,7 +152,7 @@ class StiffnessChecker(object):
         -------
         list of int
         """
-        return list(self._fix_specs.keys())
+        return list(self._supports.keys())
 
     @property
     def fix_element_ids(self):
@@ -203,30 +170,15 @@ class StiffnessChecker(object):
         return fix_e_ids
 
     @property
-    def fix_specs(self):
+    def supports(self):
         """
         
         Returns
         -------
         dict
-            ``{node_id : fixity_spec}``, where ``fixity_spec`` is a 6-dof 0-1 to specify dof fixed (1) or free(0), by default None
+            ``{node_id : fixity_spec}``, where ``fixity_spec`` is a 6-dof Boolean list to specify dof fixed (1) or free(0), by default None
         """
-        return self._fix_specs
-
-    @property
-    def model_type(self):
-        return self._model_type
-
-    @property
-    def materials(self):
-        """
-        
-        Returns
-        -------
-        dict
-            #E x material property dictionary, see ``pyconmech.database.material_properties`` for examples, by default None
-        """
-        return self._material_dicts
+        return {s.node_ind : s.condition for s in self._supports}
 
     # ==========================================================================
     # solve functions
@@ -267,7 +219,7 @@ class StiffnessChecker(object):
     # load settings
     # ==========================================================================
 
-    def set_loads(self, point_loads=None, include_self_weight=False, gravity_direction=[0,0,-1.0], uniform_distributed_load={}):
+    def set_loads(self, point_loads=None, uniform_distributed_load={}, gravity_load=None):
         """set load case for the stiffness checker.
         
         Parameters
@@ -281,26 +233,32 @@ class StiffnessChecker(object):
             elemental uniformly distributed load, by default {}
             {element_id : [wx, wy, wz]}, in global cooridinate
         """
-        self._sc_ins.set_self_weight_load(include_self_weight=include_self_weight, gravity_direction=gravity_direction)
+        self.set_self_weight_load(gravity_load)
         if point_loads is not None and len(point_loads)!=0:
-            pt_loads = []
-            for vid, vload in point_loads.items():
-                pt_loads.append([vid] + vload)
-            self._sc_ins.set_load(np.array(pt_loads))
+            pt_loads = {}
+            for pload in point_loads:
+                pt_loads[pload.node_ind] = pload
+            self._sc_ins.set_load(pt_loads)
         if uniform_distributed_load:
-            ud_loads = []
-            for eid, eload in uniform_distributed_load.items():
-                ud_loads.append([eid] + eload)
-            self._sc_ins.set_uniformly_distributed_loads(np.array(ud_loads))
+            ud_loads = {}
+            for eload in uniform_distributed_load:
+                if len(eload.elem_tags) == 0:
+                    eload.elem_tags = [""]
+                for e_tag in eload.elem_tags:
+                    ud_loads[e_tag] = eload
+            self._sc_ins.set_uniformly_distributed_loads(ud_loads)
 
-    def set_self_weight_load(self, include_self_weight, gravity_direction=[0,0,-1.0]):
+    def set_self_weight_load(self, gravity_load):
         """Turn on/off self-weight load.
         
         Parameters
         ----------
         include_self_weight : bool
         """
-        self._sc_ins.set_self_weight_load(include_self_weight, gravity_direction=gravity_direction)
+        if gravity_load is not None:
+            self._sc_ins.set_self_weight_load(include_self_weight=True, gravity_direction=gravity_load.force)
+        else:
+            self._sc_ins.set_self_weight_load(include_self_weight=False)
 
     # ==========================================================================
     # check criteria settings
@@ -450,7 +408,6 @@ class StiffnessChecker(object):
             [Fx, Fy, Fz, Mxx, Myy, Mzz, ...], all nodal dofs will be returned, including nodes that do not
             exist in the partial structure specified in ``existing_ids``
         """
-        assert self.model_type == 'frame', 'this function assumes 6 dof each node for now!'
         nL_flat = self._sc_ins.get_gravity_nodal_loads(existing_ids)
         existing_node_ids = self.get_element_connected_node_ids(existing_ids)
         node2dof_map = self.get_node2dof_id_map()
@@ -483,7 +440,6 @@ class StiffnessChecker(object):
             [Fx, Fy, Fz, Mxx, Myy, Mzz, ...], all nodal dofs will be returned, including nodes that do not
             exist in the partial structure specified in ``existing_ids``
         """
-        assert self.model_type == 'frame', 'this function assumes 6 dof each node for now!'
         nL_flat = self._sc_ins.get_lumped_nodal_loads(existing_ids)
         existing_node_ids = self.get_element_connected_node_ids(existing_ids)
         node2dof_map = self.get_node2dof_id_map()
@@ -525,6 +481,45 @@ class StiffnessChecker(object):
                 eMs[eid] = eM_L
         return eMs
 
+    def get_global_stiffness_matrix(self, exist_element_ids=[]):
+        """Compute the global sparse stiffness matrix
+
+        Parameters
+        ----------
+        exist_element_ids : list, optional
+            existing element indices, by default [] (all elements)
+
+        Returns
+        -------
+        perm : scipy.sparse.csc_matrix
+            sparse dof permutation matrix
+        """
+        return self._sc_ins.compute_full_stiffness_matrix(exist_element_ids)
+
+    def get_dof_permutation_matrix(self, exist_element_ids=[]):
+        """Compute the permutation matrix for a given set of existing elements
+        Usage:
+            K_perm = (Perm.dot(K_full_)).dot(Perm.T)
+            K_mm = K_perm[0:n_free_dof, 0:n_free_dof]
+            K_fm = K_perm[n_free_dof:n_free_dof+n_fixed_dof, 0:n_free_dof]
+
+        Parameters
+        ----------
+        exist_element_ids : list, optional
+            existing element indices, by default [] (all elements)
+
+        Returns
+        -------
+        perm : scipy.sparse.csc_matrix
+            sparse dof permutation matrix
+        n_free_dof : int
+            number of free dof
+        n_fixed_dof : int
+            number of fixed dof
+        """
+        Perm, (_, n_free_dof, n_fixed_dof, _) = self._sc_ins.compute_dof_permutation(exist_element_ids)
+        return Perm, (n_free_dof, n_fixed_dof)
+
     def get_element_local2global_rot_matrices(self):
         """Get all elemental local to global transformation matrices, each of which is 12 x 12
 
@@ -561,7 +556,6 @@ class StiffnessChecker(object):
         dict
             {e_id : {0 : [dof_ids for end point 0]}, {1 : [dof_ids for end point 1]}}
         """
-        assert self.model_type == 'frame', 'this function assumes 6 dof each node for now!'
         return {int(e_id) : {0 : id_map[0:6], 1 : id_map[6:12]} 
                 for e_id, id_map in enumerate(self._sc_ins.get_element2dof_id_map())}
 
@@ -611,7 +605,6 @@ class StiffnessChecker(object):
 
         data = OrderedDict()
         data['model_name'] = self.model_name
-        data['model_type'] = self.model_type
         data['solve_success'] = success
         data['trans_tol'] = trans_tol
         data['rot_tol'] = rot_tol
@@ -624,16 +617,16 @@ class StiffnessChecker(object):
         data['max_trans'] = {'node_id' : max_t_id, 'value': max_trans}
         data['max_rot'] = {'node_id' : max_r_id, 'value': max_rot}
     
-        nD_data = []
+        nD_data = {}
         for n_id, nd in nD.items():
             nd_data = OrderedDict()
             nd_data['node_id'] = n_id
             nd_data['node_pose'] = list(self.node_points[n_id])
             nd_data['displacement'] = nd.tolist()
-            nD_data.append(nd_data)
+            nD_data[n_id] = nd_data
         data['node_displacement'] = nD_data
 
-        eR_data = []
+        eR_data = {}
         for e_id, er in eR.items():
             er_data = OrderedDict()
             er_data['element_id'] = e_id
@@ -644,17 +637,16 @@ class StiffnessChecker(object):
             if output_frame_transf:
                 eR33 = eR_LG_mats[e_id][:3, :3]
                 er_data['local_to_global_transformation'] = eR33.tolist()
-
-            eR_data.append(er_data)
+            eR_data[e_id] = er_data
         data['element_reaction'] = eR_data
 
-        fR_data = []
+        fR_data = {}
         for v_id, fr in fR.items():
             fr_data = OrderedDict()
             fr_data['node_id'] = v_id
             fr_data['node_pose'] = list(self.node_points[v_id])
             fr_data['reaction'] = fr.tolist()
-            fR_data.append(fr_data)
+            fR_data[v_id] = fr_data
         data['fixity_reaction'] = fR_data
         return data
 

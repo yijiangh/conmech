@@ -1,57 +1,13 @@
-"""
-# Variables:
-displacements:          {u}
-strain-displacement eq: {\epsilon} = [\partial]{u}
-
-# Induced field:
-constituitive matrix:    elastic constants [E]
-stress-strain eq:        stresses {\sigma} = [E]{\epsilon}
-                                           = [E][\partial]{u}
-
-In bar/beam element, the involved strain-displacement equations are:
-    - axial force:      F/A  = [E] (d/dx){u}
-    - axial torsion:    F/A  = [E] (d/dx){u}
-    - lateral bending:  M/Iz = [E] (d^2/d^2 x){u}
-
-# Boundary condition:
-surface load:         traction {\Phi} on boundary
-internal load:        body force F_x, F_y, F_z
-
-# Compatibility:
-displacement continuous across the body
-
-equilibrium eq:       [\partial]^T {\sigma} + {F} = 0
-
-# principle of virtual work:
-For any *quasi-static* and admissible virtual displacement {\delta u} from
-an equilibrium conf, the increment of strain energy stored is equal to
-the increment of work done by body (internal) forces {F} in volume V and
-traction force {\Phi} on boundary S.
-
-    \int {\delta \epsilon}^T {\sigma} dV = 
-        \int {\delta u}^T F dV + \int {\delta u}^T {\Phi} dS
-
-Then the element stiffness matrix can be derived by:
-    [k] = \int ([\partial] [N])^T [E] ([\partial] [N]) dV
-    [r] = \int [N]^T {F} dVA + \int [N]^T {\Phi} dS + (initial strain and stress)
-
-where [N] is the shape function, for example:
-    # LINEAR_INTERP_POLY = (np.array([1, -1/L]),
-    #                       np.array([0, 1/L]))
-    # CUBIC_INTERP_POLY = (
-    #     np.array([1, 0, -3/L**2, 2/L**3]),
-    #     np.array([0, 1, -2/L, 1/L**2]),
-    #     np.array([0, 0, 3/L**2, 2/L**3]),
-    #     np.array([0, 0, -1/L, 1/L**2]))
-"""
-
+import warnings
 import numpy as np
 import scipy
 import scipy.sparse.linalg as SPLA
 import numpy.linalg as LA
+from collections import defaultdict
 from numpy.linalg import norm, solve
 from scipy.sparse import csc_matrix
-from .stiffness_base import StiffnessBase
+from pyconmech.frame_analysis.stiffness_base import StiffnessBase
+from pyconmech.frame_analysis.io_base import mu2G, G2mu
 
 DOUBLE_EPS = 1e-14
 DOUBLE_INF = 1e14
@@ -60,7 +16,7 @@ DEFAULT_GRAVITY_DIRECTION = np.array([0.,0.,-1.])
 ############################################
 
 # internal calculation unit
-LENGTH_UNIT = 'meter'
+LENGTH_UNIT = 'm' # meter
 ROT_ANGLE_UNIT = 'rad'
 FORCE_UNIT = 'kN'
 
@@ -75,30 +31,6 @@ LENGTH_CONVERSION = {
     'meter' : 1.0,
     'millimeter' : 1e-3,
 }
-
-class Material(object):
-    """convert material dict to comply with internal unit inside
-    These units comply with Karamba3D.
-    """
-    def __init__(self, mat_dict):
-        # length unit scale
-        len_scale = 1e-2
-        # kN/cm^2 => kN/m^2
-        pressure_scale = 1/len_scale**2
-        self.E = mat_dict['youngs_modulus'] * pressure_scale
-        if 'poisson_ratio' in mat_dict:
-            self.mu = mat_dict['poisson_ratio']
-            G = mu2G(self.mu, self.E)
-            # if 'shear_modulus' in mat_dict:
-                # assert abs(G - mat_dict['shear_modulus'] * pressure_scale) / G > 1e-6
-            self.G = G
-        self.rho = mat_dict['density']
-        area_scale = len_scale**2
-        self.A = mat_dict['cross_sec_area'] * area_scale
-        inertia_scale = len_scale**4
-        self.Jx = mat_dict['Jx']*inertia_scale
-        self.Iy = mat_dict['Iy']*inertia_scale
-        self.Iz = mat_dict['Iz']*inertia_scale
 
 ############################################
 
@@ -298,16 +230,6 @@ def bending_stiffness_matrix(L, E, Iz, axis=2, cr1=np.inf, cr2=np.inf):
     K *= E*Iz/L
 
     return K
-
-def mu2G(mu, E):
-    """compute shear modulus from poisson ratio mu and Youngs modulus E
-    """
-    return E/(2*(1+mu))
-
-def G2mu(G, E):
-    """compute poisson ratio from shear modulus and Youngs modulus E
-    """
-    return E/(2*G)-1
 
 def create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, mu, ct1=[np.inf]*3, ct2=[np.inf]*3, cr1=[np.inf]*3, cr2=[np.inf]*3):
     """complete 12x12 stiffness matrix for a bisymmetrical member.
@@ -524,28 +446,34 @@ def compute_lumped_uniformly_distributed_load(w_G, R_LG, L):
 ###############################################
 
 class NumpyStiffness(StiffnessBase):
-    def __init__(self, vertices, elements, fixities, material_dicts, 
-        verbose=False, model_type='frame', output_json=False, unit='meter'):
+    def __init__(self, nodes, elements, supports, materials, crosssecs, 
+        joints=None, verbose=False, output_json=False, unit='meter'):
         assert unit in LENGTH_CONVERSION
         scale = LENGTH_CONVERSION[unit]
-        # TODO: no need for bookkeeping vertices data, having transf matrices suffices
-        super(NumpyStiffness, self).__init__(scale*np.array(vertices), np.array(elements, dtype=int), 
-            fixities, material_dicts, verbose, model_type, output_json)
+        for node in nodes:
+            node.point = scale*np.array(node.point)
+
+        super(NumpyStiffness, self).__init__(nodes, elements, 
+            supports, materials, crosssecs, joints, verbose, output_json)
+
         # default displacement tolerance
         self._trans_tol = 1e-3
         self._rot_tol = np.pi/180 * 3
         # gravity settings
         self._include_self_weight_load = True
-        # dimension of the model
-        self._dim = 0
         # self._full_node_dof = 6
         # self._node_dof = -1
         # internal states
         self._is_init = False
+        # element id to dof map
         self._id_map = None
+        # node id to dof map
         self._v_id_map = None
-        # unit converted material properties per element
-        self._mats = [Material(md) for md in self._material_dicts]
+        # node id -> element id
+        self._node_neighbors = self.get_node_neighbors()
+        # elem tag -> elem ind
+        self._e_ind_from_tag = self.get_elem_ind_from_elem_tag()
+
         # (nE x (12x12)) list of element stiffness matrix
         self._element_k_list = []
         # (nE x (12x12)) block-diagnal global2local coordinate transformation matrix
@@ -575,20 +503,16 @@ class NumpyStiffness(StiffnessBase):
         self._init()
 
     @property
-    def dim(self):
-        return self._dim
-
-    @property
     def nV(self):
         """number of vertices in the full model
         """
-        return self._vertices.shape[0]
+        return len(self._nodes)
 
     @property
     def nE(self):
         """number of elements in the full model
         """
-        return self._elements.shape[0]
+        return len(self._elements)
 
     #######################
     # Load input
@@ -599,28 +523,33 @@ class NumpyStiffness(StiffnessBase):
             gravity_direction = np.array(gravity_direction)
             self_weight_load_density = {}
             for i in range(self.nE):
-                q_sw = self._mats[i].rho * self._mats[i].A;
+                crosssec = self.get_element_crosssec(i)
+                mat = self.get_element_material(i)
+                q_sw = mat.density * crosssec.A
                 w_G = gravity_direction * q_sw
                 self_weight_load_density[i] = w_G
             self._element_gravity_nload_list = \
                 self.compute_element_uniformly_distributed_lumped_load(self_weight_load_density)
 
-    def set_uniformly_distributed_loads(self, element_load_density):
+    def set_uniformly_distributed_loads(self, unif_dist_loads):
+        e_load_density_from_ind = {}
+        for e_tag, uload in unif_dist_loads.items():
+            for e_ind in self._e_ind_from_tag[e_tag]:
+                e_load_density_from_ind[e_ind] = uload.q
         self._element_lumped_nload_list = \
-            self.compute_element_uniformly_distributed_lumped_load(element_load_density)
+            self.compute_element_uniformly_distributed_lumped_load(e_load_density_from_ind)
 
     def set_load(self, nodal_forces):
         """[summary]
         
         Parameters
         ----------
-        nodal_forces : np array of size (nLoadedNode, 7)
-            each row [node id, 6x1 load vector]
+        nodal_forces : dict
+            {node id : PointLoad}
         """
         self._nodal_load = np.zeros(self.nV*6)
-        for i in range(nodal_forces.shape[0]):
-            v_id = int(nodal_forces[i,0])
-            self._nodal_load[self._v_id_map[v_id,:]] = nodal_forces[i,1:]
+        for v_id, pf in nodal_forces.items():
+            self._nodal_load[self._v_id_map[v_id,:]] = np.array(list(pf.force) + list(pf.moment))
 
     #######################
     # Compute functions
@@ -629,8 +558,9 @@ class NumpyStiffness(StiffnessBase):
         self._trans_tol = transl_tol
         self._rot_tol = rot_tol
 
-    def solve(self, exist_element_ids=[], if_cond_num=False):
-        # assume full structure if exist_element_ids is []
+    def compute_dof_permutation(self, exist_element_ids=[]):
+        """a row permuatation matrix (multiply left)
+        """
         if len(exist_element_ids)==0:
             exist_element_ids = range(self.nE)
 
@@ -642,21 +572,26 @@ class NumpyStiffness(StiffnessBase):
         # existing id set
         exist_node_set = set()
         for e in exist_element_ids:
-            exist_node_set.update(self._elements[e,:])
+            exist_node_set.update(self._elements[e].end_node_inds)
             # turn the existing node's dof status to free (0)
             dof_stat[self._id_map[e]] = np.zeros(12)
 
         # assemble the list of fixed dof fixed list, 1x(nFv)
-        if len(set(self._fixties.keys()) & exist_node_set) == 0:
+        if len(set(self._supports.keys()) & exist_node_set) == 0:
             if self._verbose : print('Structure floating: no fixed node exists in the partial structure.')
             return False
         n_exist_fixed_nodes = 0
         n_fixed_dof = 0
-        for fv_id, fix_dofs in self._fixties.items():
+        for fv_id, support in self._supports.items():
             if fv_id in exist_node_set:
-                dof_stat[self._v_id_map[fv_id,:]] = fix_dofs
+                dof_stat[self._v_id_map[fv_id,:]] = np.array(support.condition, dtype=int)
+                # if all existing element bending=False, fix rotational dof
+                # to avoid singularity issue
+                if all([e_id in exist_element_ids and not self._elements[e_id].bending_stiff for e_id in self._node_neighbors[fv_id]]):
+                    dof_stat[self._v_id_map[fv_id,:]][3:] = [1,1,1]
                 n_exist_fixed_nodes+=1
-                n_fixed_dof += sum(fix_dofs)
+                n_fixed_dof += sum(dof_stat[self._v_id_map[fv_id,:]])
+
         if n_fixed_dof == 0:
             if self._verbose:
                 print('Not stable: At least one node needs to be fixed in the considered substructure!')
@@ -690,11 +625,27 @@ class NumpyStiffness(StiffnessBase):
             perm_col.append(id_map_RO[i])
             perm_data.append(1)
         Perm = csc_matrix((perm_data, (perm_row, perm_col)), shape=(total_dof, total_dof))
+        return Perm, (exist_node_set, n_free_dof, n_fixed_dof, n_exist_fixed_nodes)
+
+    def compute_full_stiffness_matrix(self, exist_element_ids=[]):
+        if len(exist_element_ids)==0:
+            exist_element_ids = range(self.nE)
+        K_full = assemble_global_stiffness_matrix(self._element_k_list, \
+            self.nV, self._id_map, exist_element_ids)
+        return K_full
+
+    def solve(self, exist_element_ids=[], if_cond_num=False):
+        # assume full structure if exist_element_ids is []
+        if len(exist_element_ids)==0:
+            exist_element_ids = range(self.nE)
+
+        total_dof = 6*self.nV
+        
+        Perm, (exist_node_set, n_free_dof, n_fixed_dof, n_exist_fixed_nodes) = self.compute_dof_permutation(exist_element_ids)
         PermT = Perm.T
 
         # permute the full stiffness matrix & carve the needed portion out
-        K_full_ = assemble_global_stiffness_matrix(self._element_k_list, \
-            self.nV, self._id_map, exist_element_ids)
+        K_full_ = self.compute_full_stiffness_matrix(exist_element_ids)
         K_perm = (Perm.dot(K_full_)).dot(PermT)
         K_mm = K_perm[0:n_free_dof, 0:n_free_dof]
         K_fm = K_perm[n_free_dof:n_free_dof+n_fixed_dof, 0:n_free_dof]
@@ -819,7 +770,7 @@ class NumpyStiffness(StiffnessBase):
 
         self._stored_fR = np.zeros((n_exist_fixed_nodes, 1+6), dtype=float)
         cnt = 0
-        for fv_id, fix_dofs in self._fixties.items():
+        for fv_id in self._supports:
             if fv_id in exist_node_set:
                 self._stored_fR[cnt, :] = np.hstack([[fv_id], R[fv_id*6:(fv_id+1)*6]])
                 cnt += 1
@@ -838,7 +789,7 @@ class NumpyStiffness(StiffnessBase):
 
     #######################
     # Public compute functions that are non-state-changing
-    def compute_element_uniformly_distributed_lumped_load(self, element_load_density):
+    def compute_element_uniformly_distributed_lumped_load(self, e_load_density_from_ind):
         """Use fixed-end beam formula to lump uniformly distributed load 
         to equivalent nodal loads
         
@@ -854,24 +805,22 @@ class NumpyStiffness(StiffnessBase):
         # refer [MSA McGuire et al.] P111
         # Loads between nodal points
         # TODO avoid allocation here?
-        if not(3 == self._dim and 'frame' == self._model_type):
-            raise NotImplementedError()
-        if isinstance(element_load_density, np.ndarray):
-            assert element_load_density.shape[1] == 4
-            tmp_dict = {}
-            for row in element_load_density:
-                tmp_dict[int(row[0])] = row[1:]
-            element_load_density = tmp_dict
+        # if isinstance(element_load_density, np.ndarray):
+        #     assert element_load_density.shape[1] == 4
+        #     tmp_dict = {}
+        #     for row in element_load_density:
+        #         tmp_dict[int(row[0])] = row[1:]
+        #     element_load_density = tmp_dict
         element_lumped_nload_list = {i : np.zeros(12) for i in range(self.nE)}
-        for i, w_G in element_load_density.items():
-            end_u_id, end_v_id = self._elements[i,:]
-            end_u = self._vertices[end_u_id,:]
-            end_v = self._vertices[end_v_id,:]
+        for e_ind, w_G in e_load_density_from_ind.items():
+            end_u_id, end_v_id = self._elements[e_ind].end_node_inds
+            end_u = self._nodes[end_u_id].point 
+            end_v = self._nodes[end_v_id].point
             L = norm(end_u-end_v)
             R3 = global2local_transf_matrix(end_u, end_v)
             lumped_L = compute_lumped_uniformly_distributed_load(w_G, R3, L)
             assert lumped_L.shape[0] == 12
-            element_lumped_nload_list[i] = lumped_L
+            element_lumped_nload_list[e_ind] = lumped_L
         return element_lumped_nload_list
 
     def compute_nodal_loads(self, nodal_forces):
@@ -907,6 +856,27 @@ class NumpyStiffness(StiffnessBase):
         nD_rot_max = LA.norm(self._stored_nD[:,4:7], ord=ord, axis=1)
         return (np.max(nD_trans_max), np.max(nD_rot_max),\
                 np.argmax(nD_trans_max), np.argmax(nD_rot_max))
+
+    # element attributes
+    def get_element_crosssec(self, elem_id):
+        e_tag = self._elements[elem_id].elem_tag
+        if e_tag in self._crosssecs:
+            crosssec = self._crosssecs[e_tag]
+        else:
+            warnings.warn('No cross section assigned for element tag |{}|, using the default tag'.format(e_tag))
+            crosssec = self._crosssecs[""]
+        # TODO: default cross sec, if no [""] key is assigned
+        return crosssec
+
+    def get_element_material(self, elem_id):
+        e_tag = self._elements[elem_id].elem_tag
+        if e_tag in self._materials:
+            mat = self._materials[e_tag]
+        else:
+            warnings.warn('No material assigned for element tag |{}|, using the default tag'.format(e_tag))
+            mat = self._materials[""]
+        # TODO: default material, if no [""] key is assigned
+        return mat
 
     # settings getters
     def get_nodal_deformation_tol(self):
@@ -955,6 +925,30 @@ class NumpyStiffness(StiffnessBase):
     def get_node2dof_id_map(self):
         return self._v_id_map
 
+    def get_node_neighbors(self):
+        """Return all nodes' connected element ids
+        
+        Returns
+        -------
+        node_neighbors : dict
+            {node_id : set(connected element ids)}
+        """
+        node_neighbors = defaultdict(set)
+        for e in self._elements:
+            n1, n2 = e.end_node_inds
+            node_neighbors[n1].add(e.elem_ind)
+            node_neighbors[n2].add(e.elem_ind)
+        return node_neighbors
+
+    def get_elem_ind_from_elem_tag(self):
+        e_ind_from_tag = {}
+        for e in self._elements:
+            if e.elem_tag not in e_ind_from_tag:
+                e_ind_from_tag[e.elem_tag] = []
+            else:
+                e_ind_from_tag[e.elem_tag].append(e.elem_ind)
+        return e_ind_from_tag
+
     ################################
     # Visualizations
     def get_original_shape(self):
@@ -974,11 +968,6 @@ class NumpyStiffness(StiffnessBase):
     ################################
     # private functions - init & precompute
     def _init(self, verbose=False):
-        self._dim = self._vertices.shape[1]
-        if self._dim != 3:
-            raise NotImplementedError()
-        if self._model_type != 'frame':
-            raise NotImplementedError()
         # else:
             # self._node_dof = 6
             # self._xyz_dof_id = np.array(range(2*self._node_dof))
@@ -991,7 +980,7 @@ class NumpyStiffness(StiffnessBase):
         # element id-to-dof map
         self._id_map = np.zeros((self.nE, 12), dtype=int)
         for i in range(self.nE):
-            end_u_id, end_v_id = self._elements[i,:]
+            end_u_id, end_v_id = self._elements[i].end_node_inds
             self._id_map[i, :] = np.hstack([self._v_id_map[end_u_id,:], self._v_id_map[end_v_id,:]])
         # loads
         self._nodal_load = np.zeros(self.nV*6)
@@ -1005,13 +994,27 @@ class NumpyStiffness(StiffnessBase):
         self._element_k_list = [np.zeros((12,12)) for i in range(self.nE)]
         self._rot_list = [np.zeros((12,12)) for i in range(self.nE)]
         for i in range(self.nE):
-            end_u_id, end_v_id = self._elements[i,:]
-            end_u = self._vertices[end_u_id,:]
-            end_v = self._vertices[end_v_id,:]
+            element = self._elements[i]
+            e_tag = element.elem_tag
+            end_u_id, end_v_id = element.end_node_inds
+            end_u = self._nodes[end_u_id].point
+            end_v = self._nodes[end_v_id].point
             L = norm(end_u-end_v)
+
+            cr1 = [np.inf for _ in range(3)]
+            cr2 = [np.inf for _ in range(3)]
+            if element.elem_tag in self._joints:
+                cr1 = [np.inf if c is None else c for c in self._joints[element.elem_tag].c_conditions[0]]
+                cr2 = [np.inf if c is None else c for c in self._joints[element.elem_tag].c_conditions[1]]
+            if not element.bending_stiff:
+                cr1 = [0.0 for _ in range(3)]
+                cr2 = [0.0 for _ in range(3)]
             R3 = global2local_transf_matrix(end_u, end_v)
-            K_loc = create_local_stiffness_matrix(L, self._mats[i].A, self._mats[i].Jx,\
-                self._mats[i].Iy, self._mats[i].Iz, self._mats[i].E, self._mats[i].mu)
+            crosssec = self.get_element_crosssec(i)
+            mat = self.get_element_material(i)
+            K_loc = create_local_stiffness_matrix(L, crosssec.A, crosssec.Jx,\
+                crosssec.Iy, crosssec.Iz, mat.E, mat.mu,\
+                cr1=cr1, cr2=cr2)
             R_LG = turn_diagblock(R3) # 12x12
             K_G = ((R_LG.T).dot(K_loc)).dot(R_LG)
             self._element_k_list[i] = K_G

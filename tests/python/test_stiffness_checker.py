@@ -11,7 +11,7 @@ import time
 from numpy.testing import assert_equal, assert_almost_equal
 
 from pyconmech import StiffnessChecker
-from pyconmech.frame_analysis import read_frame_json, write_frame_json, read_load_case_json, check_material_dict
+from pyconmech.frame_analysis import read_frame_json, read_load_case_json, check_material_dict
 # from pyconmech.database import MATERIAL_PROPERTY_DATABASE
 
 # def test_get_material_from_database():

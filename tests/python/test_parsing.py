@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal
 import pytest
 import random
@@ -15,6 +16,21 @@ def test_frame_file_io(test_data_dir):
     file_path = os.path.join(test_data_dir, file_name)
     nodes, elements, supports, joints, materials, crosssecs, model_name, unit = \
         read_frame_json(file_path, verbose=True)
+
+    assert len(nodes) == 3
+    assert len(elements) == 2
+
+    assert_almost_equal(np.array(nodes[0].point), np.array([-10, 0, 0]))
+    assert nodes[0].is_grounded
+
+    assert_almost_equal(np.array(nodes[1].point), np.array([0.0, 0, 5]))
+    assert not nodes[1].is_grounded
+
+    assert_almost_equal(np.array(nodes[2].point), np.array([10.0, 0, 0]))
+    assert nodes[2].is_grounded
+
+    assert materials[0].elem_tags == ['']
+    assert crosssecs[0].elem_tags == ['']
 
     # temp_dir = os.path.dirname(os.path.abspath(__file__))
     # temp_fp = os.path.join(temp_dir, 'tmp_'+file_name)
@@ -36,6 +52,7 @@ def test_frame_file_io(test_data_dir):
     # assert model_name == back_model_name
     # assert unit == back_unit
 
+@pytest.mark.ignore(reason='not fully developed')
 @pytest.mark.parse_mat
 def test_parse_material_properties_from_frame_json(test_data_dir, engine):
     file_name = 'bad_material_properties_model.json'
@@ -112,6 +129,7 @@ def test_parse_material_properties_from_frame_json(test_data_dir, engine):
         err_msg = 'Both shear modulus and poisson_ratio not specified!'
         check_mat(i, mat_entry, err_msg, expect_failure=True)
 
+@pytest.mark.ignore(reason='not fully developed')
 @pytest.mark.parse_element
 def test_parse_element_from_json(test_data_dir, engine):
     file_name = 'bad_node_element_model.json'
