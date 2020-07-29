@@ -114,7 +114,8 @@ def read_frame_json(file_path, verbose=False, strict_check=True):
     # * elements & element tags
     # assume all unspecified elements to be in the tag group ""
     elements = [Element.from_data(e) for e in json_data['elements']]
-    element_inds_from_tag = {"":[]}
+    # element_inds_from_tag = {"":[]}
+    element_inds_from_tag = {}
     for i, e in enumerate(elements):
         if e.elem_tag not in element_inds_from_tag:
             element_inds_from_tag[e.elem_tag] = []
@@ -130,28 +131,28 @@ def read_frame_json(file_path, verbose=False, strict_check=True):
     # * joints
     joints = [Joint.from_data(j) for j in json_data['joints']]
     # elem_tag sanity checks
-    for joint in joints:
-        if len(joint.elem_tags) == 0:
-            joint.elem_tags = [""]
-        for e_tag in joint.elem_tags:
-            assert e_tag in element_inds_from_tag, 'joint using an element tag not specified in element tag set!'
+    # for joint in joints:
+    #     if len(joint.elem_tags) == 0:
+    #         joint.elem_tags = [None]
+    #     for e_tag in joint.elem_tags:
+    #         assert e_tag in element_inds_from_tag, 'joint using an element tag not specified in element tag set!'
 
     # * materials
     materials = [Material.from_data(m) for m in json_data['materials']]
     # elem_tag sanity checks
-    for m in materials:
-        if len(m.elem_tags) == 0:
-            m.elem_tags = [""]
-        for e_tag in m.elem_tags:
-            assert e_tag in element_inds_from_tag, 'material using an element tag not specified in element tag set!'
+    # for m in materials:
+    #     if len(m.elem_tags) == 0:
+    #         m.elem_tags = [None]
+    #     for e_tag in m.elem_tags:
+    #         assert e_tag in element_inds_from_tag, 'material using an element tag not specified in element tag set!'
 
     # * cross secs
     crosssecs = [CrossSec.from_data(c) for c in json_data['cross_secs']]
-    for cs in crosssecs:
-        if len(cs.elem_tags) == 0:
-            cs['elem_tags'] = [""]
-        for e_tag in cs.elem_tags:
-            assert e_tag in element_inds_from_tag, 'cross section using an element tag not specified in element tag set!'
+    # for cs in crosssecs:
+    #     if len(cs.elem_tags) == 0:
+    #         cs['elem_tags'] = [None]
+    #     for e_tag in cs.elem_tags:
+    #         assert e_tag in element_inds_from_tag, 'cross section using an element tag not specified in element tag set!'
 
     # * sanity checks
     if 'node_num' in json_data:
@@ -171,9 +172,10 @@ def read_frame_json(file_path, verbose=False, strict_check=True):
     # assert grounded_nodes > 0, 'The structure must have at lease one grounded node!'
 
     if verbose:
-        print('Model: {} | Unit: {}'.format(model_name, json_data['unit']))
-        print('Nodes: {} | Ground: {} | Elements: {}'.format(
-            len(nodes), num_grounded_nodes, len(elements)))
+        print('Model: {} | Original unit: {} | Generated time: {}'.format(model_name, json_data['unit'], 
+            json_data['generate_time'] if 'generate_time' in json_data else ''))
+        print('Nodes: {} | Elements: {} | Supports: {} | Joints: {} | Materials: {} | Cross Secs: {} | Tag Ground: {} '.format(
+            len(nodes), len(elements), len(supports), len(joints), len(materials), len(crosssecs), num_grounded_nodes))
    
     return nodes, elements, supports, joints, materials, crosssecs, model_name, unit
 

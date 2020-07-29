@@ -6,10 +6,10 @@ import os
 import re
 import io
 
+import argparse
 from setuptools import setup, find_packages
 from setuptools.command.build_ext import build_ext
 from setup_cmake_utils import CMakeExtension, CMakeBuild
-
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -28,15 +28,14 @@ exec(read('src', 'pyconmech', '__version__.py'), about)
 requirements = [
     'numpy',
     'scipy>=1.2.3',
-    # 'scikit-sparse' *Nix only
-    # 'matplotlib', # TODO pin version?
+    # 'matplotlib',
 ]
 
-# TODO: let user choose to use cpp engine or not
-ext_modules = [
-    CMakeExtension('_pystiffness_checker'),
-    ]
 
+ext_modules = [
+    # TODO: cpp backend not compatible with the latest version yet
+    # CMakeExtension('_pystiffness_checker'),
+    ]
 
 setup(
     name=about['__title__'],

@@ -21,21 +21,21 @@ class StiffnessBase(object):
             for joint in joints:
                 for e_tag in joint.elem_tags:
                     if e_tag in self._joints:
-                        warnings.warn('Multiple joints assigned to the same element tag!')
+                        warnings.warn('Multiple joints assigned to the same element tag |{}|!'.format(e_tag))
                     self._joints[e_tag] = joint
 
         self._materials = {}
         for mat in materials:
             for e_tag in mat.elem_tags:
                 if e_tag in self._materials:
-                    warnings.warn('Multiple materials assigned to the same element tag!')
+                    warnings.warn('Multiple materials assigned to the same element tag |{}|!'.format(e_tag))
                 self._materials[e_tag] = mat
 
         self._crosssecs = {}
         for cs in crosssecs:
             for e_tag in cs.elem_tags:
                 if e_tag in self._crosssecs:
-                    warnings.warn('Multiple materials assigned to the same element tag!')
+                    warnings.warn('Multiple materials assigned to the same element tag |{}|!'.format(e_tag))
                 self._crosssecs[e_tag] = cs
 
         self._verbose = verbose

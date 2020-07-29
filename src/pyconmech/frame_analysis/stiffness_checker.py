@@ -605,7 +605,7 @@ class StiffnessChecker(object):
 
         data = OrderedDict()
         data['model_name'] = self.model_name
-        data['solve_success'] = success
+        data['solve_success'] = bool(success)
         data['trans_tol'] = trans_tol
         data['rot_tol'] = rot_tol
 
@@ -614,8 +614,8 @@ class StiffnessChecker(object):
         data["force_unit"] =  "kN"
         data["moment_unit"] = "kN-m"
         data['compliance'] = self.get_compliance()
-        data['max_trans'] = {'node_id' : max_t_id, 'value': max_trans}
-        data['max_rot'] = {'node_id' : max_r_id, 'value': max_rot}
+        data['max_trans'] = {'node_id' : int(max_t_id), 'value': max_trans}
+        data['max_rot'] = {'node_id' : int(max_r_id), 'value': max_rot}
     
         nD_data = {}
         for n_id, nd in nD.items():

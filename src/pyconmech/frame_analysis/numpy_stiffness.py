@@ -587,9 +587,13 @@ class NumpyStiffness(StiffnessBase):
                 dof_stat[self._v_id_map[fv_id,:]] = np.array(support.condition, dtype=int)
                 # if all existing element bending=False, fix rotational dof
                 # to avoid singularity issue
-                if all([e_id in exist_element_ids and not self._elements[e_id].bending_stiff for e_id in self._node_neighbors[fv_id]]):
-                    dof_stat[self._v_id_map[fv_id,:]][3:] = [1,1,1]
+                # TODO partial assembled state?
+                # if all([not self._elements[e_id].bending_stiff or e_id not in exist_element_ids for e_id in self._node_neighbors[fv_id]]):
+                if all([not self._elements[e_id].bending_stiff for e_id in self._node_neighbors[fv_id]]):
+                    # print('pinned dof because of inactive bending')
+                    dof_stat[self._v_id_map[fv_id,3:]] = [1,1,1]
                 n_exist_fixed_nodes+=1
+                assert all([s >= 0 for s in dof_stat[self._v_id_map[fv_id,:]]])
                 n_fixed_dof += sum(dof_stat[self._v_id_map[fv_id,:]])
 
         if n_fixed_dof == 0:
@@ -677,9 +681,15 @@ class NumpyStiffness(StiffnessBase):
             # (D1 A D2) x_ = (D1) b
             # x = D2 x_
             # take D1 = D2 = [ 1/sqrt(a_{ii}) ]
-            D_diag = np.array([1/np.sqrt(a) for a in K_mm.diagonal()])
-            D = scipy.sparse.diags(D_diag, format='csc')
-            K_mm_precond = (D.dot(K_mm)).dot(D)
+            if all([abs(a) > DOUBLE_EPS for a in K_mm.diagonal()]):
+                # P = diag(1/a_ii) = E_inv.T * E_inv
+                # P_inv = diag(a_ii)
+                # P_inv = E * E.T
+                E_inv_diag = np.array([1/np.sqrt(a) for a in K_mm.diagonal()])
+                E_inv = scipy.sparse.diags(E_inv_diag, format='csc')
+            else:
+                E_inv = scipy.sparse.eye(K_mm.shape[0], format='csc')
+            K_mm_precond = (E_inv.dot(K_mm)).dot(E_inv)
 
             # TODO serialize and check PD and conditioning
             # https://docs.scipy.org/doc/scipy-0.15.1/reference/generated/scipy.sparse.linalg.SuperLU.html#scipy.sparse.linalg.SuperLU
@@ -692,6 +702,20 @@ class NumpyStiffness(StiffnessBase):
             except RuntimeError as exception:
                 if self._verbose:
                     print ('Sparse solve error: {}'.format(exception))
+                
+                    eigvals = SPLA.eigsh(K_mm_precond, k=int(K_mm_precond.shape[0]/2.0), which='SM', return_eigenvectors=False) 
+                    # eigvals, eigvecs = scipy.linalg.eigh(K_mm_precond.toarray())
+                    n_zero_eigs = 0
+                    for _, eigval in enumerate(eigvals):
+                        if abs(eigval) < DOUBLE_EPS:
+                            n_zero_eigs += 1
+                            # print(norm(eigvecs[eig_i]))
+                    if n_zero_eigs > 0:
+                        print('There are {}/{} rigid body modes in the system. This means some parts can move freely without causing deformation.'.format(
+                            n_zero_eigs, K_mm.shape[0]))
+                    #  Try to use the 'Eigen Modes'-component and activate the display of local coordinate axes: The first eigen-mode will be the rigid body motion.
+                    #  If this does not help, check whether you have a pinned support directly attached to a hinge. A hinge introduces an extra node which may cause the problem.
+                    #  When analyzing a flat shell structure one has to lock the rotation perpendicular to the plate in at least one node.
                 return False
 
             # * positive definiteness can be checked by
@@ -747,10 +771,10 @@ class NumpyStiffness(StiffnessBase):
             #     return False
 
             # ? Method 3: SuperLU
-            U_m_pred = K_LU.solve(D.dot(P_m))
+            U_m_pred = K_LU.solve(E_inv.dot(P_m))
 
             # undo the precondition
-            U_m = D_diag * U_m_pred
+            U_m = E_inv * U_m_pred
 
         # gathering results
         self._stored_compliance = 0.5*U_m.dot(P_m)
@@ -860,22 +884,24 @@ class NumpyStiffness(StiffnessBase):
     # element attributes
     def get_element_crosssec(self, elem_id):
         e_tag = self._elements[elem_id].elem_tag
+        assert e_tag in self._crosssecs
         if e_tag in self._crosssecs:
             crosssec = self._crosssecs[e_tag]
         else:
+            # TODO: default cross sec, if no [""] key is assigned
             warnings.warn('No cross section assigned for element tag |{}|, using the default tag'.format(e_tag))
-            crosssec = self._crosssecs[""]
-        # TODO: default cross sec, if no [""] key is assigned
+            crosssec = self._crosssecs[None]
         return crosssec
 
     def get_element_material(self, elem_id):
         e_tag = self._elements[elem_id].elem_tag
+        assert e_tag in self._materials
         if e_tag in self._materials:
             mat = self._materials[e_tag]
         else:
+            # TODO: default material, if no [""] key is assigned
             warnings.warn('No material assigned for element tag |{}|, using the default tag'.format(e_tag))
-            mat = self._materials[""]
-        # TODO: default material, if no [""] key is assigned
+            mat = self._materials[None]
         return mat
 
     # settings getters
@@ -1003,9 +1029,9 @@ class NumpyStiffness(StiffnessBase):
 
             cr1 = [np.inf for _ in range(3)]
             cr2 = [np.inf for _ in range(3)]
-            if element.elem_tag in self._joints:
-                cr1 = [np.inf if c is None else c for c in self._joints[element.elem_tag].c_conditions[0]]
-                cr2 = [np.inf if c is None else c for c in self._joints[element.elem_tag].c_conditions[1]]
+            if e_tag in self._joints:
+                cr1 = [np.inf if c is None else c for c in self._joints[e_tag].c_conditions[0]]
+                cr2 = [np.inf if c is None else c for c in self._joints[e_tag].c_conditions[1]]
             if not element.bending_stiff:
                 cr1 = [0.0 for _ in range(3)]
                 cr2 = [0.0 for _ in range(3)]

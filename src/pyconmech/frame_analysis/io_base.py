@@ -66,7 +66,7 @@ class CrossSec(object):
         self.Jx = Jx
         self.Iy = Iy
         self.Iz = Iz
-        self.elem_tags = elem_tags if elem_tags else [""]
+        self.elem_tags = elem_tags if elem_tags else [None]
         self.family = family
         self.name = name
 
@@ -76,6 +76,11 @@ class CrossSec(object):
 
     def to_data(self):
         raise NotImplementedError()
+
+    def __repr__(self):
+        return 'family:{} name:{} area:{}[m2] Jx:{}[m4] Iy:{}[m4] Iz:{}[m4] applies to elements:{}'.format(
+            self.family, self.name, self.A, self.Jx, self.Iy, self.Iz, self.elem_tags)
+
 
 def mu2G(mu, E):
     """compute shear modulus from poisson ratio mu and Youngs modulus E
@@ -95,7 +100,7 @@ class Material(object):
         self.mu = G2mu(G12, E)
         self.fy = fy
         self.density = density
-        self.elem_tags = elem_tags if elem_tags else [""]
+        self.elem_tags = elem_tags if elem_tags else [None]
         self.family = family
         self.name = name
         self.type_name = type_name
@@ -106,6 +111,11 @@ class Material(object):
 
     def to_data(self):
         raise NotImplementedError()
+
+    def __repr__(self):
+        # G3:8076[kN/cm2]
+        return 'Material: Steel |{}| E:{}[kN/m2] G12:{}[kN/m2] density:{}[kN/m3] fy:{}[kN/m2] applies to elements:{}'.format(
+            self.family+'-'+self.name, self.E, self.G12, self.density, self.fy, self.elem_tags)
 
 class PointLoad(object):
     def __init__(self, force, moment, node_ind):
