@@ -33,10 +33,11 @@ function(conmech_download_catch)
 endfunction()
 
 ## Eigen
+set(CONMECH_EIGEN_VERSION 3.3.7 CACHE STRING "Default version of Eigen used by conmech.")
 function(conmech_download_eigen)
     conmech_download_project(eigen
-        URL     http://bitbucket.org/eigen/eigen/get/3.3.4.tar.bz2
-        URL_MD5 a7aab9f758249b86c93221ad417fbe18
+		GIT_REPOSITORY https://github.com/eigenteam/eigen-git-mirror.git
+		GIT_TAG        ${CONMECH_EIGEN_VERSION}
     )
 endfunction()
 
@@ -46,14 +47,6 @@ function(conmech_download_json)
         URL      https://github.com/nlohmann/json/releases/download/v3.7.3/include.zip
         URL_HASH SHA256=87b5884741427220d3a33df1363ae0e8b898099fbc59f1c451113f6732891014
     )
-endfunction()
-
-## pybind11
-function(igl_download_pybind11)
-	igl_download_project(pybind11
-		GIT_REPOSITORY https://github.com/pybind/pybind11.git
-		GIT_TAG        2d0507db43cd5a117f7843e053b17dffca114107
-	)
 endfunction()
 
 ################################################################################
