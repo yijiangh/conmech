@@ -15,6 +15,10 @@ Unrealeased
 
 - Added the `numpy` engine
 
+**Changed**
+
+- Frame data format changed, use Karamba exported format
+
 
 0.4.3
 -----------

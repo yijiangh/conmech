@@ -1,6 +1,5 @@
 {
-  "assembly_type": "extrusion",
-  "model_type": "3D_frame",
+  "model_name": "tower_3D",
   "unit": "meter",
   "dimension": 3,
   "uniform_cross_section": true,

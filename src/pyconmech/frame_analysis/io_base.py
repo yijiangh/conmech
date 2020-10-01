@@ -114,7 +114,7 @@ class Material(object):
 
     def __repr__(self):
         # G3:8076[kN/cm2]
-        return 'Material: Steel |{}| E:{}[kN/m2] G12:{}[kN/m2] density:{}[kN/m3] fy:{}[kN/m2] applies to elements:{}'.format(
+        return 'Material: |{}| E:{}[kN/m2] G12:{}[kN/m2] density:{}[kN/m3] fy:{}[kN/m2] applies to elements:{}'.format(
             self.family+'-'+self.name, self.E, self.G12, self.density, self.fy, self.elem_tags)
 
 class PointLoad(object):
@@ -130,9 +130,13 @@ class PointLoad(object):
     def to_data(self):
         raise NotImplementedError()
 
+    def __repr__(self):
+        return 'Pointload: node_ind {} | force {} | moment {}'.format(self.node_ind, self.force, self.moment)
+
 class UniformlyDistLoad(object):
     def __init__(self, q, load, elem_tags):
         self.q = q
+        # not sure if load is used in Karamba, we only use q here
         self.load = load
         self.elem_tags = elem_tags
 
@@ -142,6 +146,9 @@ class UniformlyDistLoad(object):
 
     def to_data(self):
         raise NotImplementedError()
+
+    def __repr__(self):
+        return 'UniformlyDistLoad: element_tags {} | q {} | load {}'.format(self.elem_tags, self.q, self.load)
 
 class GravityLoad(object):
     def __init__(self, force=[0,0,-1]):
@@ -153,3 +160,6 @@ class GravityLoad(object):
 
     def to_data(self):
         raise NotImplementedError()
+
+    def __repr__(self):
+        return 'GravityLoad: {}'.format(self.force)

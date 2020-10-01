@@ -2,6 +2,7 @@ import pytest
 import os, glob
 from pyconmech import StiffnessChecker
 
+@pytest.mark.ignore(reason='-')
 @pytest.mark.subd
 def test_subdivided_compliance():
     here = os.path.dirname(os.path.abspath(__file__))

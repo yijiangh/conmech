@@ -1,0 +1,189 @@
+{
+  "model_name": "uniform_load_analytical_model",
+  "unit": "meter",
+  "generate_time": "10/01/2020 13:27:45",
+  "node_num": 3,
+  "element_num": 2,
+  "nodes": [
+    {
+      "point": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "node_ind": 0,
+      "is_grounded": true
+    },
+    {
+      "point": [
+        5.0,
+        0.0,
+        0.0
+      ],
+      "node_ind": 1,
+      "is_grounded": false
+    },
+    {
+      "point": [
+        5.0,
+        8.0,
+        0.0
+      ],
+      "node_ind": 2,
+      "is_grounded": true
+    }
+  ],
+  "elements": [
+    {
+      "end_node_inds": [
+        0,
+        1
+      ],
+      "elem_tag": "ab",
+      "elem_ind": 0,
+      "layer_ind": -1,
+      "bending_stiff": true
+    },
+    {
+      "end_node_inds": [
+        1,
+        2
+      ],
+      "elem_tag": "bc",
+      "elem_ind": 1,
+      "layer_ind": -1,
+      "bending_stiff": true
+    }
+  ],
+  "supports": [
+    {
+      "condition": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "node_ind": 0
+    },
+    {
+      "condition": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "node_ind": 2
+    }
+  ],
+  "joints": [],
+  "cross_secs": [
+    {
+      "family": "custom",
+      "name": "custom",
+      "elem_tags": [],
+      "A": 0.006,
+      "A_unit": "m2",
+      "Jx": 3E-07,
+      "Jx_unit": "m4",
+      "Iy": 0.0002,
+      "Iy_unit": "m4",
+      "Iz": 0.0002,
+      "Iz_unit": "m4"
+    },
+    {
+      "family": "custom",
+      "name": "custom",
+      "elem_tags": [],
+      "A": 0.006,
+      "A_unit": "m2",
+      "Jx": 3E-07,
+      "Jx_unit": "m4",
+      "Iy": 0.0002,
+      "Iy_unit": "m4",
+      "Iz": 0.0002,
+      "Iz_unit": "m4"
+    },
+    {
+      "family": "custom",
+      "name": "custom",
+      "elem_tags": [
+        "ab"
+      ],
+      "A": 0.006,
+      "A_unit": "m2",
+      "Jx": 3E-07,
+      "Jx_unit": "m4",
+      "Iy": 0.0002,
+      "Iy_unit": "m4",
+      "Iz": 0.0002,
+      "Iz_unit": "m4"
+    },
+    {
+      "family": "custom",
+      "name": "custom",
+      "elem_tags": [
+        "bc"
+      ],
+      "A": 0.006,
+      "A_unit": "m2",
+      "Jx": 3E-07,
+      "Jx_unit": "m4",
+      "Iy": 0.0002,
+      "Iy_unit": "m4",
+      "Iz": 0.0002,
+      "Iz_unit": "m4"
+    }
+  ],
+  "materials": [
+    {
+      "family": "Steel",
+      "name": "mat",
+      "type_name": "ISO",
+      "elem_tags": [
+        "ab"
+      ],
+      "E": 200000000.0,
+      "E_unit": "kN/m2",
+      "G12": 76923076.923076928,
+      "G12_unit": "kN/m2",
+      "fy": 235000.0,
+      "fy_unit": "kN/m2",
+      "density": 78.5,
+      "density_unit": "kN/m3"
+    },
+    {
+      "family": "Steel",
+      "name": "mat",
+      "type_name": "ISO",
+      "elem_tags": [
+        "bc"
+      ],
+      "E": 200000000.0,
+      "E_unit": "kN/m2",
+      "G12": 76923076.923076928,
+      "G12_unit": "kN/m2",
+      "fy": 235000.0,
+      "fy_unit": "kN/m2",
+      "density": 78.5,
+      "density_unit": "kN/m3"
+    },
+    {
+      "family": "Steel",
+      "name": "Steel",
+      "type_name": "ISO",
+      "elem_tags": [],
+      "E": 210000000.0,
+      "E_unit": "kN/m2",
+      "G12": 80760000.0,
+      "G12_unit": "kN/m2",
+      "fy": 235000.0,
+      "fy_unit": "kN/m2",
+      "density": 78.5,
+      "density_unit": "kN/m3"
+    }
+  ]
+}

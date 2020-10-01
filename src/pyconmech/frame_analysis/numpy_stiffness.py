@@ -4,10 +4,11 @@ import scipy
 import scipy.sparse.linalg as SPLA
 import numpy.linalg as LA
 from collections import defaultdict
-from numpy.linalg import norm, solve
+from numpy.linalg import norm
 from scipy.sparse import csc_matrix
 from pyconmech.frame_analysis.stiffness_base import StiffnessBase
 from pyconmech.frame_analysis.io_base import mu2G, G2mu
+from termcolor import cprint
 
 DOUBLE_EPS = 1e-14
 DOUBLE_INF = 1e14
@@ -664,7 +665,13 @@ class NumpyStiffness(StiffnessBase):
             nodal_load_P_tmp += load_sw
         # nodal_load_P_tmp *= -1
 
+        P_m = np.zeros(n_free_dof)
+        P_f = np.zeros(n_fixed_dof)
+        # reset results
         U_m = np.zeros(n_free_dof)
+        self._stored_compliance = 0.0
+
+        # solve
         if norm(nodal_load_P_tmp) > DOUBLE_EPS:
             P_perm = Perm.dot(nodal_load_P_tmp) 
             P_m = P_perm[0:n_free_dof]
@@ -755,7 +762,6 @@ class NumpyStiffness(StiffnessBase):
             #             print('Stiffness matrix condition number explosion: {}'.format(errmsg))
             #         # return False
 
-
             # ? Method 1: direct solve
             # U_m_pred = SPLA.spsolve(K_mm_precond, D.dot(P_m))
 
@@ -776,8 +782,13 @@ class NumpyStiffness(StiffnessBase):
             # undo the precondition
             U_m = E_inv * U_m_pred
 
-        # gathering results
-        self._stored_compliance = 0.5*U_m.dot(P_m)
+            # gathering results
+            self._stored_compliance = 0.5*U_m.dot(P_m)
+        else:
+            if self._verbose:
+                cprint('No external force is applied to the structure.', 'yellow')
+            # warnings.warn('No external force is applied to the structure.')
+
         # reaction
         R = np.zeros(total_dof)
         R[n_free_dof:n_free_dof+n_fixed_dof] = K_fm.dot(U_m) - P_f
@@ -842,7 +853,7 @@ class NumpyStiffness(StiffnessBase):
             end_v = self._nodes[end_v_id].point
             L = norm(end_u-end_v)
             R3 = global2local_transf_matrix(end_u, end_v)
-            lumped_L = compute_lumped_uniformly_distributed_load(w_G, R3, L)
+            lumped_L = compute_lumped_uniformly_distributed_load(np.array(w_G), R3, L)
             assert lumped_L.shape[0] == 12
             element_lumped_nload_list[e_ind] = lumped_L
         return element_lumped_nload_list
@@ -884,7 +895,7 @@ class NumpyStiffness(StiffnessBase):
     # element attributes
     def get_element_crosssec(self, elem_id):
         e_tag = self._elements[elem_id].elem_tag
-        assert e_tag in self._crosssecs
+        # assert e_tag in self._crosssecs
         if e_tag in self._crosssecs:
             crosssec = self._crosssecs[e_tag]
         else:
@@ -895,7 +906,7 @@ class NumpyStiffness(StiffnessBase):
 
     def get_element_material(self, elem_id):
         e_tag = self._elements[elem_id].elem_tag
-        assert e_tag in self._materials
+        # assert e_tag in self._materials
         if e_tag in self._materials:
             mat = self._materials[e_tag]
         else:

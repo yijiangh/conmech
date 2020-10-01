@@ -36,4 +36,4 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture
 def debug(request):
-    return request.config.getoption("--db")
+    return request.config.getoption("--debug")

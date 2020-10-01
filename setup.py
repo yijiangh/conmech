@@ -28,6 +28,7 @@ exec(read('src', 'pyconmech', '__version__.py'), about)
 requirements = [
     'numpy',
     'scipy>=1.2.3',
+    'termcolor'
     # 'matplotlib',
 ]
 

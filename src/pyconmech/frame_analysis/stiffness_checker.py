@@ -213,13 +213,13 @@ class StiffnessChecker(object):
             e_id_range = list(range(len(self.elements)))
             for e_id in exist_element_ids:
                 assert e_id in e_id_range, 'element id not within range!'
-        return self._sc_ins.solve(exist_element_ids, if_cond_num)
+        return self._sc_ins.solve(exist_element_ids, if_cond_num=if_cond_num)
 
     # ==========================================================================
     # load settings
     # ==========================================================================
 
-    def set_loads(self, point_loads=None, uniform_distributed_load={}, gravity_load=None):
+    def set_loads(self, point_loads=None, uniform_distributed_load=None, gravity_load=None):
         """set load case for the stiffness checker.
         
         Parameters
@@ -227,11 +227,10 @@ class StiffnessChecker(object):
         point_loads : dict, optional
             {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]}, in global coordinate,
             by default {}
+        uniform_distributed_load : list of `UniformlyDistLoad`, optional
+            elemental uniformly distributed load, by default None
         include_self_weight : bool, optional
             include gravity load or not, by default False
-        uniform_distributed_load : dict, optional
-            elemental uniformly distributed load, by default {}
-            {element_id : [wx, wy, wz]}, in global cooridinate
         """
         self.set_self_weight_load(gravity_load)
         if point_loads is not None and len(point_loads)!=0:
@@ -239,7 +238,7 @@ class StiffnessChecker(object):
             for pload in point_loads:
                 pt_loads[pload.node_ind] = pload
             self._sc_ins.set_load(pt_loads)
-        if uniform_distributed_load:
+        if uniform_distributed_load is not None:
             ud_loads = {}
             for eload in uniform_distributed_load:
                 if len(eload.elem_tags) == 0:
@@ -253,7 +252,8 @@ class StiffnessChecker(object):
         
         Parameters
         ----------
-        include_self_weight : bool
+        gravity_load : `GravityLoad`
+            GravityLoad([0,0,-1]), disable gravity load if set to None, by default None
         """
         if gravity_load is not None:
             self._sc_ins.set_self_weight_load(include_self_weight=True, gravity_direction=gravity_load.force)
@@ -264,7 +264,7 @@ class StiffnessChecker(object):
     # check criteria settings
     # ==========================================================================
 
-    def set_nodal_displacement_tol(self, trans_tol=1e-3, rot_tol=0.1745):
+    def set_nodal_displacement_tol(self, trans_tol=1e-3, rot_tol=np.inf):
         """Set nodal displacement tolerance for stiffness checking criteria.
 
         If the maximal nodal displacement after the stiffness solve exceeds the tolerance,
@@ -275,8 +275,7 @@ class StiffnessChecker(object):
         trans_tol : float, optional
             maximal allowable nodal translational movement in global coordinate, unit in meter, by default 1e-3
         rot_tol : float, optional
-            maximal allowable nodal rotational movement in global coordinate, unit in meter, by default 0.1745 
-            (about 10 degrees)
+            maximal allowable nodal rotational movement in global coordinate, unit in radian, by default infinite 
         """
         self._sc_ins.set_nodal_displacement_tol(trans_tol, rot_tol)
 
@@ -568,6 +567,12 @@ class StiffnessChecker(object):
             {node_id : [dof ids]}
         """
         return {int(n_id) : id_map for n_id, id_map in enumerate(self._sc_ins.get_node2dof_id_map())}
+
+    def get_element_crosssec(self, elem_id):
+        return self._sc_ins.get_element_crosssec(elem_id)
+
+    def get_element_material(self, elem_id):
+        return self._sc_ins.get_element_material(elem_id)
 
     # ==========================================================================
     # output settings
