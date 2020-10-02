@@ -13,6 +13,7 @@ import json
 from collections import defaultdict, OrderedDict
 import numpy as np
 from numpy.linalg import norm
+from termcolor import cprint
 
 DEFAULT_ENGINE = 'numpy'
 CPP_AVAILABLE = False
@@ -23,6 +24,7 @@ except ImportError:
     pass
 from .numpy_stiffness import NumpyStiffness
 from pyconmech.frame_analysis.frame_file_io import read_frame_json
+from pyconmech.frame_analysis.io_base import GravityLoad
 
 class StiffnessChecker(object):
     """stiffness checking instance for 3D frame deformation analysis
@@ -77,8 +79,9 @@ class StiffnessChecker(object):
         else:
             raise NotImplementedError('Engine not exist: {}'.format(checker_engine))
         self._sc_ins = checker_engine_ins
-        self._sc_ins.set_self_weight_load(True)
         self.set_nodal_displacement_tol()
+        # by default turn gravity load on
+        # self.set_self_weight_load(GravityLoad([0,0,-1]))
 
         # TODO For now, we keep two copies of the following data: one in this wrapper class, one in the solve instance
         self._nodes = nodes or []
@@ -224,13 +227,12 @@ class StiffnessChecker(object):
         
         Parameters
         ----------
-        point_loads : dict, optional
-            {node_id : [Fx, Fy, Fz, Mxx, Myy, Mzz]}, in global coordinate,
-            by default {}
+        point_loads : list of `PointLoad`, optional
+            by default None
         uniform_distributed_load : list of `UniformlyDistLoad`, optional
             elemental uniformly distributed load, by default None
-        include_self_weight : bool, optional
-            include gravity load or not, by default False
+        gravity_load : `GravityLoad`, optional
+            include gravity load or not, by default None
         """
         self.set_self_weight_load(gravity_load)
         if point_loads is not None and len(point_loads)!=0:
@@ -238,6 +240,8 @@ class StiffnessChecker(object):
             for pload in point_loads:
                 pt_loads[pload.node_ind] = pload
             self._sc_ins.set_load(pt_loads)
+        else:
+            self._sc_ins.set_load(None)
         if uniform_distributed_load is not None:
             ud_loads = {}
             for eload in uniform_distributed_load:
@@ -246,6 +250,8 @@ class StiffnessChecker(object):
                 for e_tag in eload.elem_tags:
                     ud_loads[e_tag] = eload
             self._sc_ins.set_uniformly_distributed_loads(ud_loads)
+        else:
+            self._sc_ins.set_uniformly_distributed_loads(None)
 
     def set_self_weight_load(self, gravity_load):
         """Turn on/off self-weight load.

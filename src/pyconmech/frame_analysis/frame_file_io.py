@@ -116,11 +116,10 @@ def read_frame_json(file_path, verbose=False, strict_check=True):
     elements = [Element.from_data(e) for e in json_data['elements']]
     # element_inds_from_tag = {"":[]}
     element_inds_from_tag = {}
-    for i, e in enumerate(elements):
+    for e in elements:
         if e.elem_tag not in element_inds_from_tag:
             element_inds_from_tag[e.elem_tag] = []
-        else:
-            element_inds_from_tag[e.elem_tag].append(i)
+        element_inds_from_tag[e.elem_tag].append(e.elem_ind)
 
     # * supports
     supports = [Support.from_data(s) for s in json_data['supports']]

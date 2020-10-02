@@ -514,14 +514,14 @@ def test_self_weight_validity(test_case, engine):
 
 
 @pytest.mark.uniform_load_check
-@pytest.mark.parametrize("test_case, existing_e_ids", 
-    [('tower', []), ('tower', list(range(8))), 
-     ('topopt-100', [])
+@pytest.mark.parametrize("test_case, existing_e_ids", [
+     ('tower', []), 
+     ('tower', list(range(8))), 
+     ('topopt-100', []),
+     ('topopt-100', [0, 1, 2, 3, 4, 5, 8, 11, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, \
+        43, 44, 51, 52, 53, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, \
+        108, 109, 110, 111, 112, 113, 114, 115, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131]),
      ])
-    #  ('topopt-100', [0, 1, 2, 3, 4, 5, 8, 11, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, \
-    #     43, 44, 51, 52, 53, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, \
-    #     108, 109, 110, 111, 112, 113, 114, 115, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131])
-    #  ])
 def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids, engine):
     if test_case == 'tower':
         file_name = 'tower_3D.json'
@@ -534,24 +534,21 @@ def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids, engi
     json_path = os.path.join(root_dir, '..', 'test_data', file_name)
     sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
 
-    # gravity load agreement check
-    # _, uniform_element_load, _ = read_load_case_json(load_json_path)
-    node_points, element_vids, _, _, _, _, _, unit = read_frame_json(json_path)
-
     uniform_distributed_load = []
-    for e_id in range(len(element_vids)):
-        # assert material_dicts[e_id]['cross_sec_area_unit'] == 'centimeter^2' and material_dicts[e_id]["density_unit"] == "kN/m3"
-        rho = sc.get_element_material(e_id).density
-        A = sc.get_element_crosssec(e_id).A # meter^2
-        uniform_distributed_load.append(UniformlyDistLoad([0, 0, - rho * A], None, [""]))
+    rho = sc.get_element_material(0).density
+    A = sc.get_element_crosssec(0).A # meter^2
+    uniform_distributed_load.append(UniformlyDistLoad([0, 0, - rho * A], None, [""]))
 
-    # existing_e_ids = list(range(len(sc.elements)))
     sc.set_loads(uniform_distributed_load=uniform_distributed_load)
-
     nodal_loads = sc.get_nodal_loads(existing_ids=existing_e_ids)
+
+    # verify sw load and unif lumped load
+    sc.set_self_weight_load(GravityLoad([0,0,-1]))
     sw_loads = sc.get_self_weight_loads(existing_ids=existing_e_ids)
     for n_id in nodal_loads.keys():
         assert_almost_equal(nodal_loads[n_id], sw_loads[n_id])
+    # erase sw load
+    sc.set_self_weight_load(None)
 
     sc.solve(exist_element_ids=existing_e_ids)
     _, ul_nD, ul_fR, ul_eR = sc.get_solved_results()
@@ -626,21 +623,3 @@ def test_uniformly_distributed_load_with_analytical_solution(engine, n_attempts)
         pass_criteria, nD, fR, eR = re_sc.get_solved_results()
         nodal_loads = re_sc.get_nodal_loads()    
         compare_analytical_sol(pass_criteria, nD, fR, eR, nodal_loads)
-
-# @pytest.mark.ii
-# def test_helpers():
-#     file_name = 'topopt-100.json'
-#     root_dir = os.path.dirname(os.path.abspath(__file__))
-#     json_path = os.path.join(root_dir, 'test_data', file_name)
-#     sc = StiffnessChecker.from_json(json_file_path=json_path)
-#     ids = []
-
-#     failed_existing_ids = [125, 126, 115, 122, 111, 108, 23, 22, 98, 75, 64, 34, 61, 65, 59, 60, 39, 36, 44, 67]
-#     failed_existing_node_ids = sc.get_element_connected_node_ids(failed_existing_ids)
-#     print(failed_existing_node_ids)
-
-#     for i, v in enumerate(sc.node_points):
-#         if abs(v[2] - 0.155) < 1e-3 and i in failed_existing_node_ids:
-#             ids.append(i)
-#     print(ids)
-

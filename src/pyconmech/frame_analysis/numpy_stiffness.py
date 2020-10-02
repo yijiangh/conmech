@@ -461,7 +461,7 @@ class NumpyStiffness(StiffnessBase):
         self._trans_tol = 1e-3
         self._rot_tol = np.pi/180 * 3
         # gravity settings
-        self._include_self_weight_load = True
+        self._include_self_weight_load = False
         # self._full_node_dof = 6
         # self._node_dof = -1
         # internal states
@@ -533,12 +533,16 @@ class NumpyStiffness(StiffnessBase):
                 self.compute_element_uniformly_distributed_lumped_load(self_weight_load_density)
 
     def set_uniformly_distributed_loads(self, unif_dist_loads):
-        e_load_density_from_ind = {}
-        for e_tag, uload in unif_dist_loads.items():
-            for e_ind in self._e_ind_from_tag[e_tag]:
-                e_load_density_from_ind[e_ind] = uload.q
-        self._element_lumped_nload_list = \
-            self.compute_element_uniformly_distributed_lumped_load(e_load_density_from_ind)
+        if unif_dist_loads is not None:
+            e_load_density_from_ind = {}
+            for e_tag, uload in unif_dist_loads.items():
+                for e_ind in self._e_ind_from_tag[e_tag]:
+                    e_load_density_from_ind[e_ind] = uload.q
+            self._element_lumped_nload_list = \
+                self.compute_element_uniformly_distributed_lumped_load(e_load_density_from_ind)
+        else:
+            # reset
+            self._element_lumped_nload_list = {}
 
     def set_load(self, nodal_forces):
         """[summary]
@@ -548,9 +552,12 @@ class NumpyStiffness(StiffnessBase):
         nodal_forces : dict
             {node id : PointLoad}
         """
-        self._nodal_load = np.zeros(self.nV*6)
-        for v_id, pf in nodal_forces.items():
-            self._nodal_load[self._v_id_map[v_id,:]] = np.array(list(pf.force) + list(pf.moment))
+        if nodal_forces is not None:
+            for v_id, pf in nodal_forces.items():
+                self._nodal_load[self._v_id_map[v_id,:]] = np.array(list(pf.force) + list(pf.moment))
+        else:
+            # reset
+            self._nodal_load = np.zeros(self.nV*6)
 
     #######################
     # Compute functions
@@ -658,8 +665,10 @@ class NumpyStiffness(StiffnessBase):
         # TODO make the load vector P sparse
         # assemble load vector
         nodal_load_P_tmp = np.copy(self._nodal_load)
-        element_lumped_load = self._create_uniformly_distributed_lumped_load(exist_element_ids)
-        nodal_load_P_tmp += element_lumped_load
+        if len(self._element_lumped_nload_list) > 0:
+            # if element unif load is specified
+            element_lumped_load = self._create_uniformly_distributed_lumped_load(exist_element_ids)
+            nodal_load_P_tmp += element_lumped_load
         if self._include_self_weight_load:
             load_sw = self._create_self_weight_load(exist_element_ids)
             nodal_load_P_tmp += load_sw
@@ -839,14 +848,8 @@ class NumpyStiffness(StiffnessBase):
         """
         # refer [MSA McGuire et al.] P111
         # Loads between nodal points
-        # TODO avoid allocation here?
-        # if isinstance(element_load_density, np.ndarray):
-        #     assert element_load_density.shape[1] == 4
-        #     tmp_dict = {}
-        #     for row in element_load_density:
-        #         tmp_dict[int(row[0])] = row[1:]
-        #     element_load_density = tmp_dict
         element_lumped_nload_list = {i : np.zeros(12) for i in range(self.nE)}
+        # element_lumped_nload_list = {}
         for e_ind, w_G in e_load_density_from_ind.items():
             end_u_id, end_v_id = self._elements[e_ind].end_node_inds
             end_u = self._nodes[end_u_id].point 
@@ -982,8 +985,7 @@ class NumpyStiffness(StiffnessBase):
         for e in self._elements:
             if e.elem_tag not in e_ind_from_tag:
                 e_ind_from_tag[e.elem_tag] = []
-            else:
-                e_ind_from_tag[e.elem_tag].append(e.elem_ind)
+            e_ind_from_tag[e.elem_tag].append(e.elem_ind)
         return e_ind_from_tag
 
     ################################
@@ -1060,18 +1062,19 @@ class NumpyStiffness(StiffnessBase):
     ################################
     # private functions - solve-time vector/matrix assembly
     def _create_self_weight_load(self, exist_e_ids):
+        assert len(self._element_gravity_nload_list) > 0, 'Call `set_self_weight_load` first to init the load!'
         self_weight_P = np.zeros(self.nV * 6)
         for e in exist_e_ids:
             Qe = self._element_gravity_nload_list[e]
-            for j in range(self._id_map.shape[1]):
-                self_weight_P[self._id_map[e, j]] += Qe[j]
+            for dof_j in range(self._id_map.shape[1]):
+                self_weight_P[self._id_map[e, dof_j]] += Qe[dof_j]
         return self_weight_P
     
     def _create_uniformly_distributed_lumped_load(self, exist_e_ids):
+        assert len(self._element_lumped_nload_list) > 0, 'Call `set_load` first to init the load!'
         element_lump_P = np.zeros(self.nV * 6)
         for e in exist_e_ids:
-            if e in self._element_lumped_nload_list:
-                Qe = self._element_lumped_nload_list[e]
-                for j in range(self._id_map.shape[1]):
-                    element_lump_P[self._id_map[e, j]] += Qe[j]
+            Qe = self._element_lumped_nload_list[e]
+            for dof_j in range(self._id_map.shape[1]):
+                element_lump_P[self._id_map[e, dof_j]] += Qe[dof_j]
         return element_lump_P

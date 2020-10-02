@@ -14,11 +14,12 @@ Unrealeased
 **Added**
 
 - Added the `numpy` engine
+- Added removing loads functionality by passing in `None`
 
 **Changed**
 
-- Frame data format changed, use Karamba exported format
-
+- Changed Frame data format, use Karamba exported format
+- Changed `StiffnessChecker`'s default behavior: not applying gravity load by default
 
 0.4.3
 -----------
