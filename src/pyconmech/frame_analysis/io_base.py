@@ -114,8 +114,8 @@ class Material(object):
 
     def __repr__(self):
         # G3:8076[kN/cm2]
-        return 'Material: |{}| E:{}[kN/m2] G12:{}[kN/m2] density:{}[kN/m3] fy:{}[kN/m2] applies to elements:{}'.format(
-            self.family+'-'+self.name, self.E, self.G12, self.density, self.fy, self.elem_tags)
+        return 'Material: |{}| E:{}[kN/m2] mu:{} G12:{}[kN/m2] density:{}[kN/m3] fy:{}[kN/m2] applies to elements:{}'.format(
+            self.family+'-'+self.name, self.E, self.mu, self.G12, self.density, self.fy, self.elem_tags)
 
 class PointLoad(object):
     def __init__(self, force, moment, node_ind):

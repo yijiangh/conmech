@@ -750,29 +750,8 @@ class NumpyStiffness(StiffnessBase):
                     print('ERROR: Stiffness Solver fail! Stiffness matrix not Positive Definite, the sub-structure might contain mechanism.')
                 return False
 
-            # * checking spectrum positive
-            # if False:
-            #     try:
-            #         # eigen values from both ends of the spectrum
-            #         eigvals = SPLA.eigsh(K_mm_precond, k=2, which='BE', tol=1e-2, return_eigenvectors=False) 
-            #         if not np.all(eigvals > -DOUBLE_EPS):
-            #             if self._verbose:
-            #                 print('Stiffness matrix not Positive Definite: largest eigenvalue {}'.format(eigvals))
-            #             return False
-            #     except SPLA.eigen.arpack.ArpackNoConvergence as errmsg:
-            #         # likely a condition number problem
-            #         # https://math.stackexchange.com/questions/261295/to-invert-a-matrix-condition-number-should-be-less-than-what
-            #         cond_num = np.log(LA.cond(K_mm_precond.toarray()))
-            #         if cond_num > -np.log(DOUBLE_EPS):
-            #             if self._verbose:
-            #                 print('Condition number: {} > 1/eps ({})'.format(np.log(cond_num), -np.log(DOUBLE_EPS)))
-            #             return False
-            #         if self._verbose:
-            #             print('Stiffness matrix condition number explosion: {}'.format(errmsg))
-            #         # return False
-
             # ? Method 1: direct solve
-            # U_m_pred = SPLA.spsolve(K_mm_precond, D.dot(P_m))
+            # U_m_pred = SPLA.spsolve(K_mm_precond, E_inv.dot(P_m))
 
             # ? Method 2: CG variant
             # https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.gmres.html#scipy.sparse.linalg.gmres
