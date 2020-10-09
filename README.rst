@@ -79,6 +79,7 @@ Analysis
 After you have the input model ready, analysis is straight-forward:
 
 .. code-block:: python
+
     from pyconmech import StiffnessChecker
 
     sc = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine="numpy", verbose=True)
