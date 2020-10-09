@@ -63,15 +63,15 @@ to conmech:
 (2) write your data in a `JSON` format and input the file path to conmech (See `file examples here <https://github.com/yijiangh/conmech/tree/master/tests/test_data>`_.
 
 The easiest way to generate the model JSON file by exporting from a `Karamba3D`_ model in `Rhino-Grasshopper`_. 
-A `example GH export file <https://github.com/yijiagh/conmech/tree/master/examples/gh_scripts/karamba/export_from_karamba.gh>`_ is provided:
+A `example GH export file <https://github.com/yijiangh/conmech/tree/master/examples/gh_scripts/karamba/export_from_karamba.gh>`_ is provided:
 
 .. image:: ./examples/gh_scripts/karamba/karamba_model_export.png
-    :width: 400px
+    :width: 200px
     :align: center
     :target: https://coveralls.io/github/yijiangh/conmech?branch=master
     :alt: karamba_model_export
 
-You can also parse your model JSON file back to Rhino/GH for visualization/debugging by using the `parse GH example file <https://github.com/yijiagh/conmech/tree/master/examples/gh_scripts/parse_frame_json_conmech.ghx>`_.
+You can also parse your model JSON file back to Rhino/GH for visualization/debugging by using the `parse GH example file <https://github.com/yijiangh/conmech/tree/master/examples/gh_scripts/parse_frame_json_conmech.ghx>`_.
 
 Analysis
 ^^^^^^^^
