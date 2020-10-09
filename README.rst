@@ -79,6 +79,7 @@ Analysis
 After you have the input model ready, analysis is straight-forward:
 
 .. code-block:: python
+    from pyconmech import StiffnessChecker
 
     sc = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine="numpy", verbose=True)
     gravity_load = GravityLoad([0,0,-1]) 
@@ -98,6 +99,8 @@ After you have the input model ready, analysis is straight-forward:
     # Get all the analysis information:
     # nodal deformation, fixity reactions, element reactions
     success, nD, fR, eR = sc.get_solved_results()
+
+See `python unit tests <https://github.com/yijiangh/conmech/blob/master/tests/python/test_stiffness_checker.py>`_ for more examples.
 
 Installation
 ------------
