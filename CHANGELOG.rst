@@ -27,7 +27,7 @@ Unrealeased
 
 **Fixed**
 
-0.4.3
+0.5.0
 -----------
 
 **Changed**
