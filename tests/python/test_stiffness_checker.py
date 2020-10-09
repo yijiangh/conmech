@@ -488,29 +488,29 @@ def repetitive_check_gravity_validity(frame_file_path, engine, existing_ids=[], 
 
     cprint('Passed.', 'green')
 
-@pytest.mark.gravity_check
-@pytest.mark.parametrize("test_case", 
-    [('tower'), ('topopt-100')])
-def test_self_weight_validity(test_case, engine):
-    if test_case == 'tower':
-        file_name = 'tower_3D.json'
-        success_existing_ids = list(range(8))
-    elif test_case == 'topopt-100':
-        file_name = 'topopt-100.json'
-        success_existing_ids = [0, 1, 2, 3, 4, 5, 8, 11, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, \
-        43, 44, 51, 52, 53, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, \
-        108, 109, 110, 111, 112, 113, 114, 115, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131]
-    else:
-        assert False, 'not supported test case!'
+# @pytest.mark.gravity_check
+# @pytest.mark.parametrize("test_case", 
+#     [('tower'), ('topopt-100')])
+# def test_self_weight_validity(test_case, engine):
+#     if test_case == 'tower':
+#         file_name = 'tower_3D.json'
+#         success_existing_ids = list(range(8))
+#     elif test_case == 'topopt-100':
+#         file_name = 'topopt-100.json'
+#         success_existing_ids = [0, 1, 2, 3, 4, 5, 8, 11, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, \
+#         43, 44, 51, 52, 53, 88, 89, 90, 91, 92, 93, 94, 96, 97, 98, 102, 103, 104, 105, 106, 107, \
+#         108, 109, 110, 111, 112, 113, 114, 115, 117, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131]
+#     else:
+#         assert False, 'not supported test case!'
 
-    root_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(root_dir, '..', 'test_data', file_name)
+#     root_dir = os.path.dirname(os.path.abspath(__file__))
+#     json_path = os.path.join(root_dir, '..', 'test_data', file_name)
 
-    print('\n################\nfull solve success gravity validity checks')
-    repetitive_check_gravity_validity(json_path, engine, existing_ids=[], expect_partial_ids_success=True)
+#     print('\n################\nfull solve success gravity validity checks')
+#     repetitive_check_gravity_validity(json_path, engine, existing_ids=[], expect_partial_ids_success=True)
 
-    print('\n################\npartial solve success gravity validity checks')
-    repetitive_check_gravity_validity(json_path, engine, existing_ids=success_existing_ids, expect_partial_ids_success=True)
+#     print('\n################\npartial solve success gravity validity checks')
+#     repetitive_check_gravity_validity(json_path, engine, existing_ids=success_existing_ids, expect_partial_ids_success=True)
 
 
 @pytest.mark.uniform_load_check
@@ -574,7 +574,6 @@ def test_uniformly_distributed_load_with_analytical_solution(engine, n_attempts)
     """ analytical example in 
             Matrix Structural Analysis 2rd edition, McGuire, Gallagher, Ziemian
             Example 5.8, Page 116 (p.137 in the PDF)
-        Material / cross sectional properties from Example 4.8, Page 79 (p.100 in the PDF)
 
         For more info on the theory of uniformly distributed load lumping, see: 
             Page 108, section 5.2 Loads between nodal points
@@ -598,8 +597,6 @@ def test_uniformly_distributed_load_with_analytical_solution(engine, n_attempts)
     print(sc.get_element_crosssec(1))
 
     def compare_analytical_sol(pass_criteria, nD, fR, eR, nodal_loads, check_decimal=1):
-        print('nD: ', nD)
-        print('fR: ', fR)
         # vertical force equilibrium
         assert_almost_equal(fR[0][2] + fR[2][2], 5 + 3 * 5)
 
@@ -614,20 +611,20 @@ def test_uniformly_distributed_load_with_analytical_solution(engine, n_attempts)
         assert_almost_equal(fR[0], [0, 0, 14.74, -6.45*1e-3, -36.21, 0], decimal=check_decimal)
         assert_almost_equal(fR[2], [0, 0, 5.25, -41.94, -17.11*1e-3, 0], decimal=check_decimal)
 
-    print('compare analytical res: w/o reinit')
+    cprint('compare analytical res: w/o reinit', 'yellow')
     for _ in range(n_attempts):
         sc.solve()
         pass_criteria, nD, fR, eR = sc.get_solved_results()
         nodal_loads = sc.get_nodal_loads()    
         compare_analytical_sol(pass_criteria, nD, fR, eR, nodal_loads)
 
-    # print('compare analytical res: w reinit')
-    # for _ in range(n_attempts):
-    #     re_sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
-    #     re_sc.set_loads(point_loads=point_load, uniform_distributed_load=uniform_element_load, gravity_load=None)
-    #     re_sc.set_nodal_displacement_tol(trans_tol=0.024, rot_tol=0.006)
+    cprint('compare analytical res: w reinit', 'yellow')
+    for _ in range(n_attempts):
+        re_sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
+        re_sc.set_loads(point_loads=point_load, uniform_distributed_load=uniform_element_load, gravity_load=None)
+        re_sc.set_nodal_displacement_tol(trans_tol=0.024, rot_tol=0.006)
 
-    #     re_sc.solve()
-    #     pass_criteria, nD, fR, eR = re_sc.get_solved_results()
-    #     nodal_loads = re_sc.get_nodal_loads()    
-    #     compare_analytical_sol(pass_criteria, nD, fR, eR, nodal_loads)
+        re_sc.solve()
+        pass_criteria, nD, fR, eR = re_sc.get_solved_results()
+        nodal_loads = re_sc.get_nodal_loads()    
+        compare_analytical_sol(pass_criteria, nD, fR, eR, nodal_loads)

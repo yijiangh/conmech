@@ -35,37 +35,39 @@ class StiffnessChecker(object):
 
     def __init__(self, nodes=None, elements=None, supports=None, materials=None, crosssecs=None, joints=None,
         unit='meter', model_name=None, verbose=False, checker_engine=DEFAULT_ENGINE):
-        """Init fn for stiffness_checker
+        """Constructor of the StiffnessChecker
 
-        By default, self-weight load is applied. Disable by ``StiffnessChecker.set_self_weight_load(False)``
-        
         Parameters
         ----------
-        node_points : list of 3-float list, optional
-            ``#V x 3`` matrix of vertex coordinates, by default None
-        elements : list of 2-int list, optional
-            ``#E x 2`` matrix of element end point indices, by default None
-        fix_specs : dict, optional
-            ``{node_id : fixity_spec}``, where ``fixity_spec`` is a 6-dof 0-1 to specify dof fixed (1) or free(0), by default None
-        material_dicts : dict, optional
-            #E x material property dictionary, see ``pyconmech.database.material_properties`` for examples, by default None
+        nodes : a list of `io_base.Node`, optional
+            [description], by default None
+        elements : a list of `io_base.Element`, optional
+            [description], by default None
+        supports : a list of `io_base.Support`, optional
+            [description], by default None
+        materials : a list of `io_base.Material`, optional
+            [description], by default None
+        crosssecs : a list of `io_base.CrossSec`, optional
+            [description], by default None
+        joints : a list of `io_base.Joint`, optional
+            [description], by default None
         unit : str, optional
-            length unit used in the ``node_points``, by default 'meter'
-        model_type : str, optional
-            structural model type, can be ``frame`` or ``truss``, by default 'frame'
-        model_name : str, optional
-            model's name, by default None
+            [description], by default 'meter'
+        model_name : [type], optional
+            [description], by default None
         verbose : bool, optional
-            verbose output (passed into cpp engine), by default False
+            verbose output, by default False
         checker_engine : str, optional
-            'cpp' : ``_StiffnessChecker`` : generated from cpp backend
-            'numpy' : ``NumpyStiffness`` : numpy-based python solver
-            by default 'cpp'
-        
+            "numpy" or "C++", by default DEFAULT_ENGINE
+
         Raises
         ------
         NotImplementedError
-            raise if ``model_type`` is set to ``truss``
+            [description]
+        NotImplementedError
+            [description]
+        RuntimeError
+            [description]
         """
         self._model_name = model_name or ''
         if checker_engine == 'cpp':
@@ -125,26 +127,10 @@ class StiffnessChecker(object):
 
     @property
     def node_points(self):
-        """
-        # TODO should return `Node`
-        
-        Returns
-        -------
-        list of Node
-            ``#V x 3`` matrix of vertex coordinates, by default None
-        """
         return np.array([n.point for n in self._nodes])
     
     @property
     def elements(self):
-        """
-        # TODO should return `Element`
-
-        Returns
-        -------
-        list of 2-int list
-            ``#E x 2`` matrix of element end point indices, by default None
-        """
         return [e.end_node_inds for e in self._elements]
     
     @property
@@ -179,7 +165,7 @@ class StiffnessChecker(object):
         Returns
         -------
         dict
-            ``{node_id : fixity_spec}``, where ``fixity_spec`` is a 6-dof Boolean list to specify dof fixed (1) or free(0), by default None
+            ``{node_id : fixity condition}``, where ``fixity_spec`` is a 6-dof Boolean list to specify dof fixed (1) or free(0), by default None
         """
         return {s.node_ind : s.condition for s in self._supports}
 
@@ -338,6 +324,7 @@ class StiffnessChecker(object):
             The elemental local coordinate is placed at the end point 0, with local axis pointing along
             the `end point 0` -> `end point L` direction. See doc (TODO: link) for more info.
         """
+        assert self.has_stored_result(), "No result stored! Previous analysis might have failed."
         if not existing_ids:
             existing_e_ids = list(range(len(self.elements)))
         existing_n_ids = self.get_element_connected_node_ids(existing_ids=existing_ids)

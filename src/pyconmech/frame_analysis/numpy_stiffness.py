@@ -922,7 +922,9 @@ class NumpyStiffness(StiffnessBase):
         if len(existing_ids) == 0:
             existing_ids = range(self.nE)
         P = np.copy(self._nodal_load)
-        P += self._create_uniformly_distributed_lumped_load(existing_ids)
+        if len(self._element_lumped_nload_list) > 0:
+            # if element unif load is specified
+            P += self._create_uniformly_distributed_lumped_load(existing_ids)
         if self._include_self_weight_load:
             P += self.get_gravity_nodal_loads(existing_ids)
         return P

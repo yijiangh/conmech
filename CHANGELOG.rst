@@ -15,11 +15,17 @@ Unrealeased
 
 - Added the `numpy` engine
 - Added removing loads functionality by passing in `None`
+- Added base classes for input data: `io_base.Node, Element, Support, Joint, Material, CrossSec, PointLoad, etc.`
 
 **Changed**
 
 - Changed Frame data format, use Karamba exported format
+- Changed `StiffnessChecker`'s `__init__` function's arguments to take `io_base.*` data
 - Changed `StiffnessChecker`'s default behavior: not applying gravity load by default
+
+**Removed**
+
+**Fixed**
 
 0.4.3
 -----------

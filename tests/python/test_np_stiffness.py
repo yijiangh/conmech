@@ -149,7 +149,7 @@ def test_2Dbeam_stiffness_matrix(viewer):
     T = np.array([[0,1], [1,2]], dtype=int)
 
     # element id : dof id map
-    id_map = np.vstack([np.array(range(i*5, (i+2)*6)) for i in range(nE)])
+    id_map = np.vstack([np.array(range(i*6, (i+2)*6)) for i in range(nE)])
 
     def compute_R(e):
         R_3 = global2local_transf_matrix(V[e[0],:], V[e[1],:]) #, rot_y2x=np.pi)

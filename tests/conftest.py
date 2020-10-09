@@ -32,7 +32,8 @@ def pytest_generate_tests(metafunc):
         if len(engine_opts) > 0:
             metafunc.parametrize("engine", engine_opts)
         else:
-            metafunc.parametrize("engine", ['cpp', 'numpy'])
+            # metafunc.parametrize("engine", ['cpp', 'numpy'])
+            metafunc.parametrize("engine", ['numpy'])
 
 @pytest.fixture
 def debug(request):
