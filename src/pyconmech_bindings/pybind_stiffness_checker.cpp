@@ -28,6 +28,11 @@ PYBIND11_MODULE(_pystiffness_checker, m)
      * @brief Bind a lambda function returning a pointer wrapped in a holder:
      *  needed for converting py::object to nl::json
      * 
+     * @note The client needs to take care of the unit compatibility.
+     * 
+     * Inside cpp engine, we use METER for length, rad for rotation, kN for force, followed by other derived units.
+     * More info can be found in SharedConst.h
+     * 
      */
     .def(py::init([](const Eigen::MatrixXd& V, const Eigen::MatrixXi& E, const Eigen::MatrixXi& Fixities, 
                      const std::vector<py::object>& mat_dicts, const bool& verbose, const std::string& model_type, const bool& output_json)

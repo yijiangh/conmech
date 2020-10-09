@@ -16,4 +16,6 @@ scp
 sphinx>=1.5
 sphinx_rtd_theme
 twine
+termcolor
+matplotlib
 -e .

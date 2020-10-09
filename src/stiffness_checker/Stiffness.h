@@ -451,6 +451,10 @@ private:
   bool include_self_weight_load_;
   Eigen::VectorXd gravity_direction_;
 
+  /**
+   * @brief stored deformation state
+   * 
+   */
   bool has_stored_deformation_;
 };
 

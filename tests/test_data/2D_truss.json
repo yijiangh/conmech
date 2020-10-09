@@ -1,0 +1,127 @@
+{
+  "model_name": "2D_truss",
+  "unit": "meter",
+  "generate_time": "07/27/2020 13:22:00",
+  "node_num": 3,
+  "element_num": 2,
+  "nodes": [
+    {
+      "point": [
+        -10.000000000000014,
+        0.0,
+        0.0
+      ],
+      "node_ind": 0,
+      "is_grounded": true
+    },
+    {
+      "point": [
+        0.0,
+        0.0,
+        5.0000000000000071
+      ],
+      "node_ind": 1,
+      "is_grounded": false
+    },
+    {
+      "point": [
+        9.9999999999999787,
+        0.0,
+        8.8817841970012523E-16
+      ],
+      "node_ind": 2,
+      "is_grounded": true
+    }
+  ],
+  "elements": [
+    {
+      "end_node_inds": [
+        0,
+        1
+      ],
+      "elem_tag": "beams",
+      "elem_ind": 0,
+      "layer_ind": -1,
+      "bending_stiff": true
+    },
+    {
+      "end_node_inds": [
+        1,
+        2
+      ],
+      "elem_tag": "beams_truss",
+      "elem_ind": 1,
+      "layer_ind": -1,
+      "bending_stiff": true
+    }
+  ],
+  "supports": [
+    {
+      "condition": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "node_ind": 2
+    },
+    {
+      "condition": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "node_ind": 0
+    },
+    {
+      "condition": [
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "node_ind": 1
+    }
+  ],
+  "joints": [],
+  "cross_secs": [
+    {
+      "family": "DefaultCroSec",
+      "name": "",
+      "elem_tags": [
+        ""
+      ],
+      "A": 0.002,
+      "A_unit": "m2",
+      "Jx": 3.6630108993439872E-08,
+      "Jx_unit": "m4",
+      "Iy": 3.3194666666666672E-06,
+      "Iy_unit": "m4",
+      "Iz": 1.3341666666666669E-06,
+      "Iz_unit": "m4"
+    }
+  ],
+  "materials": [
+    {
+      "family": "Steel",
+      "name": "Steel",
+      "type_name": "ISO",
+      "elem_tags": [],
+      "E": 210000000.0,
+      "E_unit": "kN/m2",
+      "G12": 80760000.0,
+      "G12_unit": "kN/m2",
+      "fy": 235000.0,
+      "fy_unit": "kN/m2",
+      "density": 78.5,
+      "density_unit": "kN/m3"
+    }
+  ]
+}

@@ -120,7 +120,7 @@ install:
   set -ex
   cmake --version
   echo "Installing pytest, numpy..."
-  $PY_CMD -m pip install --user --upgrade numpy pytest
+  $PY_CMD -m pip install --user --upgrade pytest numpy
   echo "done."
   set +ex
 
@@ -141,7 +141,6 @@ script:
   # pip setup install and pytest
   $PY_CMD setup.py sdist
   $PY_CMD -m pip install --user -U ./dist/*
-  $PY_CMD -m pytest
   $PY_CMD -c "from _pystiffness_checker import _StiffnessChecker"
   $PY_CMD -c "from pyconmech import StiffnessChecker"
   set +ex

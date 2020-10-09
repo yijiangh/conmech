@@ -136,11 +136,14 @@ bool Stiffness::computeCubicDeformedBeam(const Eigen::VectorXd& end_u, const Eig
     else
     {
       Eigen::VectorXd a_rhs(4);
+      // v1, theta_z1, v2, theta_z2
       a_rhs << D_local[1], D_local[7], D_local[5], D_local[11];
       a_coeff = A_M_decomp.solve(a_rhs);
 
       Eigen::VectorXd b_rhs(4);
+      // w1, theta_y1, w2, theta_y2
       b_rhs << D_local[2], D_local[8], -D_local[4], -D_local[10];
+      // b_rhs << D_local[2], -D_local[8], D_local[4], -D_local[10];
       b_coeff = A_M_decomp.solve(b_rhs);
     }
 
@@ -152,6 +155,7 @@ bool Stiffness::computeCubicDeformedBeam(const Eigen::VectorXd& end_u, const Eig
     double d_u = D_local[0];
     double d_v = D_local[full_node_dof_];
     double i_x, i_y, i_z; // interpolated local x, y, z
+    // TODO: just take transpose...
     auto R_LG_decomp = R_LG.colPivHouseholderQr();
     Eigen::VectorXd idD_global(dim_);
 

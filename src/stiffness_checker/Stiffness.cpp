@@ -318,6 +318,7 @@ void Stiffness::createCompleteGlobalStiffnessMatrix(const std::vector<int> &exis
 
       for (int j = 0; j < 2 * node_dof_; j++)
       {
+        // TODO: threhold push_back by checking double_eps
         int col_id = id_map_(e_id, j);
         K_triplets.push_back(Eigen::Triplet<double>(row_id, col_id, K_e(i, j)));
       }
@@ -599,7 +600,10 @@ bool Stiffness::solve(
 
   if (0 == n_Fixities)
   {
-    throw std::runtime_error("Not stable: At least one node needs to be fixed in the considered substructure!");
+    if (verbose_){
+      std::cout << "Not stable: At least one node needs to be fixed in the considered substructure!" << std::endl;
+    }
+    return false;
   }
 
   // count supp_dof and res_dof to init K_slice

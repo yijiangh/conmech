@@ -47,7 +47,8 @@ from __future__ import absolute_import
 
 from .stiffness_checker import *
 from .frame_file_io import *
-from .result_compare_utils import *
-from .stiffness_solve_fn import *
+# from .result_compare_utils import *
+from .numpy_stiffness import *
+from .io_base import *
 
 __all__ = [name for name in dir() if not name.startswith('_')]

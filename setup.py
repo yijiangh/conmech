@@ -6,10 +6,10 @@ import os
 import re
 import io
 
+import argparse
 from setuptools import setup, find_packages
 from setuptools.command.build_ext import build_ext
 from setup_cmake_utils import CMakeExtension, CMakeBuild
-
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -24,12 +24,19 @@ def read(*names, **kwargs):
 about = {}
 exec(read('src', 'pyconmech', '__version__.py'), about)
 
-requirements = read('requirements.txt').split('\n')
+# requirements = read('requirements.txt').split('\n')
+requirements = [
+    'numpy',
+    'scipy>=1.2.3',
+    'termcolor'
+    # 'matplotlib',
+]
+
 
 ext_modules = [
-    CMakeExtension('_pystiffness_checker'),
+    # TODO: cpp backend not compatible with the latest version yet
+    # CMakeExtension('_pystiffness_checker'),
     ]
-
 
 setup(
     name=about['__title__'],

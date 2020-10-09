@@ -2,6 +2,7 @@ import pytest
 import os, glob
 from pyconmech import StiffnessChecker
 
+@pytest.mark.skip(reason='not fully developed')
 @pytest.mark.subd
 def test_subdivided_compliance():
     here = os.path.dirname(os.path.abspath(__file__))
@@ -14,7 +15,7 @@ def test_subdivided_compliance():
         print('test file: {}'.format(file))
         sc = StiffnessChecker.from_json(json_file_path=file)
         print('num of pts: {}, num of elements: {}'.format(len(sc.node_points), len(sc.elements)))
-        sc.set_loads(include_self_weight=True, gravity_direction=[0,0,-1.0])
+        sc.set_loads(gravity_direction=[0,0,-1.0])
         success = sc.solve()
         print('success: {}'.format(success))
         print('has stored result: {}'.format(sc.has_stored_result()))
