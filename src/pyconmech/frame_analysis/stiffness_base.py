@@ -149,3 +149,27 @@ class StiffnessBase(object):
 
     def get_deformed_shape(self, exagg_ratio=1.0, disc=10):
         raise NotImplementedError()
+
+    # element attributes
+    def get_element_crosssec(self, elem_id):
+        e_tag = self._elements[elem_id].elem_tag
+        # assert e_tag in self._crosssecs
+        if e_tag in self._crosssecs:
+            crosssec = self._crosssecs[e_tag]
+        else:
+            # TODO: default cross sec, if no [""] key is assigned
+            warnings.warn('No cross section assigned for element tag |{}|, using the default tag'.format(e_tag))
+            crosssec = self._crosssecs[None]
+        return crosssec
+
+    def get_element_material(self, elem_id):
+        e_tag = self._elements[elem_id].elem_tag
+        # assert e_tag in self._materials
+        if e_tag in self._materials:
+            mat = self._materials[e_tag]
+        else:
+            # TODO: default material, if no [""] key is assigned
+            warnings.warn('No material assigned for element tag |{}|, using the default tag'.format(e_tag))
+            mat = self._materials[None]
+        return mat
+

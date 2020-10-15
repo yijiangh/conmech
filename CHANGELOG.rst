@@ -8,31 +8,44 @@ All notable changes to this project will be documented in this file.
 The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_
 and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
-Unrealeased
------------
+Unreleased
+----------
 
-**Added**
+**added**
 
-- Added the `numpy` engine
-- Added removing loads functionality by passing in `None`
-- Added base classes for input data: `io_base.Node, Element, Support, Joint, Material, CrossSec, PointLoad, etc.`
+- Added element information to `ValueError` when encountering zero-length line element
+- Added print out attributes to `Node` and `Element`
 
-**Changed**
+**changed**
 
-- Changed Frame data format, use Karamba exported format
-- Changed `StiffnessChecker`'s `__init__` function's arguments to take `io_base.*` data
-- Changed `StiffnessChecker`'s default behavior: not applying gravity load by default
+- Moved `get_element_crossec` and `get_element_material` from `NumpyStiffness` to `StiffnessBase`
 
-**Removed**
+**removed**
 
-**Fixed**
+**fixed**
+
 
 0.5.0
------------
+----------
 
-**Changed**
+**added**
 
-- Changed ``-DCONMECH_BUILD_TESTS=OFF`` in ``setup_cmake_utils.py`` to disable cpp test building in ``python setup.py build``
+- added the `numpy` engine
+- added removing loads functionality by passing in `none`
+- added base classes for input data: `io_base.node, element, support, joint, material, crosssec, pointload, etc.`
+
+**changed**
+
+- changed frame data format, use karamba exported format
+- changed `stiffnesschecker`'s `__init__` function's arguments to take `io_base.*` data
+- changed `stiffnesschecker`'s default behavior: not applying gravity load by default
+- changed ``-dconmech_build_tests=off`` in ``setup_cmake_utils.py`` to disable cpp test building in ``python setup.py build``
+
+**removed**
+
+**fixed**
+
+**changed**
 
 0.4.0
 -----------

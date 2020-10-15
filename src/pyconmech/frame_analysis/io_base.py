@@ -21,8 +21,12 @@ class Node(object):
         data = {'point' : self.point, 'node_ind' : self.node_ind, 'is_grounded' : self.is_grounded}
         return data
 
+    def __repr__(self):
+        return '{}(#{},{},Grd:{})'.format(self.__class__.__name__, self.node_ind, self.point, self.is_grounded)
+
 class Element(object):
     def __init__(self, end_node_inds, elem_ind, elem_tag='', bending_stiff=True):
+        assert end_node_inds[0] != end_node_inds[1], 'zero length element not allowed!'
         self.end_node_inds = end_node_inds
         self.elem_tag = elem_tag
         self.elem_ind = elem_ind
@@ -35,6 +39,9 @@ class Element(object):
     def to_data(self):
         raise NotImplementedError()
 
+    def __repr__(self):
+        return '{}(#{}({}),{},Bend:{})'.format(self.__class__.__name__, self.elem_ind, self.elem_tag, self.end_node_inds, self.bending_stiff)
+
 class Support(object):
     def __init__(self, condition, node_ind):
         self.condition = condition
@@ -46,6 +53,9 @@ class Support(object):
 
     def to_data(self):
         raise NotImplementedError()
+
+    def __repr__(self):
+        return '{}(#{},{})'.format(self.__class__.__name__, self.node_ind, self.condition)
 
 class Joint(object):
     def __init__(self, c_conditions, elem_tags):
@@ -80,7 +90,6 @@ class CrossSec(object):
     def __repr__(self):
         return 'family:{} name:{} area:{}[m2] Jx:{}[m4] Iy:{}[m4] Iz:{}[m4] applies to elements:{}'.format(
             self.family, self.name, self.A, self.Jx, self.Iy, self.Iz, self.elem_tags)
-
 
 def mu2G(mu, E):
     """compute shear modulus from poisson ratio mu and Youngs modulus E

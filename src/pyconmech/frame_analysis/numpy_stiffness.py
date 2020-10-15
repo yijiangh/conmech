@@ -311,7 +311,8 @@ def global2local_transf_matrix(end_vert_u, end_vert_v, rot_y2x=0.0):
     assert len(end_vert_u) == 2 or len(end_vert_u) == 3
     dim = len(end_vert_u)
     L = norm(end_vert_u-end_vert_v)
-    assert L > 1e-6
+    if L < 1e-6:
+        raise ValueError('Bar length too small!: Node {} - Node {}'.format(end_vert_u, end_vert_v))
 
     # by convention, the new x axis is along the element's direction
     # directional cosine of the new x axis in the global world frame
@@ -834,7 +835,10 @@ class NumpyStiffness(StiffnessBase):
             end_u = self._nodes[end_u_id].point 
             end_v = self._nodes[end_v_id].point
             L = norm(end_u-end_v)
-            R3 = global2local_transf_matrix(end_u, end_v)
+            try:
+                R3 = global2local_transf_matrix(end_u, end_v)
+            except ValueError as err:
+                raise ValueError('E#{} - {}'.format(e_ind, err))
             lumped_L = compute_lumped_uniformly_distributed_load(np.array(w_G), R3, L)
             assert lumped_L.shape[0] == 12
             element_lumped_nload_list[e_ind] = lumped_L
@@ -873,29 +877,6 @@ class NumpyStiffness(StiffnessBase):
         nD_rot_max = LA.norm(self._stored_nD[:,4:7], ord=ord, axis=1)
         return (np.max(nD_trans_max), np.max(nD_rot_max),\
                 np.argmax(nD_trans_max), np.argmax(nD_rot_max))
-
-    # element attributes
-    def get_element_crosssec(self, elem_id):
-        e_tag = self._elements[elem_id].elem_tag
-        # assert e_tag in self._crosssecs
-        if e_tag in self._crosssecs:
-            crosssec = self._crosssecs[e_tag]
-        else:
-            # TODO: default cross sec, if no [""] key is assigned
-            warnings.warn('No cross section assigned for element tag |{}|, using the default tag'.format(e_tag))
-            crosssec = self._crosssecs[None]
-        return crosssec
-
-    def get_element_material(self, elem_id):
-        e_tag = self._elements[elem_id].elem_tag
-        # assert e_tag in self._materials
-        if e_tag in self._materials:
-            mat = self._materials[e_tag]
-        else:
-            # TODO: default material, if no [""] key is assigned
-            warnings.warn('No material assigned for element tag |{}|, using the default tag'.format(e_tag))
-            mat = self._materials[None]
-        return mat
 
     # settings getters
     def get_nodal_deformation_tol(self):
@@ -1029,7 +1010,10 @@ class NumpyStiffness(StiffnessBase):
             if not element.bending_stiff:
                 cr1 = [0.0 for _ in range(3)]
                 cr2 = [0.0 for _ in range(3)]
-            R3 = global2local_transf_matrix(end_u, end_v)
+            try:
+                R3 = global2local_transf_matrix(end_u, end_v)
+            except ValueError as err:
+                raise ValueError('E#{} - {}'.format(i, err))
             crosssec = self.get_element_crosssec(i)
             mat = self.get_element_material(i)
             K_loc = create_local_stiffness_matrix(L, crosssec.A, crosssec.Jx,\

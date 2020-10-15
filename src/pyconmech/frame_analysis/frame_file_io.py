@@ -112,9 +112,8 @@ def read_frame_json(file_path, verbose=False, strict_check=True):
     nodes = parse_nodes(json_data['nodes'], scale=scale)
 
     # * elements & element tags
-    # assume all unspecified elements to be in the tag group ""
+    # ! assume all unspecified elements to be in the tag group ""
     elements = [Element.from_data(e) for e in json_data['elements']]
-    # element_inds_from_tag = {"":[]}
     element_inds_from_tag = {}
     for e in elements:
         if e.elem_tag not in element_inds_from_tag:
@@ -129,29 +128,12 @@ def read_frame_json(file_path, verbose=False, strict_check=True):
 
     # * joints
     joints = [Joint.from_data(j) for j in json_data['joints']]
-    # elem_tag sanity checks
-    # for joint in joints:
-    #     if len(joint.elem_tags) == 0:
-    #         joint.elem_tags = [None]
-    #     for e_tag in joint.elem_tags:
-    #         assert e_tag in element_inds_from_tag, 'joint using an element tag not specified in element tag set!'
 
     # * materials
     materials = [Material.from_data(m) for m in json_data['materials']]
-    # elem_tag sanity checks
-    # for m in materials:
-    #     if len(m.elem_tags) == 0:
-    #         m.elem_tags = [None]
-    #     for e_tag in m.elem_tags:
-    #         assert e_tag in element_inds_from_tag, 'material using an element tag not specified in element tag set!'
 
     # * cross secs
     crosssecs = [CrossSec.from_data(c) for c in json_data['cross_secs']]
-    # for cs in crosssecs:
-    #     if len(cs.elem_tags) == 0:
-    #         cs['elem_tags'] = [None]
-    #     for e_tag in cs.elem_tags:
-    #         assert e_tag in element_inds_from_tag, 'cross section using an element tag not specified in element tag set!'
 
     # * sanity checks
     if 'node_num' in json_data:
@@ -179,8 +161,10 @@ def read_frame_json(file_path, verbose=False, strict_check=True):
     return nodes, elements, supports, joints, materials, crosssecs, model_name, unit
 
 
-def write_frame_json(file_path, nodes, elements, fixity_specs, material_dicts,
-    unif_cross_sec=False, unif_material=False, unit=None, model_type='frame', model_name=None, indent=None, check_material=True):
+def write_frame_json(file_path, 
+    nodes, elements, supports, joints, materials, crosssecs, model_name, unit):
+    # nodes, elements, fixity_specs, material_dicts,
+    # unif_cross_sec=False, unif_material=False, unit=None, model_type='frame', model_name=None, indent=None, check_material=True):
     raise NotImplementedError()
 
     # data = OrderedDict()
