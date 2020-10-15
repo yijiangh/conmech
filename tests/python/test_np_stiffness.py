@@ -15,9 +15,8 @@ from pyconmech.frame_analysis.numpy_stiffness_assembly import create_local_stiff
     assemble_global_stiffness_matrix, bending_stiffness_matrix, axial_stiffness_matrix, turn_diagblock
 from pyconmech.frame_analysis.visualization import get_element_shape_fn, get_internal_reaction_fn
     
-from pyconmech.frame_analysis.io_base import mu2G, G2mu
+from pyconmech.frame_analysis.io_base import mu2G, G2mu, LoadCase
 from pyconmech import StiffnessChecker
-from pyconmech.frame_analysis.frame_file_io import read_load_case_json
 
 # from pyconmech.frame_analysis import numpy_stiffness
 
@@ -68,7 +67,9 @@ def test_2Dbeam_stiffness_matrix_parsed(test_data_dir, engine):
     load_path = os.path.join(test_data_dir, load_file_name)
 
     sc = StiffnessChecker.from_json(json_path, verbose=True, checker_engine=engine)
-    point_loads, uniform_element_loads, gravity_load = read_load_case_json(load_path)
+    lc = LoadCase.from_json(load_path)
+    point_loads, uniform_element_loads, gravity_load = lc.point_loads, lc.uniform_element_loads, lc.gravity_load
+
     assert gravity_load is None
     sc.set_loads(point_loads, uniform_element_loads, gravity_load)
 

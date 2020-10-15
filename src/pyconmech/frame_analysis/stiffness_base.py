@@ -1,42 +1,18 @@
 import os
 import warnings
-from pyconmech.frame_analysis.frame_file_io import read_frame_json, read_load_case_json
+from pyconmech.frame_analysis.io_base import Model, LoadCase
     
 ##################################################
 # Stiffness Backend Template
 
 class StiffnessBase(object):
-    def __init__(self, nodes, elements, supports, materials, crosssecs, 
-        joints=None, verbose=False, output_json=False):
-        self._nodes = nodes
-        self._elements = elements
-
-        # turn lists into dicts
-        self._supports = {}
-        for support in supports:
-            self._supports[support.node_ind] = support
-
-        self._joints = {}
-        if joints is not None:
-            for joint in joints:
-                for e_tag in joint.elem_tags:
-                    if e_tag in self._joints:
-                        warnings.warn('Multiple joints assigned to the same element tag |{}|!'.format(e_tag))
-                    self._joints[e_tag] = joint
-
-        self._materials = {}
-        for mat in materials:
-            for e_tag in mat.elem_tags:
-                if e_tag in self._materials:
-                    warnings.warn('Multiple materials assigned to the same element tag |{}|!'.format(e_tag))
-                self._materials[e_tag] = mat
-
-        self._crosssecs = {}
-        for cs in crosssecs:
-            for e_tag in cs.elem_tags:
-                if e_tag in self._crosssecs:
-                    warnings.warn('Multiple materials assigned to the same element tag |{}|!'.format(e_tag))
-                self._crosssecs[e_tag] = cs
+    def __init__(self, model, verbose=False, output_json=False):
+        self._nodes = model.nodes
+        self._elements = model.elements
+        self._supports = model.supports
+        self._joints = model.joints
+        self._materials = model.materials
+        self._crosssecs = model.crosssecs
 
         self._verbose = verbose
         self._output_json = output_json
@@ -62,11 +38,7 @@ class StiffnessBase(object):
         [type]
             [description]
         """
-        assert os.path.exists(json_file_path), "json file not exists!"
-        nodes, elements, supports, joints, materials, crosssecs, _, _ = \
-            read_frame_json(json_file_path, verbose=verbose)
-        return cls(nodes, elements, supports, materials, crosssecs, 
-            joints=joints, verbose=verbose)
+        return cls(Model.from_json(json_file_path, verbose=verbose), verbose=verbose)
 
     #######################
     # Load input
@@ -82,9 +54,11 @@ class StiffnessBase(object):
 
     def _parse_load_case_from_json(self, file_path):
         # TODO cpp engine only returns nodal load now
-        point_load, uniform_element_load, include_self_weight = \
-            read_load_case_json(file_path)
-        return point_load, uniform_element_load, include_self_weight
+        raise NotImplementedError()
+        # lc = LoadCase.from_json(file_path)
+        # point_load, uniform_element_load, include_self_weight = \
+        #     read_load_case_json(file_path)
+        # return point_load, uniform_element_load, include_self_weight
 
     #######################
     # Output write
@@ -172,4 +146,3 @@ class StiffnessBase(object):
             warnings.warn('No material assigned for element tag |{}|, using the default tag'.format(e_tag))
             mat = self._materials[None]
         return mat
-

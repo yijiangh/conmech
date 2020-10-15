@@ -17,18 +17,15 @@ StiffnessChecker
     StiffnessChecker
 
 
-File IO
+Data IO
 -------
-
-Parsing / saving frame structures from json files 
 
 .. autosummary::
     :toctree: generated/
     :nosignatures:
 
-    read_frame_json
-    write_frame_json
-    read_load_case_json
+    Model
+    LoadCase
 
 Result IO
 ----------
@@ -46,9 +43,8 @@ Parsing / saving analsis results from json files
 from __future__ import absolute_import
 
 from .stiffness_checker import *
-from .frame_file_io import *
-# from .result_compare_utils import *
-from .numpy_stiffness import *
 from .io_base import *
+# from .result_compare_utils import *
+# from .numpy_stiffness import *
 
 __all__ = [name for name in dir() if not name.startswith('_')]

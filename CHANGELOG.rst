@@ -13,11 +13,13 @@ Unreleased
 
 **added**
 
+- Added `Model` and `LoadCase` classes
 - Added element information to `ValueError` when encountering zero-length line element
 - Added print out attributes to `Node` and `Element`
 
 **changed**
 
+- Changed `StiffnessBase`'s `__init__` from inputting `nodes, elements, ...` to `Model`
 - Moved `get_element_crossec` and `get_element_material` from `NumpyStiffness` to `StiffnessBase`
 
 **removed**

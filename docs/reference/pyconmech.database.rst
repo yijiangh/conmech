@@ -1,2 +1,0 @@
-
-.. automodule:: pyconmech.database

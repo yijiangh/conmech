@@ -23,8 +23,7 @@ try:
 except ImportError:
     pass
 from .numpy_stiffness import NumpyStiffness
-from pyconmech.frame_analysis.frame_file_io import read_frame_json
-from pyconmech.frame_analysis.io_base import GravityLoad
+from pyconmech.frame_analysis.io_base import GravityLoad, Model
 
 class StiffnessChecker(object):
     """stiffness checking instance for 3D frame deformation analysis
@@ -33,28 +32,13 @@ class StiffnessChecker(object):
     
     """
 
-    def __init__(self, nodes=None, elements=None, supports=None, materials=None, crosssecs=None, joints=None,
-        unit='meter', model_name=None, verbose=False, checker_engine=DEFAULT_ENGINE):
+    def __init__(self, model, verbose=False, checker_engine=DEFAULT_ENGINE):
         """Constructor of the StiffnessChecker
 
         Parameters
         ----------
-        nodes : a list of `io_base.Node`, optional
-            [description], by default None
-        elements : a list of `io_base.Element`, optional
-            [description], by default None
-        supports : a list of `io_base.Support`, optional
-            [description], by default None
-        materials : a list of `io_base.Material`, optional
-            [description], by default None
-        crosssecs : a list of `io_base.CrossSec`, optional
-            [description], by default None
-        joints : a list of `io_base.Joint`, optional
-            [description], by default None
-        unit : str, optional
-            [description], by default 'meter'
-        model_name : [type], optional
-            [description], by default None
+        model : `io_base.Model`
+            the structural model
         verbose : bool, optional
             verbose output, by default False
         checker_engine : str, optional
@@ -69,7 +53,6 @@ class StiffnessChecker(object):
         RuntimeError
             [description]
         """
-        self._model_name = model_name or ''
         if checker_engine == 'cpp':
             assert CPP_AVAILABLE, 'cpp backend not compiled!'
             # fixities = np.array([[int(key)] + fix_dofs for key, fix_dofs in fix_specs.items()], dtype=np.int32)
@@ -77,7 +60,7 @@ class StiffnessChecker(object):
             #     material_dicts, verbose=verbose)
             raise NotImplementedError()
         elif checker_engine == 'numpy':
-            checker_engine_ins = NumpyStiffness(nodes, elements, supports, materials, crosssecs, joints, verbose, False, unit)
+            checker_engine_ins = NumpyStiffness(model, verbose=verbose)
         else:
             raise NotImplementedError('Engine not exist: {}'.format(checker_engine))
         self._sc_ins = checker_engine_ins
@@ -86,10 +69,8 @@ class StiffnessChecker(object):
         # self.set_self_weight_load(GravityLoad([0,0,-1]))
 
         # TODO For now, we keep two copies of the following data: one in this wrapper class, one in the solve instance
-        self._nodes = nodes or []
-        self._elements = elements or []
-        self._supports = self._sc_ins._supports
-        if not len(supports) > 0: 
+        self.model = model
+        if not len(model.supports) > 0: 
             #and all([len(fix_dofs) == 3 or len(fix_dofs) == 6 for fix_dofs in fix_specs.values()])):
             raise RuntimeError('there needs to be at least one support (fixed) vertex in the model!')
 
@@ -109,13 +90,8 @@ class StiffnessChecker(object):
         [type]
             [description]
         """
-        assert os.path.exists(json_file_path), "json file not exists!"
-        # * node point coordinate unit is converted to *meter* inside read_frame_json
-        nodes, elements, supports, joints, materials, crosssecs, model_name, unit = \
-            read_frame_json(json_file_path, verbose=verbose)
-        return cls(nodes=nodes, elements=elements, supports=supports, \
-                   materials=materials, joints=joints, crosssecs=crosssecs, verbose=verbose, \
-                   model_name=model_name, unit=unit, checker_engine=checker_engine)
+        # * node point coordinate unit is converted to *meter* inside Model
+        return cls(Model.from_json(json_file_path, verbose=verbose), checker_engine=checker_engine)
 
     # ==========================================================================
     # properties
@@ -123,15 +99,15 @@ class StiffnessChecker(object):
 
     @property
     def model_name(self):
-        return self._model_name
+        return self.model.model_name
 
     @property
     def node_points(self):
-        return np.array([n.point for n in self._nodes])
+        return np.array([n.point for n in self.model.nodes])
     
     @property
     def elements(self):
-        return [e.end_node_inds for e in self._elements]
+        return [e.end_node_inds for e in self.model.elements]
     
     @property
     def fix_node_ids(self):
@@ -141,7 +117,7 @@ class StiffnessChecker(object):
         -------
         list of int
         """
-        return list(self._supports.keys())
+        return list(self.model.supports.keys())
 
     @property
     def fix_element_ids(self):
@@ -167,7 +143,7 @@ class StiffnessChecker(object):
         dict
             ``{node_id : fixity condition}``, where ``fixity_spec`` is a 6-dof Boolean list to specify dof fixed (1) or free(0), by default None
         """
-        return {s.node_ind : s.condition for s in self._supports}
+        return self.model.supports
 
     # ==========================================================================
     # solve functions
@@ -592,6 +568,7 @@ class StiffnessChecker(object):
         return self.get_result_data(False)
 
     def get_result_data(self, output_frame_transf=False):
+        # TODO use AnalysisResult class
         if not self.has_stored_result():
             print('no result to output!')
             return None

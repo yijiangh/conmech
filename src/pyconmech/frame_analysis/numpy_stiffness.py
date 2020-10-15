@@ -29,23 +29,11 @@ AREA_INERTIA_UNIT = LENGTH_UNIT + "4"
 PRESSURE_UNIT = FORCE_UNIT + "/" + LENGTH_UNIT + "2"; # "kN/m^2" modulus
 DENSITY_UNIT  = FORCE_UNIT + "/" + LENGTH_UNIT + "3"; # "kN/m^3"
 
-LENGTH_CONVERSION = {
-    'meter' : 1.0,
-    'millimeter' : 1e-3,
-}
-
 ############################################
 
 class NumpyStiffness(StiffnessBase):
-    def __init__(self, nodes, elements, supports, materials, crosssecs, 
-        joints=None, verbose=False, output_json=False, unit='meter'):
-        assert unit in LENGTH_CONVERSION
-        scale = LENGTH_CONVERSION[unit]
-        for node in nodes:
-            node.point = scale*np.array(node.point)
-
-        super(NumpyStiffness, self).__init__(nodes, elements, 
-            supports, materials, crosssecs, joints, verbose, output_json)
+    def __init__(self, model, verbose=False, output_json=False):
+        super(NumpyStiffness, self).__init__(model, verbose, output_json)
 
         # default displacement tolerance
         self._trans_tol = 1e-3
@@ -421,8 +409,8 @@ class NumpyStiffness(StiffnessBase):
         # element_lumped_nload_list = {}
         for e_ind, w_G in e_load_density_from_ind.items():
             end_u_id, end_v_id = self._elements[e_ind].end_node_inds
-            end_u = self._nodes[end_u_id].point 
-            end_v = self._nodes[end_v_id].point
+            end_u = np.array(self._nodes[end_u_id].point)
+            end_v = np.array(self._nodes[end_v_id].point)
             L = norm(end_u-end_v)
             try:
                 R3 = global2local_transf_matrix(end_u, end_v)
@@ -587,8 +575,8 @@ class NumpyStiffness(StiffnessBase):
             element = self._elements[i]
             e_tag = element.elem_tag
             end_u_id, end_v_id = element.end_node_inds
-            end_u = self._nodes[end_u_id].point
-            end_v = self._nodes[end_v_id].point
+            end_u = np.array(self._nodes[end_u_id].point)
+            end_v = np.array(self._nodes[end_v_id].point)
             L = norm(end_u-end_v)
 
             cr1 = [np.inf for _ in range(3)]
