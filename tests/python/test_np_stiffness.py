@@ -11,11 +11,10 @@ from scipy.sparse import csc_matrix
 from matplotlib import pyplot as plt
 from scipy.sparse import find
 
-from pyconmech.frame_analysis import create_local_stiffness_matrix, global2local_transf_matrix, \
-    assemble_global_stiffness_matrix
+from pyconmech.frame_analysis.numpy_stiffness_assembly import create_local_stiffness_matrix, global2local_transf_matrix, \
+    assemble_global_stiffness_matrix, bending_stiffness_matrix, axial_stiffness_matrix, turn_diagblock
 from pyconmech.frame_analysis.visualization import get_element_shape_fn, get_internal_reaction_fn
-from pyconmech.frame_analysis.numpy_stiffness import bending_stiffness_matrix, axial_stiffness_matrix, \
-    turn_diagblock
+    
 from pyconmech.frame_analysis.io_base import mu2G, G2mu
 from pyconmech import StiffnessChecker
 from pyconmech.frame_analysis.frame_file_io import read_load_case_json

@@ -102,11 +102,13 @@ def read_frame_json(file_path, verbose=False, strict_check=True):
     assert os.path.exists(file_path) and "json file path does not exist!"
     with open(file_path, 'r') as f:
         json_data = json.loads(f.read())
-    
+    model_name = json_data['model_name'] if 'model_name' in json_data else extract_model_name_from_path(file_path)
+    return read_frame_data(json_data, model_name=model_name, verbose=verbose, strict_check=strict_check)
+
+def read_frame_data(json_data, model_name=None, verbose=False, strict_check=True):
     unit = json_data['unit']
     # length scale for vertex positions
     scale = LENGTH_SCALE_CONVERSION[unit]
-    model_name = json_data['model_name'] if 'model_name' in json_data else extract_model_name_from_path(file_path)
 
     # * nodal positions
     nodes = parse_nodes(json_data['nodes'], scale=scale)
@@ -160,69 +162,9 @@ def read_frame_json(file_path, verbose=False, strict_check=True):
    
     return nodes, elements, supports, joints, materials, crosssecs, model_name, unit
 
-
-def write_frame_json(file_path, 
-    nodes, elements, supports, joints, materials, crosssecs, model_name, unit):
-    # nodes, elements, fixity_specs, material_dicts,
-    # unif_cross_sec=False, unif_material=False, unit=None, model_type='frame', model_name=None, indent=None, check_material=True):
-    raise NotImplementedError()
-
-    # data = OrderedDict()
-    # data['model_name'] = model_name if model_name else extract_model_name_from_path(file_path)
-    # data['model_type'] = model_type
-    # if not unit:
-    #     print('WARNING: No unit is given in write_frame_json: assuming meter.')
-    #     unit = 'meter'
-    # else:
-    #     assert unit in LENGTH_SCALE_CONVERSION, 'length unit not supported! please use {}'.format(LENGTH_SCALE_CONVERSION.keys())
-    # data['unit'] = unit
-    # data['generate_time'] = str(datetime.datetime.now())
-    # data['dimension'] = len(nodes[0])
-    # data['node_num'] = len(nodes)
-    # data['element_num'] = len(elements)
-    # data['uniform_cross_section'] = unif_cross_sec
-    # data['uniform_material_properties'] = unif_material
-    # if unif_cross_sec and unif_material:
-    #     data['material_properties'] = material_dicts[0] if isinstance(material_dicts, list) else material_dicts
-    #     if check_material: assert(check_material_dict(data['material_properties']))
-    # else:
-    #     data['material_properties'] = {}
-    #     if check_material:
-    #         for mat_dict in material_dicts:
-    #             assert(check_material_dict(mat_dict))
-    #     assert(len(material_dicts) == len(elements))
-
-    # data['node_list'] = []
-    # for i, node in enumerate(nodes):
-    #     assert len(node) == data['dimension'], 'node coordinate not in the same dimension!'
-    #     node_data = OrderedDict()
-    #     node_data['point'] = OrderedDict()
-    #     node_data['point']['X'] = node[0] * LENGTH_SCALE_CONVERSION[unit]
-    #     node_data['point']['Y'] = node[1] * LENGTH_SCALE_CONVERSION[unit]
-    #     if data['dimension'] == 3:
-    #         node_data['point']['Z'] = node[2] * LENGTH_SCALE_CONVERSION[unit]
-    #     node_data['node_id'] = i
-    #     node_data['is_grounded'] = i in fixity_specs
-    #     if fixity_specs:
-    #         node_data['fixities'] = fixity_specs[i] if node_data['is_grounded'] else []
-    #     else:
-    #         node_data['fixities'] = [1] * 6 if node_data['is_grounded'] else []
-    #     data['node_list'].append(node_data)
-
-    # data['element_list'] = []
-    # for i, element in enumerate(elements):
-    #     element_data = OrderedDict()
-    #     element_data['end_node_ids'] = list([int(v) for v in element])
-    #     element_data['element_id'] = i
-    #     element_data['material_properties'] = {} if unif_cross_sec and unif_material else material_dicts[i]
-    #     data['element_list'].append(element_data)
-
-    # with open(file_path, 'w+') as outfile:
-    #     if indent:
-    #         json.dump(data, outfile, indent=indent)
-    #     else:
-    #         json.dump(data, outfile)
-
+def frame_to_data(nodes, elements, supports, joints, materials, crosssecs, model_name):
+    data = OrderedDict()
+    return data
 
 def read_load_case_json(file_path):
     """Read load case from a json file.

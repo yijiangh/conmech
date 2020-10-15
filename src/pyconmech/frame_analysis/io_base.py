@@ -1,11 +1,34 @@
+import datetime
+
 class Model(object):
-    def __init__(self, nodes, elements, supports, joints, crosssecs, materials):
+    def __init__(self, nodes, elements, supports, joints, materials, crosssecs, model_name=None):
+        self.model_name = model_name
+        self.generate_time = str(datetime.datetime.now())
         self.nodes = nodes
         self.elements = elements
         self.supports = supports
         self.joints = joints
         self.crosssecs = crosssecs
         self.materials = materials
+
+    @property
+    def node_num(self):
+        return len(self.nodes)
+
+    @property
+    def element_num(self):
+        return len(self.elements)
+
+    @classmethod
+    def from_data(cls, data):
+        from pyconmech.frame_analysis.frame_file_io import read_frame_data
+        nodes, elements, supports, joints, materials, crosssecs, model_name, unit = read_frame_data(data)
+        return cls(nodes, elements, supports, joints, materials, crosssecs, model_name=model_name)
+
+    def to_data(self):
+        from pyconmech.frame_analysis.frame_file_io import frame_to_data
+        return frame_to_data(self.nodes, self.elements, self.supports, self.joints, self.materials, self.crosssecs, self.model_name)
+
 
 class Node(object):
     def __init__(self, point, node_ind, is_grounded):
