@@ -65,7 +65,7 @@ to conmech:
 The easiest way to generate the model JSON file by exporting from a `Karamba3D`_ model in `Rhino-Grasshopper`_. 
 A `example GH export file <https://github.com/yijiangh/conmech/tree/master/examples/gh_scripts/karamba/export_from_karamba.gh>`_ is provided:
 
-.. image:: ./examples/gh_scripts/karamba/karamba_model_export.png
+.. image:: ./examples/gh_scripts/karamba/images/karamba_model_export.png
     :width: 200px
     :align: center
     :target: https://coveralls.io/github/yijiangh/conmech?branch=master
