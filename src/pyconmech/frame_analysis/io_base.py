@@ -141,17 +141,18 @@ class Model(object):
         return data
 
 class LoadCase(object):
-    def __init__(self, point_loads, uniform_element_loads, gravity_load):
-        self.point_loads = point_loads
-        self.uniform_element_loads = uniform_element_loads
+    def __init__(self, point_loads=None, uniform_element_loads=None, gravity_load=None):
+        self.point_loads = point_loads or []
+        self.uniform_element_loads = uniform_element_loads or []
         self.gravity_load = gravity_load
 
     @classmethod
-    def from_json(cls, file_path):
+    def from_json(cls, file_path, lc_ind=0):
         assert os.path.exists(file_path) and "json file path does not exist!"
         with open(file_path, 'r') as f:
             json_data = json.loads(f.read())
-        return cls.from_data(json_data)
+        json_data = json_data['loadcases'] if 'loadcases' in json_data else json_data
+        return cls.from_data(json_data[str(lc_ind)])
     
     @classmethod
     def from_data(cls, data):
@@ -163,8 +164,13 @@ class LoadCase(object):
     def to_data(self):
         data = {'ploads' : [pl.to_data() for pl in self.point_loads],
                 'eloads' : [el.to_data() for el in self.uniform_element_loads],
-                'gravity' : self.gravity_load.to_data()}
+                'gravity' : self.gravity_load.to_data() if self.gravity_load is not None else None
+                }
         return data
+
+    def __repr__(self):
+        return '{}(#pl:{},#el:{},gravity:{})'.format(self.__class__.__name__, len(self.point_loads), 
+            len(self.uniform_element_loads), self.gravity_load)
 
 ##############################################
 
@@ -268,8 +274,8 @@ class CrossSec(object):
         }
 
     def __repr__(self):
-        return 'family:{} name:{} area:{}[m2] Jx:{}[m4] Iy:{}[m4] Iz:{}[m4] applies to elements:{}'.format(
-            self.family, self.name, self.A, self.Jx, self.Iy, self.Iz, self.elem_tags)
+        return '{}(family:{} name:{} area:{}[m2] Jx:{}[m4] Iy:{}[m4] Iz:{}[m4] applies to elements:{})'.format(
+            self.__class__.__name__, self.family, self.name, self.A, self.Jx, self.Iy, self.Iz, self.elem_tags)
 
 def mu2G(mu, E):
     """compute shear modulus from poisson ratio mu and Youngs modulus E
@@ -283,10 +289,14 @@ def G2mu(G, E):
 
 # TODO: assumed to be converted to kN/m2, kN/m3
 class Material(object):
-    def __init__(self, E, G12, fy, density, elem_tags=None, family='unnamed', name='unnamed', type_name='ISO'):
+    def __init__(self, E, G12, fy, density, elem_tags=None, family='unnamed', name='unnamed', type_name='ISO', G3=None):
         self.E = E
+        # in-plane shear modulus 
         self.G12 = G12
+        # transverse shear modulus
+        self.G3 = G3 or G12
         self.mu = G2mu(G12, E)
+        # material strength in the specified direction (local x direction)
         self.fy = fy
         self.density = density
         self.elem_tags = elem_tags if elem_tags else [None]
@@ -296,12 +306,13 @@ class Material(object):
 
     @classmethod
     def from_data(cls, data):
-        return cls(data['E'], data['G12'], data['fy'], data['density'], data['elem_tags'], data['family'], data['name'], data['type_name'])
+        return cls(data['E'], data['G12'], data['fy'], data['density'], data['elem_tags'], data['family'], data['name'], data['type_name'], data.get('G3', None))
 
     def to_data(self):
         return  {
             'E' : self.E,
             'G12' : self.G12,
+            'G3' : self.G3,
             'mu' : self.mu,
             'fy' : self.fy,
             'density' : self.density,
@@ -313,65 +324,76 @@ class Material(object):
 
     def __repr__(self):
         # G3:8076[kN/cm2]
-        return 'Material: |{}| E:{}[kN/m2] mu:{} G12:{}[kN/m2] density:{}[kN/m3] fy:{}[kN/m2] applies to elements:{}'.format(
-            self.family+'-'+self.name, self.E, self.mu, self.G12, self.density, self.fy, self.elem_tags)
+        return '{}(|{}| E:{}[kN/m2] mu:{} G12:{}[kN/m2] G3:{}[kN/m2] density:{}[kN/m3] fy:{}[kN/m2] applies to elements:{})'.format(
+            self.__class__.__name__, self.family+'-'+self.name, self.E, self.mu, self.G12, self.G3, self.density, self.fy, self.elem_tags)
 
 class PointLoad(object):
-    def __init__(self, force, moment, node_ind):
+    def __init__(self, force, moment, node_ind, loadcase=0):
         self.force = force
         self.moment = moment
         self.node_ind = node_ind
+        self.loadcase = loadcase
 
     @classmethod
     def from_data(cls, data):
-        return cls(data['force'], data['moment'], data['node_ind'])
+        lc_ind = 0 if 'loadcase' not in data else data['loadcase']
+        return cls(data['force'], data['moment'], data['node_ind'], lc_ind)
 
     def to_data(self):
         return {
             'force' : self.force,
             'moment' : self.moment,
             'node_ind' : self.node_ind,
+            'loadcase' : self.loadcase,
         }
 
     def __repr__(self):
-        return 'Pointload: node_ind {} | force {} | moment {}'.format(self.node_ind, self.force, self.moment)
+        return '{}(node_ind {} | force {} | moment {} | lc#{})'.format(self.__class__.__name__, self.node_ind, self.force, self.moment, self.loadcase)
 
 class UniformlyDistLoad(object):
-    def __init__(self, q, load, elem_tags):
+    def __init__(self, q, load, elem_tags, loadcase=0):
         self.q = q
         # not sure if load is used in Karamba, we only use q here
         self.load = load
         self.elem_tags = elem_tags
+        self.loadcase = loadcase
 
     @classmethod
     def from_data(cls, data):
-        return cls(data['q'], data['load'], data['elem_tags'])
+        lc_ind = 0 if 'loadcase' not in data else data['loadcase']
+        return cls(data['q'], data['load'], data['elem_tags'], lc_ind)
 
     def to_data(self):
         return {
             'q' : self.q,
             'load' : self.load,
             'elem_tags' : self.elem_tags,
+            'loadcase' : self.loadcase,
         }
 
     def __repr__(self):
-        return 'UniformlyDistLoad: element_tags {} | q {} | load {}'.format(self.elem_tags, self.q, self.load)
+        return '{}(element_tags {} | q {} | load {} | lc#{})'.format(self.__class__.__name__, 
+            self.elem_tags, self.q, self.load, self.loadcase)
 
 class GravityLoad(object):
-    def __init__(self, force=[0,0,-1]):
+    def __init__(self, force=[0,0,-1], loadcase=0):
         self.force = force
+        self.loadcase = loadcase
+        self.loadcase = loadcase
 
     @classmethod
     def from_data(cls, data):
-        return cls(data['force'])
+        lc_ind = 0 if 'loadcase' not in data else data['loadcase']
+        return cls(data['force'], lc_ind)
 
     def to_data(self):
         return {
             'force' : self.force,
+            'loadcase' : self.loadcase,
         }
 
     def __repr__(self):
-        return 'GravityLoad: {}'.format(self.force)
+        return '{}({}, lc#{})'.format(self.__class__.__name__, self.force, self.loadcase)
 
 ##########################################
 

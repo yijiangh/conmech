@@ -184,7 +184,7 @@ class StiffnessChecker(object):
     # load settings
     # ==========================================================================
 
-    def set_loads(self, point_loads=None, uniform_distributed_load=None, gravity_load=None):
+    def set_loads(self, loadcase):
         """set load case for the stiffness checker.
         
         Parameters
@@ -196,24 +196,30 @@ class StiffnessChecker(object):
         gravity_load : `GravityLoad`, optional
             include gravity load or not, by default None
         """
-        self.set_self_weight_load(gravity_load)
-        if point_loads is not None and len(point_loads)!=0:
+        self.set_self_weight_load(loadcase.gravity_load)
+
+        point_loads = loadcase.point_loads
+        if point_loads is not None and len(point_loads) > 0:
             pt_loads = {}
             for pload in point_loads:
                 pt_loads[pload.node_ind] = pload
-            self._sc_ins.set_load(pt_loads)
         else:
-            self._sc_ins.set_load(None)
-        if uniform_distributed_load is not None:
+            # reset
+            pt_loads = None
+        self._sc_ins.set_load(pt_loads)
+
+        uniform_distributed_load = loadcase.uniform_distributed_load
+        if uniform_distributed_load is not None and len(uniform_distributed_load) > 0:
             ud_loads = {}
             for eload in uniform_distributed_load:
                 if len(eload.elem_tags) == 0:
                     eload.elem_tags = [""]
                 for e_tag in eload.elem_tags:
                     ud_loads[e_tag] = eload
-            self._sc_ins.set_uniformly_distributed_loads(ud_loads)
         else:
-            self._sc_ins.set_uniformly_distributed_loads(None)
+            # reset
+            ud_loads = None
+        self._sc_ins.set_uniformly_distributed_loads(ud_loads)
 
     def set_self_weight_load(self, gravity_load):
         """Turn on/off self-weight load.
