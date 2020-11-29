@@ -30,6 +30,7 @@ import KarambaCommon
 import System
 from System import GC
 from System.Collections.Generic import List
+from System.Drawing import Color
 
 ####################################
 
@@ -89,7 +90,7 @@ class KarambaCrossSec(CrossSec):
         beam_mod.Ipp = self.Jx
         beam_mod.Iyy = self.Iy
         beam_mod.Izz = self.Iz
-        beam_mod.elemIds = List[str](self.elem_tags)
+        beam_mod.elemIds = List[str]([tag for tag in self.elem_tags if tag is not None])
         beam_mod.family = self.family
         beam_mod.name = self.name
         return beam_mod
@@ -104,9 +105,10 @@ class KarambaMaterialIsotropic(Material):
     def to_karamba(self):
         steel_alphaT = 1e-5 #1/deg
         km = Karamba.Materials.FemMaterial_Isotrop(
-	        self.family, self.name, self.E, self.G12, self.G3, self.density, self.fy, steel_alphaT, None)
+	        self.family, self.name, self.E, self.G12, self.G3, self.density, self.fy, steel_alphaT, None) #Color.FromName("SlateBlue")
         for tag in self.elem_tags:
-            km.AddBeamId(tag)
+            if tag is not None:
+                km.AddBeamId(tag)
         return km
 
 class KarambaPointLoad(PointLoad):
@@ -114,7 +116,7 @@ class KarambaPointLoad(PointLoad):
     def from_karamba(cls, kpl):
         pass
 
-    def to_karamba(self, corotate=True):
+    def to_karamba(self, corotate=False):
         # corotate = true the pointload corotates with the node
         pl = Karamba.Loads.PointLoad(self.node_ind, Vector3(*self.force), Vector3(*self.moment), corotate)
         pl.loadcase = self.loadcase
@@ -126,7 +128,8 @@ class KarambaUniformlyDistLoad(UniformlyDistLoad):
         pass
 
     def to_karamba(self):
-        ul = Karamba.Loads.UniformlyDistLoad(List[str](self.elem_tags), Vector3(*self.q), Karamba.Loads.LoadOrientation.global, self.loadcase)
+        # Karamba.Loads.LoadOrientation.global
+        ul = Karamba.Loads.UniformlyDistLoad(List[str](self.elem_tags), Vector3(*self.q), 0, self.loadcase)
         return ul
 
 class KarambaGravityLoad(GravityLoad):
@@ -161,20 +164,6 @@ class KarambaModel(Model):
         pass
 
     def to_karamba(self, loadcase, limit_dist=1e-6):
-        # logger = MessageLogger();
-        # k3d = KarambaCommon.Toolkit();
-        # e_lines = List[Line3]([Line3(self.nodes[e.end_node_inds[0]].to_karamba(type='Point3'), 
-        #                              self.nodes[e.end_node_inds[1]].to_karamba(type='Point3')) for e in self.elements])
-        # clr trick to handle C# out parameter
-        # https://ironpython.net/documentation/dotnet/dotnet.html#id52
-        # out_nodes = clr.Reference[List[Point3]]()
-        # elems = k3d.Part.LineToBeam(e_lines, List[str](["B1"]), 
-        #     List[Karamba.CrossSections.CroSec](), logger, out_nodes);
-        # pload = k3d.Load.PointLoad(1, Vector3(0, 0, -10), Vector3());
-        # ploads = List[Karamba.Loads.Load]([pload]);
-        # model = k3d.Model.AssembleModel(elems, supports, ploads,
-        #     info, mass, cog, msg, warning_flag);
-
         mass = clr.Reference[float]()
         cog = clr.Reference[Point3]()
         warning_flag = clr.Reference[bool]()
@@ -186,12 +175,13 @@ class KarambaModel(Model):
         in_elems = List[Karamba.Elements.BuilderElement]([e.to_karamba(type='builderbeam') for e in self.elements])
         in_supports = List[Karamba.Supports.Support]([s.to_karamba() for _, s in self.supports.items()])
 
-        # in_crosecs = List[Karamba.CrossSections.CroSec]([cs.to_karamba() for _, cs in self.crosssecs.items()])
-        # in_materials = List[Karamba.Materials.FemMaterial]([m.to_karamba() for _, m in self.materials.items()])
-        # in_joints = List[Karamba.Joints.Joint]([j.to_karamba() for _, j in self.joints.items()])
-        in_crosecs = List[Karamba.CrossSections.CroSec]([])
-        in_materials = List[Karamba.Materials.FemMaterial]([])
-        in_joints = List[Karamba.Joints.Joint]([])
+        # in_crosecs = List[Karamba.CrossSections.CroSec]([])
+        # in_materials = List[Karamba.Materials.FemMaterial]([])
+        # in_joints = List[Karamba.Joints.Joint]([])
+
+        in_crosecs = List[Karamba.CrossSections.CroSec]([cs.to_karamba() for _, cs in self.crosssecs.items()])
+        in_materials = List[Karamba.Materials.FemMaterial]([m.to_karamba() for _, m in self.materials.items()])
+        in_joints = List[Karamba.Joints.Joint]([j.to_karamba() for _, j in self.joints.items()])
 
         in_loads = List[Karamba.Loads.Load]()
         kpoint_loads = [KarambaPointLoad.from_data(pl.to_data()) for pl in loadcase.point_loads]
@@ -226,4 +216,4 @@ class KarambaModel(Model):
         # cm = ucf.cm();
         # print("max disp: {} {}".format(cm.toUnit(max_disp.Value[0]), cm.unitB))
 
-        return kmodel
+        return kmodel.Value
