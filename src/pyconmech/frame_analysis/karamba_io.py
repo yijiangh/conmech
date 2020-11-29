@@ -105,7 +105,8 @@ class KarambaMaterialIsotropic(Material):
         steel_alphaT = 1e-5 #1/deg
         km = Karamba.Materials.FemMaterial_Isotrop(
 	        self.family, self.name, self.E, self.G12, self.G3, self.density, self.fy, steel_alphaT, None)
-        km.elemIds = List[str](self.elem_tags)
+        for tag in self.elem_tags:
+            km.AddBeamId(tag)
         return km
 
 class KarambaPointLoad(PointLoad):
@@ -115,7 +116,9 @@ class KarambaPointLoad(PointLoad):
 
     def to_karamba(self, corotate=True):
         # corotate = true the pointload corotates with the node
-        return Karamba.Loads.PointLoad(self.node_ind, Vector3(*self.force), Vector3(*self.moment), corotate)
+        pl = Karamba.Loads.PointLoad(self.node_ind, Vector3(*self.force), Vector3(*self.moment), corotate)
+        pl.loadcase = self.loadcase
+        return pl
 
 class KarambaUniformlyDistLoad(UniformlyDistLoad):
     @classmethod
@@ -123,7 +126,8 @@ class KarambaUniformlyDistLoad(UniformlyDistLoad):
         pass
 
     def to_karamba(self):
-        return Karamba.Loads.UniformlyDistLoad(self.node_ind, Vector3(*self.force), Vector3(*self.moment), corotate)
+        ul = Karamba.Loads.UniformlyDistLoad(List[str](self.elem_tags), Vector3(*self.q), Karamba.Loads.LoadOrientation.global, self.loadcase)
+        return ul
 
 class KarambaGravityLoad(GravityLoad):
     @classmethod
@@ -131,7 +135,7 @@ class KarambaGravityLoad(GravityLoad):
         pass
 
     def to_karamba(self):
-        pass
+        return Karamba.Loads.GravityLoad(Vector3(*self.force), self.loadcase)
 
 ####################################
 
@@ -140,10 +144,10 @@ class KarambaModel(Model):
     def from_model(cls, model):
         knodes = [KarambaNode.from_data(n.to_data()) for n in model.nodes]
         kelements = [KarambaElement.from_data(e.to_data()) for e in model.elements]
-        ksupports = {k : KarambaSupport.from_data(s.to_data()) for k, s in model.supports}
-        kjoints = {k : KarambaJoint.from_data(j.to_data()) for k, j in model.joints}
-        kmaterials = {k : KarambaMaterialIsotropic.from_data(m.to_data()) for k, m in model.materials}
-        kcrosssecs = {k : KarambaCrossSec.from_data(cs.to_data()) for k, cs in model.crosssecs}
+        ksupports = [KarambaSupport.from_data(s.to_data()) for s in model.supports.values()]
+        kjoints = [KarambaJoint.from_data(j.to_data()) for j in model.joints.values()]
+        kmaterials = [KarambaMaterialIsotropic.from_data(m.to_data()) for m in model.materials.values()]
+        kcrosssecs = [KarambaCrossSec.from_data(cs.to_data()) for cs in model.crosssecs.values()]
         return cls(knodes, kelements, ksupports, kjoints, kmaterials, kcrosssecs, 
             unit=model.unit, model_name=model.model_name)
 
@@ -176,18 +180,20 @@ class KarambaModel(Model):
         warning_flag = clr.Reference[bool]()
         info = clr.Reference[str]()
         msg = clr.Reference[str]()
-
         kmodel = clr.Reference[Karamba.Models.Model]()
 
-        in_points = List<Point3>([n.to_karamba(type='Point3') for n in self.nodes])
-        in_elems = List<Karamba.Elements.BuilderElement>([e.to_karamba(type='builderbeam') for e in self.elements])
-        in_supports = List<Karamba.Supports.Support>([s.to_karamba() for _, s in self.supports.items()])
+        in_points = List[Point3]([n.to_karamba(type='Point3') for n in self.nodes])
+        in_elems = List[Karamba.Elements.BuilderElement]([e.to_karamba(type='builderbeam') for e in self.elements])
+        in_supports = List[Karamba.Supports.Support]([s.to_karamba() for _, s in self.supports.items()])
 
-        in_crosecs = List<Karamba.CrossSections.CroSec>([cs.to_karamba() for _, cs in self.crosssecs.items()])
-        in_materials = List<Karamba.Materials.FemMaterial>([m.to_karamba() for _, m in self.materials.items()])
-        in_joints = List<Karamba.Joints.Joint>([j.to_karamba() for _, j in self.joints.items()])
+        # in_crosecs = List[Karamba.CrossSections.CroSec]([cs.to_karamba() for _, cs in self.crosssecs.items()])
+        # in_materials = List[Karamba.Materials.FemMaterial]([m.to_karamba() for _, m in self.materials.items()])
+        # in_joints = List[Karamba.Joints.Joint]([j.to_karamba() for _, j in self.joints.items()])
+        in_crosecs = List[Karamba.CrossSections.CroSec]([])
+        in_materials = List[Karamba.Materials.FemMaterial]([])
+        in_joints = List[Karamba.Joints.Joint]([])
 
-        in_loads = List<Karamba.Loads.Load>()
+        in_loads = List[Karamba.Loads.Load]()
         kpoint_loads = [KarambaPointLoad.from_data(pl.to_data()) for pl in loadcase.point_loads]
         kelem_loads = [KarambaUniformlyDistLoad.from_data(pl.to_data()) for pl in loadcase.uniform_element_loads]
         in_loads.AddRange([pl.to_karamba() for pl in kpoint_loads])
@@ -203,7 +209,7 @@ class KarambaModel(Model):
         	in_loads,
         	in_crosecs,
         	in_materials,
-        	List<Karamba.Elements.ElemSet>([]),
+        	List[Karamba.Elements.ElemSet]([]),
         	in_joints,
         	limit_dist,
             # out

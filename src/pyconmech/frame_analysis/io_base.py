@@ -379,7 +379,6 @@ class GravityLoad(object):
     def __init__(self, force=[0,0,-1], loadcase=0):
         self.force = force
         self.loadcase = loadcase
-        self.loadcase = loadcase
 
     @classmethod
     def from_data(cls, data):
