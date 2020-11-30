@@ -2,7 +2,7 @@ import os
 import json
 import datetime
 import warnings
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 '''length scale conversion to meter'''
 LENGTH_SCALE_CONVERSION = {
@@ -128,16 +128,16 @@ class Model(object):
         return cls(nodes, elements, supports, joints, materials, crosssecs, model_name=model_name)
 
     def to_data(self):
-        data = {'model_name' : self.model_name,
-                'unit' : self.unit,
-                'generate_time' : self.generate_time,
-                'nodes' : [n.to_data() for n in self.nodes],
-                'elements' : [e.to_data() for e in self.elements],
-                'supports' : [s.to_data() for s in self.supports.values()],
-                'joints' : [j.to_data() for j in self.joints.values()],
-                'materials' : [m.to_data() for m in self.materials.values()],
-                'cross_secs' : [cs.to_data() for cs in self.crosssecs.values()],
-                }
+        data = OrderedDict()
+        data['model_name'] = self.model_name
+        data['unit'] = self.unit
+        data['generate_time'] = self.generate_time
+        data['nodes'] = [n.to_data() for n in self.nodes]
+        data['elements'] = [e.to_data() for e in self.elements]
+        data['supports'] = [s.to_data() for s in self.supports.values()]
+        data['joints'] = [j.to_data() for j in self.joints.values()]
+        data['materials'] = [m.to_data() for m in self.materials.values()]
+        data['cross_secs'] = [cs.to_data() for cs in self.crosssecs.values()]
         return data
 
 class LoadCase(object):

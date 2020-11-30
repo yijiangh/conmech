@@ -50,8 +50,8 @@ class KarambaNode(Node):
 
 class KarambaElement(Element):
     @classmethod
-    def from_karamba(cls, kelement, is_grounded=False):
-        return cls(kelement.node_inds, kelement.ind, elem_tag=kelement.id, 
+    def from_karamba(cls, kelement):
+        return cls(list(kelement.node_inds), kelement.ind, elem_tag=kelement.id, 
             bending_stiff=kelement.bending_stiff)
 
     def to_karamba(self, type='builderbeam'):
@@ -74,7 +74,7 @@ class KarambaSupport(Support):
 class KarambaJoint(Joint):
     @classmethod
     def from_karamba(cls, kjoint):
-        return cls(list(kjoint.c_condition(0)) + list(kjoint.c_condition(1)), kjoint.elemIds)
+        return cls(list(kjoint.c_condition(0)) + list(kjoint.c_condition(1)), list(kjoint.elemIds))
 
     def to_karamba(self):
         return Karamba.Supports.Support(self.node_ind, List[bool](self.condition), Plane3())
@@ -82,7 +82,7 @@ class KarambaJoint(Joint):
 class KarambaCrossSec(CrossSec):
     @classmethod
     def from_karamba(cls, kc):
-        return cls(kc.A, kc.Ipp, kc.Iyy, kc.Izz, elem_tags=kc.elemIds, family=kc.family, name=kc.name)
+        return cls(kc.A, kc.Ipp, kc.Iyy, kc.Izz, elem_tags=list(kc.elemIds), family=kc.family, name=kc.name)
 
     def to_karamba(self):
         beam_mod = Karamba.CrossSections.CroSec_BeamModifier()
@@ -90,7 +90,10 @@ class KarambaCrossSec(CrossSec):
         beam_mod.Ipp = self.Jx
         beam_mod.Iyy = self.Iy
         beam_mod.Izz = self.Iz
-        beam_mod.elemIds = List[str]([tag for tag in self.elem_tags if tag is not None])
+        # beam_mod.elemIds = List[str]([tag for tag in self.elem_tags if tag is not None])
+        for tag in self.elem_tags:
+            if tag is not None:
+                beam_mod.AddElemId(tag)
         beam_mod.family = self.family
         beam_mod.name = self.name
         return beam_mod
@@ -99,7 +102,7 @@ class KarambaMaterialIsotropic(Material):
     @classmethod
     def from_karamba(cls, km):
         assert km.typeName() == 'ISO', 'Input should be a Isotropic material!'
-        return cls(km.E(), km.G12(), km.fy(), km.gamma(), elem_tags=km.elemIds, 
+        return cls(km.E(), km.G12(), km.fy(), km.gamma(), elem_tags=list(km.elemIds), 
             family=km.family, name=km.name, type_name=km.typeName(), G3=km.G3())
 
     def to_karamba(self):
@@ -113,8 +116,9 @@ class KarambaMaterialIsotropic(Material):
 
 class KarambaPointLoad(PointLoad):
     @classmethod
-    def from_karamba(cls, kpl):
-        pass
+    def from_karamba(cls, kf):
+        return cls([kf.force.X, kf.force.Y, kf.force.Z], 
+                   [kf.moment.X, kf.moment.Y, kf.moment.Z], kf.node_ind, kf.loadcase)
 
     def to_karamba(self, corotate=False):
         # corotate = true the pointload corotates with the node
@@ -124,8 +128,9 @@ class KarambaPointLoad(PointLoad):
 
 class KarambaUniformlyDistLoad(UniformlyDistLoad):
     @classmethod
-    def from_karamba(cls, kpl):
-        pass
+    def from_karamba(cls, kf):
+        return cls([kf.Q.X, kf.Q.Y, kf.Q.Z], 
+                   [kf.Load.X, kf.Load.Y, kf.Load.Z], kf.beamIds, loadcase=kf.loadcase)
 
     def to_karamba(self):
         # Karamba.Loads.LoadOrientation.global
@@ -134,11 +139,51 @@ class KarambaUniformlyDistLoad(UniformlyDistLoad):
 
 class KarambaGravityLoad(GravityLoad):
     @classmethod
-    def from_karamba(cls, kpl):
-        pass
+    def from_karamba(cls, kf):
+        print kf
+        return cls([kf.force.X, kf.force.Y, kf.force.Z], kf.loadcase)
 
     def to_karamba(self):
         return Karamba.Loads.GravityLoad(Vector3(*self.force), self.loadcase)
+
+class KarambaLoadCase(LoadCase):
+    @classmethod
+    def from_loadcase(cls, loadcase):
+        kpoint_loads = [KarambaPointLoad.from_data(pl.to_data()) for pl in loadcase.point_loads]
+        kelem_loads = [KarambaUniformlyDistLoad.from_data(pl.to_data()) for pl in loadcase.uniform_element_loads]
+        kgravity_load = None
+        if loadcase.gravity_load is not None:
+            kgravity_load = KarambaGravityLoad.from_data(loadcase.gravity_load.to_data())
+        return cls(kpoint_loads, kelem_loads, kgravity_load)
+
+    @classmethod
+    def from_karamba(cls, km, lc=0):
+        assert lc < km.numLC
+        point_loads = []
+        for pl in km.ploads:
+            if pl.loadcase == lc:
+                point_loads.append(KarambaPointLoad.from_karamba(pl))
+
+        uniform_element_loads = []
+        for el in km.eloads:
+            if el.loadcase == lc and isinstance(el, Karamba.Loads.UniformlyDistLoad):
+                uniform_element_loads.append(KarambaUniformlyDistLoad.from_karamba(el))
+
+        gravity_load = None
+        k_grav = clr.Reference[Karamba.Loads.GravityLoad]()
+        km.gravities.TryGetValue(lc, k_grav)
+        if k_grav.Value is not None:
+            gravity_load = KarambaGravityLoad.from_karamba(k_grav.Value)
+        
+        return cls(point_loads, uniform_element_loads, gravity_load)
+
+    def to_karamba(self):
+        in_loads = List[Karamba.Loads.Load]()
+        in_loads.AddRange([pl.to_karamba() for pl in self.point_loads])
+        in_loads.AddRange([pl.to_karamba() for pl in self.uniform_element_loads])
+        if self.gravity_load is not None:
+            in_loads.Add(self.gravity_load.to_karamba())
+        return in_loads
 
 ####################################
 
@@ -160,8 +205,22 @@ class KarambaModel(Model):
         return cls.from_model(model)
 
     @classmethod
-    def from_karamba(cls, km):
-        pass
+    def from_karamba(cls, km, grounded_supports=None, model_name='', limit_distance=1e-6):
+        knodes = [KarambaNode.from_karamba(kn) for kn in km.nodes]
+        kelements = [KarambaElement.from_karamba(e) for e in km.elems]
+        ksupports = [KarambaSupport.from_karamba(s) for s in km.supports]
+        kjoints = [KarambaJoint.from_karamba(j) for j in km.joints]
+        kmaterials = [KarambaMaterialIsotropic.from_karamba(m) for m in km.materials]
+        kcrosssecs = [KarambaCrossSec.from_karamba(cs) for cs in km.crosecs]
+
+        if grounded_supports is not None:
+            for k_supp in km.supports:
+                for k_g in grounded_supports:
+                    if k_supp.position.DistanceTo(k_g.position) < limit_distance:
+                      knodes[k_supp.node_ind].is_grounded = True
+
+        return cls(knodes, kelements, ksupports, kjoints, kmaterials, kcrosssecs, 
+            unit="meter", model_name=model_name)
 
     def to_karamba(self, loadcase, limit_dist=1e-6):
         mass = clr.Reference[float]()
@@ -173,24 +232,17 @@ class KarambaModel(Model):
 
         in_points = List[Point3]([n.to_karamba(type='Point3') for n in self.nodes])
         in_elems = List[Karamba.Elements.BuilderElement]([e.to_karamba(type='builderbeam') for e in self.elements])
+        for e in in_elems:
+            eid = None if e.id not in self.crosssecs else e.id
+            e.crosec = self.crosssecs[eid].to_karamba()
         in_supports = List[Karamba.Supports.Support]([s.to_karamba() for _, s in self.supports.items()])
-
-        # in_crosecs = List[Karamba.CrossSections.CroSec]([])
-        # in_materials = List[Karamba.Materials.FemMaterial]([])
-        # in_joints = List[Karamba.Joints.Joint]([])
 
         in_crosecs = List[Karamba.CrossSections.CroSec]([cs.to_karamba() for _, cs in self.crosssecs.items()])
         in_materials = List[Karamba.Materials.FemMaterial]([m.to_karamba() for _, m in self.materials.items()])
         in_joints = List[Karamba.Joints.Joint]([j.to_karamba() for _, j in self.joints.items()])
 
-        in_loads = List[Karamba.Loads.Load]()
-        kpoint_loads = [KarambaPointLoad.from_data(pl.to_data()) for pl in loadcase.point_loads]
-        kelem_loads = [KarambaUniformlyDistLoad.from_data(pl.to_data()) for pl in loadcase.uniform_element_loads]
-        in_loads.AddRange([pl.to_karamba() for pl in kpoint_loads])
-        in_loads.AddRange([pl.to_karamba() for pl in kelem_loads])
-        if loadcase.gravity_load is not None:
-            kgravity_load = KarambaGravityLoad.from_data(loadcase.gravity_load.to_data())
-            in_loads.Add(kgravity_load)
+        kloadcase = KarambaLoadCase.from_loadcase(loadcase)
+        in_loads = kloadcase.to_karamba()
 
         Karamba.Models.AssembleModel.solve(
         	in_points,
@@ -204,6 +256,9 @@ class KarambaModel(Model):
         	limit_dist,
             # out
         	kmodel, info, mass, cog, msg, warning_flag)
+
+        if warning_flag.Value:
+            print('info {} | msg {}'.format(info.Value, msg.Value))
 
         # # calculate Th.I response
         # max_disp = clr.Reference[List[float]]()
