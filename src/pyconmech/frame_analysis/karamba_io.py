@@ -74,10 +74,15 @@ class KarambaSupport(Support):
 class KarambaJoint(Joint):
     @classmethod
     def from_karamba(cls, kjoint):
+        assert kjoint.dofs == 6
+        # condition is If null there is no joint for the corresponding DOF. 
         return cls(list(kjoint.c_condition(0)) + list(kjoint.c_condition(1)), list(kjoint.elemIds))
 
     def to_karamba(self):
-        return Karamba.Supports.Support(self.node_ind, List[bool](self.condition), Plane3())
+        jt = Karamba.Joints.Joint()
+        jt.elemIds = List[str](self.elem_tags)
+        jt.c = System.Array[System.Nullable[float]](self.c_conditions)
+        return jt
 
 class KarambaCrossSec(CrossSec):
     @classmethod
@@ -90,10 +95,11 @@ class KarambaCrossSec(CrossSec):
         beam_mod.Ipp = self.Jx
         beam_mod.Iyy = self.Iy
         beam_mod.Izz = self.Iz
-        # beam_mod.elemIds = List[str]([tag for tag in self.elem_tags if tag is not None])
-        for tag in self.elem_tags:
-            if tag is not None:
-                beam_mod.AddElemId(tag)
+        beam_mod.elemIds = List[str]([tag for tag in self.elem_tags if tag is not None])
+        # beam_mod.clearElemIds()
+        # for tag in self.elem_tags:
+        #     if tag is not None:
+        #         beam_mod.AddElemId(tag)
         beam_mod.family = self.family
         beam_mod.name = self.name
         return beam_mod
@@ -140,7 +146,6 @@ class KarambaUniformlyDistLoad(UniformlyDistLoad):
 class KarambaGravityLoad(GravityLoad):
     @classmethod
     def from_karamba(cls, kf):
-        print kf
         return cls([kf.force.X, kf.force.Y, kf.force.Z], kf.loadcase)
 
     def to_karamba(self):

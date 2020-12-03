@@ -582,8 +582,10 @@ class NumpyStiffness(StiffnessBase):
             cr1 = [np.inf for _ in range(3)]
             cr2 = [np.inf for _ in range(3)]
             if e_tag in self._joints:
-                cr1 = [np.inf if c is None else c for c in self._joints[e_tag].c_conditions[0]]
-                cr2 = [np.inf if c is None else c for c in self._joints[e_tag].c_conditions[1]]
+                assert all([c is None or c == np.inf for c in self._joints[e_tag].c_conditions[0:3]]) and \
+                    all([c is None or c == np.inf for c in self._joints[e_tag].c_conditions[6:9]]), "We do not support translational joint now!"
+                cr1 = [np.inf if c is None else c for c in self._joints[e_tag].c_conditions[3:6]]
+                cr2 = [np.inf if c is None else c for c in self._joints[e_tag].c_conditions[9:12]]
             if not element.bending_stiff:
                 cr1 = [0.0 for _ in range(3)]
                 cr2 = [0.0 for _ in range(3)]

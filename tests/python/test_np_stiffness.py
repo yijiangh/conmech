@@ -67,11 +67,9 @@ def test_2Dbeam_stiffness_matrix_parsed(test_data_dir, engine):
     load_path = os.path.join(test_data_dir, load_file_name)
 
     sc = StiffnessChecker.from_json(json_path, verbose=True, checker_engine=engine)
-    lc = LoadCase.from_json(load_path)
-    point_loads, uniform_element_loads, gravity_load = lc.point_loads, lc.uniform_element_loads, lc.gravity_load
-
-    assert gravity_load is None
-    sc.set_loads(point_loads, uniform_element_loads, gravity_load)
+    lc = LoadCase.from_json(load_path, lc_ind=0)
+    assert lc.gravity_load is None
+    sc.set_loads(lc)
 
     sc.solve()
     result = sc.get_result_data(output_frame_transf=True)

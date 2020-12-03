@@ -17,7 +17,7 @@ def repetitive_test_stiffness_checker(frame_file_path, engine, parsed_pt_loads=N
     n_attempts=50, existing_ids=[], expect_partial_ids_success=True, trans_tol=2e-3):
     sc = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine=engine, verbose=True)
     gravity_load = GravityLoad([0,0,-1]) if include_sw else None
-    sc.set_loads(point_loads=parsed_pt_loads, gravity_load=gravity_load)
+    sc.set_loads(LoadCase(point_loads=parsed_pt_loads, gravity_load=gravity_load))
     assert not sc.has_stored_result()
     sc.set_nodal_displacement_tol(trans_tol=trans_tol)
 
@@ -72,7 +72,7 @@ def repetitive_test_stiffness_checker(frame_file_path, engine, parsed_pt_loads=N
     st_time = time.time()
     for _ in range(n_attempts):
         sc_new = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine=engine)
-        sc_new.set_loads(point_loads=parsed_pt_loads, gravity_load=gravity_load)
+        sc_new.set_loads(LoadCase(point_loads=parsed_pt_loads, gravity_load=gravity_load))
         sc_new.set_nodal_displacement_tol(trans_tol=trans_tol)
 
         shuffled_existing_ids = copy(existing_ids)
@@ -163,13 +163,11 @@ def test_get_nodal_loads(engine):
 
     sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
     sc.set_self_weight_load(None)
-    lc = LoadCase.from_json(load_json_path)
-    parsed_pt_loads = lc.point_loads
-
-    sc.set_loads(point_loads=parsed_pt_loads)
+    lc = LoadCase.from_json(load_json_path, lc_ind=0)
+    sc.set_loads(lc)
     fetched_nodal_loads = sc.get_nodal_loads()
 
-    for pt_load in parsed_pt_loads:
+    for pt_load in lc.point_loads:
         assert isinstance(pt_load, PointLoad)
         node_id = pt_load.node_ind
         assert node_id in fetched_nodal_loads
@@ -195,7 +193,7 @@ def repetitive_test_equilibrium(frame_file_path, engine, parsed_pt_loads=None, i
     sc = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine=engine, verbose=True)
     sc.set_nodal_displacement_tol(trans_tol=trans_tol)
     gravity_load = GravityLoad([0,0,-1.]) if include_sw else None
-    sc.set_loads(point_loads=parsed_pt_loads, gravity_load=gravity_load)
+    sc.set_loads(LoadCase(point_loads=parsed_pt_loads, gravity_load=gravity_load))
     assert not sc.has_stored_result()
 
     sol_success = sc.solve(existing_ids, eid_sanity_check=False, if_cond_num=True)
@@ -427,12 +425,12 @@ def repetitive_check_gravity_validity(frame_file_path, engine, existing_ids=[], 
     sc = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine=engine)
 
     print('\n################\n [0,0,-100] gravity direction')
-    sc.set_loads(gravity_load=GravityLoad([0,0,-100]))
+    sc.set_loads(LoadCase(gravity_load=GravityLoad([0,0,-100])))
     sc.solve(existing_ids, eid_sanity_check=True)
     compliance_big = sc.get_compliance()
 
     print('\n################\n [0,0,-1] gravity direction')
-    sc.set_loads(gravity_load=GravityLoad([0,0,-1]))
+    sc.set_loads(LoadCase(gravity_load=GravityLoad([0,0,-1])))
     sc.solve(existing_ids, eid_sanity_check=True)
     compliance_small = sc.get_compliance()
 
@@ -535,12 +533,12 @@ def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids, engi
     json_path = os.path.join(root_dir, '..', 'test_data', file_name)
     sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
 
-    uniform_distributed_load = []
+    uniform_element_loads = []
     rho = sc.get_element_material(0).density
     A = sc.get_element_crosssec(0).A # meter^2
-    uniform_distributed_load.append(UniformlyDistLoad([0, 0, - rho * A], None, [""]))
+    uniform_element_loads.append(UniformlyDistLoad([0, 0, - rho * A], None, [""]))
 
-    sc.set_loads(uniform_distributed_load=uniform_distributed_load)
+    sc.set_loads(LoadCase(uniform_element_loads=uniform_element_loads))
     nodal_loads = sc.get_nodal_loads(existing_ids=existing_e_ids)
 
     # verify sw load and unif lumped load
@@ -555,7 +553,7 @@ def test_uniformly_distributed_load_with_gravity(test_case, existing_e_ids, engi
     _, ul_nD, ul_fR, ul_eR = sc.get_solved_results()
 
     sw_sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
-    sw_sc.set_loads(gravity_load=GravityLoad([0,0,-1]))
+    sw_sc.set_loads(LoadCase(gravity_load=GravityLoad([0,0,-1])))
     sw_sc.solve(exist_element_ids=existing_e_ids)
     _, sw_nD, sw_fR, sw_eR = sw_sc.get_solved_results()
 
@@ -587,7 +585,7 @@ def test_uniformly_distributed_load_with_analytical_solution(engine, n_attempts)
     sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
     lc = LoadCase.from_json(load_json_path)
     point_load, uniform_element_load = lc.point_loads, lc.uniform_element_loads
-    sc.set_loads(point_loads=point_load, uniform_distributed_load=uniform_element_load, gravity_load=None)
+    sc.set_loads(LoadCase(point_loads=point_load, uniform_element_loads=uniform_element_load, gravity_load=None))
     sc.set_nodal_displacement_tol(trans_tol=0.024, rot_tol=0.006)
 
     print('element tag:', sc._sc_ins.get_elem_ind_from_elem_tag())
@@ -621,7 +619,7 @@ def test_uniformly_distributed_load_with_analytical_solution(engine, n_attempts)
     cprint('compare analytical res: w reinit', 'yellow')
     for _ in range(n_attempts):
         re_sc = StiffnessChecker.from_json(json_file_path=json_path, checker_engine=engine)
-        re_sc.set_loads(point_loads=point_load, uniform_distributed_load=uniform_element_load, gravity_load=None)
+        re_sc.set_loads(LoadCase(point_loads=point_load, uniform_element_loads=uniform_element_load, gravity_load=None))
         re_sc.set_nodal_displacement_tol(trans_tol=0.024, rot_tol=0.006)
 
         re_sc.solve()

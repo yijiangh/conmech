@@ -189,12 +189,7 @@ class StiffnessChecker(object):
         
         Parameters
         ----------
-        point_loads : list of `PointLoad`, optional
-            by default None
-        uniform_distributed_load : list of `UniformlyDistLoad`, optional
-            elemental uniformly distributed load, by default None
-        gravity_load : `GravityLoad`, optional
-            include gravity load or not, by default None
+        loadcase : `io_base.LoadCase`
         """
         self.set_self_weight_load(loadcase.gravity_load)
 
@@ -208,7 +203,7 @@ class StiffnessChecker(object):
             pt_loads = None
         self._sc_ins.set_load(pt_loads)
 
-        uniform_distributed_load = loadcase.uniform_distributed_load
+        uniform_distributed_load = loadcase.uniform_element_loads
         if uniform_distributed_load is not None and len(uniform_distributed_load) > 0:
             ud_loads = {}
             for eload in uniform_distributed_load:

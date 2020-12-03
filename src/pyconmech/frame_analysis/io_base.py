@@ -132,6 +132,8 @@ class Model(object):
         data['model_name'] = self.model_name
         data['unit'] = self.unit
         data['generate_time'] = self.generate_time
+        data['node_num'] = len(self.nodes)
+        data['element_num'] = len(self.elements)
         data['nodes'] = [n.to_data() for n in self.nodes]
         data['elements'] = [e.to_data() for e in self.elements]
         data['supports'] = [s.to_data() for s in self.supports.values()]
@@ -234,6 +236,7 @@ class Support(object):
 
 class Joint(object):
     def __init__(self, c_conditions, elem_tags):
+        assert len(c_conditions) == 12
         self.c_conditions = c_conditions
         self.elem_tags = elem_tags
 

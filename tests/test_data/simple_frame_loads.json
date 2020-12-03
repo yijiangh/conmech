@@ -1,1 +1,1 @@
-{"ploads":[],"eloads":[],"gravity":{"force":[0.0,0.0,-1.0],"force_unit":"kN"}}
+{"loadcases":{"0":{"ploads":[],"eloads":[],"gravity":{"force":[0.0,0.0,-1.0],"force_unit":"kN"}}}}

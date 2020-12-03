@@ -1,3 +1,15 @@
+# Karamba Problem Instance Generator
+
+This is a [Grasshopper](https://www.grasshopper3d.com/) script on the [Rhinoceros](https://www.rhino3d.com/) platform, 
+used for creating problem instances for `conmech`.
+
+The Grasshopper script depends on [Karamba3d](https://www.karamba3d.com/) for assembling the model (elements, fixities, loads, materials, cross sections, etc.). 
+The free version of Karamba3d would suffice since we don't use its analysis components.
+
+We uses the `karamba_io` modules from `pyconmech` to do two-way conversions between the Karamba models and `json` files. The `karamba_io.py` and `io_base.py` has minimal dependencies and can be used separately from `conmech`.
+
+<img src="./images/karamba_model_export.png">
+
 ## Karamba's default rules
 
 - If an element is not assigned with an `Identifier`, then it is automatically assigned with a tag `""`.

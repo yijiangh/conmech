@@ -13,6 +13,7 @@ Unreleased
 
 **added**
 
+- Added `karamba_io` module to facilitate `Karamba3d`-`JSON` two way conversion.
 - Added `Model` and `LoadCase` classes
 - Added element information to `ValueError` when encountering zero-length line element
 - Added print out attributes to `Node` and `Element`
@@ -21,6 +22,9 @@ Unreleased
 
 - Changed `StiffnessBase`'s `__init__` from inputting `nodes, elements, ...` to `Model`
 - Moved `get_element_crossec` and `get_element_material` from `NumpyStiffness` to `StiffnessBase`
+- Changed `StiffnessChecker`'s `set_loads` to take `LoadCase` object
+- Changed `Joint`'s `c_conditions` attribute to a 12-entry list instead of a dictionary with two six-entry lists
+- Karamba conversion is now done more formally with `karam_io` modules, without using an ad-hoc C# component.
 
 **removed**
 
