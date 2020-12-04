@@ -69,7 +69,7 @@ class KarambaSupport(Support):
         return cls(list(ksupport.Condition), ksupport.node_ind)
 
     def to_karamba(self):
-        return Karamba.Supports.Support(self.node_ind, List[bool](self.condition), Plane3())
+        return Karamba.Supports.Support(self.node_ind, List[bool](list(map(bool, self.condition))), Plane3())
 
 class KarambaJoint(Joint):
     @classmethod
@@ -198,9 +198,9 @@ class KarambaModel(Model):
         knodes = [KarambaNode.from_data(n.to_data()) for n in model.nodes]
         kelements = [KarambaElement.from_data(e.to_data()) for e in model.elements]
         ksupports = [KarambaSupport.from_data(s.to_data()) for s in model.supports.values()]
-        kjoints = [KarambaJoint.from_data(j.to_data()) for j in model.joints.values()]
-        kmaterials = [KarambaMaterialIsotropic.from_data(m.to_data()) for m in model.materials.values()]
-        kcrosssecs = [KarambaCrossSec.from_data(cs.to_data()) for cs in model.crosssecs.values()]
+        kjoints = [KarambaJoint.from_data(j.to_data()) for j in model.joints]
+        kmaterials = [KarambaMaterialIsotropic.from_data(m.to_data()) for m in model.materials]
+        kcrosssecs = [KarambaCrossSec.from_data(cs.to_data()) for cs in model.crosssecs]
         return cls(knodes, kelements, ksupports, kjoints, kmaterials, kcrosssecs, 
             unit=model.unit, model_name=model.model_name)
 
@@ -238,13 +238,14 @@ class KarambaModel(Model):
         in_points = List[Point3]([n.to_karamba(type='Point3') for n in self.nodes])
         in_elems = List[Karamba.Elements.BuilderElement]([e.to_karamba(type='builderbeam') for e in self.elements])
         for e in in_elems:
-            eid = None if e.id not in self.crosssecs else e.id
-            e.crosec = self.crosssecs[eid].to_karamba()
+            etag =  None if e.id not in self.crosssec_id_from_etag else e.id
+            cs_id = self.crosssec_id_from_etag[etag]
+            e.crosec = self.crosssecs[cs_id].to_karamba()
         in_supports = List[Karamba.Supports.Support]([s.to_karamba() for _, s in self.supports.items()])
 
-        in_crosecs = List[Karamba.CrossSections.CroSec]([cs.to_karamba() for _, cs in self.crosssecs.items()])
-        in_materials = List[Karamba.Materials.FemMaterial]([m.to_karamba() for _, m in self.materials.items()])
-        in_joints = List[Karamba.Joints.Joint]([j.to_karamba() for _, j in self.joints.items()])
+        in_crosecs = List[Karamba.CrossSections.CroSec]([cs.to_karamba() for cs in self.crosssecs])
+        in_materials = List[Karamba.Materials.FemMaterial]([m.to_karamba() for m in self.materials])
+        in_joints = List[Karamba.Joints.Joint]([j.to_karamba() for j in self.joints])
 
         kloadcase = KarambaLoadCase.from_loadcase(loadcase)
         in_loads = kloadcase.to_karamba()

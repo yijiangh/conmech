@@ -9,10 +9,13 @@ class StiffnessBase(object):
     def __init__(self, model, verbose=False, output_json=False):
         self._nodes = model.nodes
         self._elements = model.elements
-        self._supports = model.supports
+        self._supports = model.supports # dict indexed by node_ind
         self._joints = model.joints
+        self._joint_id_from_etag = model.joint_id_from_etag
         self._materials = model.materials
+        self._material_id_from_etag = model.material_id_from_etag
         self._crosssecs = model.crosssecs
+        self._crosssec_id_from_etag = model.crosssec_id_from_etag
 
         self._verbose = verbose
         self._output_json = output_json
@@ -127,22 +130,27 @@ class StiffnessBase(object):
     # element attributes
     def get_element_crosssec(self, elem_id):
         e_tag = self._elements[elem_id].elem_tag
-        # assert e_tag in self._crosssecs
-        if e_tag in self._crosssecs:
-            crosssec = self._crosssecs[e_tag]
+        if e_tag in self._crosssec_id_from_etag:
+            cs_id = self._crosssec_id_from_etag[e_tag]
         else:
-            # TODO: default cross sec, if no [""] key is assigned
             warnings.warn('No cross section assigned for element tag |{}|, using the default tag'.format(e_tag))
-            crosssec = self._crosssecs[None]
-        return crosssec
+            cs_id = self._crosssec_id_from_etag[None]
+        return self._crosssecs[cs_id]
 
     def get_element_material(self, elem_id):
         e_tag = self._elements[elem_id].elem_tag
-        # assert e_tag in self._materials
-        if e_tag in self._materials:
-            mat = self._materials[e_tag]
+        if e_tag in self._material_id_from_etag:
+            m_id = self._material_id_from_etag[e_tag]
         else:
-            # TODO: default material, if no [""] key is assigned
+            # TODO: default material, if no key is found
             warnings.warn('No material assigned for element tag |{}|, using the default tag'.format(e_tag))
-            mat = self._materials[None]
-        return mat
+            m_id = self._material_id_from_etag[None]
+        return self._materials[m_id]
+
+    def get_element_joint(self, elem_id):
+        e_tag = self._elements[elem_id].elem_tag
+        if e_tag in self._joint_id_from_etag:
+            jt_id = self._joint_id_from_etag[e_tag]
+            return self._joints[jt_id]
+        else:
+            return None

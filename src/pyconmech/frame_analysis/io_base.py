@@ -41,34 +41,50 @@ class Model(object):
             node.point = [scale*cp for cp in node.point]
 
         self.nodes = nodes
+        for i, n in enumerate(self.nodes):
+            assert i == n.node_ind
         self.elements = elements
+        for i, e in enumerate(self.elements):
+            assert i == e.elem_ind
 
         # turn lists into dicts
         self.supports = {}
         for support in supports:
             self.supports[support.node_ind] = support
 
-        self.joints = {}
+        self.joints = joints or []
+        joint_id_from_etag = defaultdict(set)
         if joints is not None:
-            for joint in joints:
+            for i, joint in enumerate(joints):
                 for e_tag in joint.elem_tags:
-                    if e_tag in self.joints:
-                        warnings.warn('Multiple joints assigned to the same element tag |{}|!'.format(e_tag))
-                    self.joints[e_tag] = joint
+                    joint_id_from_etag[e_tag].add(i)
+            for etag, jt_ids in joint_id_from_etag.items():
+                if len(jt_ids) > 1:
+                    warnings.warn('{} joints (#{}) assigned to the same element tag {}. Assume using the first one!'.format(len(jt_ids), jt_ids, etag))
+        self.joint_id_from_etag = {e_tag : list(ids)[0] for e_tag, ids in joint_id_from_etag.items()}
+        
 
-        self.materials = {}
-        for mat in materials:
+        assert len(materials) > 0
+        self.materials = materials
+        material_id_from_etag = defaultdict(set)
+        for i, mat in enumerate(materials):
             for e_tag in mat.elem_tags:
-                if e_tag in self.materials:
-                    warnings.warn('Multiple materials assigned to the same element tag |{}|!'.format(e_tag))
-                self.materials[e_tag] = mat
+                material_id_from_etag[e_tag].add(i)
+        for etag, m_ids in material_id_from_etag.items():
+            if len(m_ids) > 1:
+                warnings.warn('{} materials (#{}) assigned to the same element tag {}. Assume using the first one!'.format(len(m_ids), m_ids, etag))
+        self.material_id_from_etag = {e_tag : list(ids)[0] for e_tag, ids in material_id_from_etag.items()}
 
-        self.crosssecs = {}
-        for cs in crosssecs:
+        assert len(crosssecs) > 0
+        self.crosssecs = crosssecs
+        crosssec_id_from_etag = defaultdict(set)
+        for i, cs in enumerate(crosssecs):
             for e_tag in cs.elem_tags:
-                if e_tag in self.crosssecs:
-                    warnings.warn('Multiple materials assigned to the same element tag |{}|!'.format(e_tag))
-                self.crosssecs[e_tag] = cs
+                crosssec_id_from_etag[e_tag].add(i)
+        for etag, cs_ids in crosssec_id_from_etag.items():
+            if len(cs_ids) > 1:
+                warnings.warn('{} cross secs (#{}) assigned to the same element tag {}. Assume using the first one!'.format(len(cs_ids), cs_ids, etag))
+        self.crosssec_id_from_etag = {e_tag : list(ids)[0] for e_tag, ids in crosssec_id_from_etag.items()}
 
     @property
     def node_num(self):
@@ -137,9 +153,9 @@ class Model(object):
         data['nodes'] = [n.to_data() for n in self.nodes]
         data['elements'] = [e.to_data() for e in self.elements]
         data['supports'] = [s.to_data() for s in self.supports.values()]
-        data['joints'] = [j.to_data() for j in self.joints.values()]
-        data['materials'] = [m.to_data() for m in self.materials.values()]
-        data['cross_secs'] = [cs.to_data() for cs in self.crosssecs.values()]
+        data['joints'] = [j.to_data() for j in self.joints]
+        data['materials'] = [m.to_data() for m in self.materials]
+        data['cross_secs'] = [cs.to_data() for cs in self.crosssecs]
         return data
 
 class LoadCase(object):
