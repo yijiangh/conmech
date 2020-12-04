@@ -310,6 +310,7 @@ class NumpyStiffness(StiffnessBase):
                     #  Try to use the 'Eigen Modes'-component and activate the display of local coordinate axes: The first eigen-mode will be the rigid body motion.
                     #  If this does not help, check whether you have a pinned support directly attached to a hinge. A hinge introduces an extra node which may cause the problem.
                     #  When analyzing a flat shell structure one has to lock the rotation perpendicular to the plate in at least one node.
+                self._has_stored_deformation = False
                 return False
 
             # * positive definiteness can be checked by
@@ -326,6 +327,7 @@ class NumpyStiffness(StiffnessBase):
                 # That is, the row permutation P_r may not be Identity.
                 if self._verbose : 
                     print('ERROR: Stiffness Solver fail! Stiffness matrix not Positive Definite, the sub-structure might contain mechanism.')
+                self._has_stored_deformation = False
                 return False
 
             # ? Method 1: direct solve
