@@ -205,7 +205,8 @@ def bending_stiffness_matrix(L, E, Iz, axis=2, cr1=np.inf, cr2=np.inf):
 
     return K
 
-def create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, mu, ct1=[np.inf]*3, ct2=[np.inf]*3, cr1=[np.inf]*3, cr2=[np.inf]*3):
+def create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, mu, ct1=[np.inf for _ in range(3)], ct2=[np.inf for _ in range(3)], 
+        cr1=[np.inf for _ in range(3)], cr2=[np.inf for _ in range(3)]):
     """complete 12x12 stiffness matrix for a bisymmetrical member.
 
         Since for small displacements the axial force effects, torsion,
@@ -253,9 +254,9 @@ def create_local_stiffness_matrix(L, A, Jx, Iy, Iz, E, mu, ct1=[np.inf]*3, ct2=[
     """
     assert ct1[1] > DOUBLE_INF and ct2[1] > DOUBLE_INF, 'local y axis translational dof release not implemented!'
     assert ct1[2] > DOUBLE_INF and ct2[2] > DOUBLE_INF, 'local z axis translational dof release not implemented!'
-    for i in range(3):
-        assert abs(cr1[i]) < DOUBLE_EPS or abs(cr1[i]) > DOUBLE_INF, 'rotational stiffness has some bugs, not fully supported yet'
-        assert abs(cr2[i]) < DOUBLE_EPS or abs(cr2[i]) > DOUBLE_INF, 'rotational stiffness has some bugs, not fully supported yet'
+    # for i in range(3):
+    #     assert abs(cr1[i]) < DOUBLE_EPS or abs(cr1[i]) > DOUBLE_INF, '{} | rotational stiffness has some bugs, not fully supported yet'.format(cr1[i])
+    #     assert abs(cr2[i]) < DOUBLE_EPS or abs(cr2[i]) > DOUBLE_INF, '{} | rotational stiffness has some bugs, not fully supported yet'.format(cr2[i])
 
     G = mu2G(mu, E)
     # Fx1, Fx2 : u1, u2
