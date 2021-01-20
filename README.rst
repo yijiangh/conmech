@@ -59,7 +59,7 @@ Input model
 There are two ways to specify and input a structural model (geometry, material, cross sections, joint releases, support conditions, and loads)
 to conmech: 
 
-(1) directly input data following class structures specified in `pyconmech.frame_analysis.io_base`
+(1) directly input data following class structures specified in `pyconmech.frame_analysis.io_base` (See `the following python script <https://github.com/yijiangh/conmech/blob/master/examples/scripts/run.py>`_ for an example)
 (2) write your data in a `JSON` format and input the file path to conmech (See `file examples here <https://github.com/yijiangh/conmech/tree/master/tests/test_data>`_.
 
 The easiest way to generate the model JSON file by exporting from a `Karamba3D`_ model in `Rhino-Grasshopper`_. 
@@ -81,10 +81,12 @@ After you have the input model ready, analysis is straight-forward:
 .. code-block:: python
 
     from pyconmech import StiffnessChecker
+    from pyconmech.frame_analysis import PointLoad, GravityLoad, LoadCase
 
     sc = StiffnessChecker.from_json(json_file_path=frame_file_path, checker_engine="numpy", verbose=True)
     gravity_load = GravityLoad([0,0,-1]) 
-    sc.set_loads(gravity_load=gravity_load)
+    loadcase = LoadCase(gravity_load=gravity_load)
+    sc.set_loads(loadcase)
 
     # if the structure's nodal deformation exceeds 1e-3 meter, 
     # we want the checker to return `sol_success = False`
@@ -92,16 +94,20 @@ After you have the input model ready, analysis is straight-forward:
     sc.set_nodal_displacement_tol(trans_tol=trans_tol)
 
     # existing elements' indices
+    # leave to [] if want to solve the entire structure
     existing_ids = [0,4,88,6]
 
-    # False if the analysis result
+    # False if the analysis result does not satisfy the criteria above, or the stiffness solving fails (due to mechanism, etc.)
     sol_success = sc.solve(existing_ids)
 
     # Get all the analysis information:
     # nodal deformation, fixity reactions, element reactions
     success, nD, fR, eR = sc.get_solved_results()
 
-See `python unit tests <https://github.com/yijiangh/conmech/blob/master/tests/python/test_stiffness_checker.py>`_ for more examples.
+.. See `python unit tests <https://github.com/yijiangh/conmech/blob/master/tests/python/test_stiffness_checker.py>`_ for more examples.
+
+See `the following python script <https://github.com/yijiangh/conmech/blob/master/examples/scripts/run.py>`_ for an example to construct 
+and analyze a structure programmingly.
 
 Installation
 ------------

@@ -206,5 +206,8 @@ def main():
 
     analyze_truss(args.problem, viewer=args.viewer, align_axis=args.bc_align_axis)
 
+# Issue:
+# python .\examples\scripts\run.py -v --bc_align_axis 0
+
 if __name__ == '__main__':
     main()
