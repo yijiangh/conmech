@@ -250,6 +250,7 @@ class Support(object):
     def __repr__(self):
         return '{}(#{},{})'.format(self.__class__.__name__, self.node_ind, self.condition)
 
+# TODO: assumed to be converted to kN/m (translational dof) and kNm/rad (rotational dof)
 class Joint(object):
     def __init__(self, c_conditions, elem_tags):
         assert len(c_conditions) == 12

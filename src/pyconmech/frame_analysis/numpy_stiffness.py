@@ -165,7 +165,8 @@ class NumpyStiffness(StiffnessBase):
         # assemble the list of fixed dof fixed list, 1x(nFv)
         if len(set(self._supports.keys()) & exist_node_set) == 0:
             if self._verbose : print('Structure floating: no fixed node exists in the partial structure.')
-            return False
+            raise ValueError('Structure floating: no fixed node exists in the partial structure.')
+
         n_exist_fixed_nodes = 0
         n_fixed_dof = 0
         for fv_id, support in self._supports.items():
@@ -204,7 +205,7 @@ class NumpyStiffness(StiffnessBase):
                 id_map_RO[nonexist_tail] = i
                 nonexist_tail += 1
             else:
-                raise ValueError
+                assert False
 
         # a row permuatation matrix (multiply left)
         perm_data = []
@@ -230,9 +231,13 @@ class NumpyStiffness(StiffnessBase):
             exist_element_ids = range(self.nE)
 
         total_dof = 6*self.nV
-        
-        Perm, (exist_node_set, n_free_dof, n_fixed_dof, n_exist_fixed_nodes) = self.compute_dof_permutation(exist_element_ids)
-        PermT = Perm.T
+
+        try:
+            Perm, (exist_node_set, n_free_dof, n_fixed_dof, n_exist_fixed_nodes) = self.compute_dof_permutation(exist_element_ids)
+            PermT = Perm.T
+        except ValueError:
+            self._has_stored_deformation = False
+            return False
 
         # permute the full stiffness matrix & carve the needed portion out
         K_full_ = self.compute_full_stiffness_matrix(exist_element_ids)
