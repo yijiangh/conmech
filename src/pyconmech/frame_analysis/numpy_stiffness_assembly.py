@@ -284,7 +284,7 @@ def global2local_transf_matrix(end_vert_u, end_vert_v, rot_y2x=0.0):
     assert len(end_vert_u) == 2 or len(end_vert_u) == 3
     dim = len(end_vert_u)
     L = norm(end_vert_u-end_vert_v)
-    if L < 1e-6:
+    if L < DOUBLE_EPS:
         raise ValueError('Bar length too small!: Node {} - Node {}'.format(end_vert_u, end_vert_v))
 
     # by convention, the new x axis is along the element's direction

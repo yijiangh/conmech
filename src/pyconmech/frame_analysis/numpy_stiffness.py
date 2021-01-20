@@ -322,7 +322,7 @@ class NumpyStiffness(StiffnessBase):
                 # https://gist.github.com/omitakahiro/c49e5168d04438c5b20c921b928f1f5d
                 # https://docs.scipy.org/doc/scipy-1.4.1/reference/generated/scipy.sparse.linalg.SuperLU.html#scipy.sparse.linalg.SuperLU
                 # Note: the permutation is not checker here
-                print('perm: ', (K_LU.perm_r == np.arange(K_mm_precond.shape[0])).all() )
+                print('perm_r: ', (K_LU.perm_r == np.arange(K_mm_precond.shape[0])).all() )
                 # when a diagonal entry is smaller than the threshold, the code will still choose an off-diagonal pivot.
                 # That is, the row permutation P_r may not be Identity.
                 if self._verbose : 
