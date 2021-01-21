@@ -1,5 +1,7 @@
 import os
+import json
 import argparse
+from termcolor import cprint
 import numpy as np
 from  numpy.linalg import norm as norm
 from pyconmech.frame_analysis import StiffnessChecker
@@ -22,7 +24,7 @@ EPS = 1e-8
 # BC point searching radius
 BC_EPS = 1e-3
 # load point searching radius
-LOAD_EPS = 1e-3
+LOAD_EPS = 1e-2
 
 ################################################
 
@@ -45,69 +47,51 @@ def read_elems(file_path, index_base=1):
             elems.append(Element(end_node_ids, i, elem_tag='', bending_stiff=True))
     return elems
 
-def read_supports(file_path, nodes, align_axis=None):
+def read_supports(file_path):
+    supps = []
     with open(file_path, 'r') as fp:
         txt_lines = fp.readlines()
-        bc_points = []
-        bc_cond = []
         for i, line in enumerate(txt_lines):
             txt_sp = line.split(',')
-            coord = list(map(float, txt_sp[:3]))
-            cond = list(map(int, txt_sp[3:]))
-            bc_points.append(coord)
-            bc_cond.append(cond)
-    supps = []
-    if align_axis is None:
-        for pt, cond in zip(bc_points, bc_cond):
-            node_ind = None
-            for i, node in enumerate(nodes):
-                if norm(np.array(pt) - np.array(node.point)) < BC_EPS:
-                    node_ind = i
-                    break
-            # else:
-            #     raise ValueError('Support point {} not found'.format(pt))
-            if node_ind is not None:
-                # assume rotational dof is restrained as well at supports
-                supps.append(Support(cond + [1,1,1], node_ind))
-    else:
-        val = np.array(bc_points)[0,align_axis]
-        assert all([abs(v-val)<EPS for v in np.array(bc_points)[:,align_axis]]), \
-            'Given BC points do not have identical {} axis values'.format(align_axis)
-        for i, node in enumerate(nodes):
-            if abs(node.point[align_axis]-val) < EPS:
-                supps.append(Support([1,1,1] + [1,1,1], i))
+            cond = list(map(int, txt_sp))
+            if not all([c == 0 for c in cond]):
+                supps.append(Support(cond + [1,1,1], i))
     return supps
 
-def read_point_loads(file_path, nodes):
+def read_point_loads(file_path):
+    point_loads = []
+    moment = [0,0,0]
     with open(file_path, 'r') as fp:
         txt_lines = fp.readlines()
-        pl_points = []
-        pl_vectors = []
         for i, line in enumerate(txt_lines):
             txt_sp = line.split(',')
-            coord = list(map(float, txt_sp[:3]))
-            load_v = list(map(float, txt_sp[3:]))
-            pl_points.append(coord)
-            pl_vectors.append(load_v)
-    point_loads = []
-    for pt, force in zip(pl_points, pl_vectors):
-        node_ind = None
-        for i, node in enumerate(nodes):
-            if norm(np.array(pt) - np.array(node.point)) < LOAD_EPS:
-                node_ind = i
-                break
-        # else:
-        #     raise ValueError('Support point {} not found'.format(pt))
-        if node_ind is not None:
-            moment = [0,0,0]
-            point_loads.append(PointLoad(force, moment, node_ind, loadcase=0))
+            load_v = list(map(float, txt_sp))
+            if not all([c == 0 for c in load_v]):
+                point_loads.append(PointLoad(load_v, moment, i, loadcase=0))
     return point_loads
 
 ################################################
 
-def analyze_truss(problem, viewer=True, align_axis=None):
-    if align_axis is not None:
-        assert align_axis in [0,1,2]
+def A_solid_cir(radius):
+    return np.pi * radius**2
+
+def Jx_solid_cir(radius):
+    # https://en.wikipedia.org/wiki/Polar_moment_of_inertia
+    return np.pi * radius**4 / 2
+
+def Iy_solid_cir(radius):
+    # https://www.engineeringtoolbox.com/area-moment-inertia-d_1328.html
+    return np.pi * radius**4 / 4
+
+def solid_cir_crosssec(r, elem_tags=None):
+    A = A_solid_cir(r)
+    Jx = Jx_solid_cir(r)
+    Iy = Iy_solid_cir(r)
+    return CrossSec(A, Jx, Iy, Iy, elem_tags=elem_tags, family='Circular', name='solid_circle')
+
+################################################
+
+def analyze_truss(problem, viewer=True, save_model=False, exagg=1.0):
     problem_path = os.path.join(HERE, problem)
 
     # * parse nodes from txt file
@@ -118,10 +102,10 @@ def analyze_truss(problem, viewer=True, align_axis=None):
     elems = read_elems(os.path.join(problem_path, ELEM_FILE_NAME))
 
     # * parse supports from txt file
-    supps = read_supports(os.path.join(problem_path, BC_FILE_NAME), nodes, align_axis=align_axis)
+    supps = read_supports(os.path.join(problem_path, BC_FILE_NAME))
 
     # * parse loads from txt file
-    point_loads = read_point_loads(os.path.join(problem_path, LOAD_FILE_NAME), nodes)
+    point_loads = read_point_loads(os.path.join(problem_path, LOAD_FILE_NAME))
 
     # * assuming uniform material for all elements
     # Steel, kN/m2
@@ -130,39 +114,58 @@ def analyze_truss(problem, viewer=True, align_axis=None):
     # material strength in the specified direction (local x direction)
     fy = 235000.0
     density = 78.5 # kN/m3
-    materials = [Material(E, G12, fy, density)]
+    materials = [Material(E, G12, fy, density, family='Steel', name='fake')]
 
     # * assuming uniform cross sections for all elements
-    A = 0.006 # m2
-    Jx = 3E-07 # m4
-    Iy = Iz = 0.0002 # m4
-    cross_secs = [CrossSec(A, Jx, Iy, Iz)]
+    radius = 0.002 # meter
+    cross_secs = [solid_cir_crosssec(radius)]
 
     # * assemble info into a model
     joints = []
     model = Model(nodes, elems, supps, joints, materials, cross_secs,  model_name=problem)
+    loadcase = LoadCase(point_loads=point_loads)
+    if save_model:
+        save_path = os.path.join(problem_path, problem + '.json')
+        with open(save_path, 'w') as f:
+            json.dump(model.to_data(), f, indent=None)
+        cprint('Model saved to {}'.format(save_path), 'green')
+
+        lc_save_path = os.path.join(problem_path, problem + '_loadcase.json')
+        with open(lc_save_path, 'w') as f:
+            json.dump(loadcase.to_data(), f, indent=None)
+        cprint('Load Case saved to {}'.format(lc_save_path), 'green')
 
     sc = StiffnessChecker(model, checker_engine="numpy", verbose=True)
-    loadcase = LoadCase(point_loads=point_loads)
     sc.set_loads(loadcase)
     
     # if the structure's nodal deformation exceeds 1e-3 meter,
     # we want the checker to return `sol_success = False`
     sc.set_nodal_displacement_tol(trans_tol=np.inf, rot_tol=np.inf)
     
-    sol_success = sc.solve()
+    success = sc.solve()
     
     # Get all the analysis information:
     # nodal deformation, fixity reactions, element reactions
     success, nD, fR, eR = sc.get_solved_results()
+    cprint('Solve success: {}'.format(success), 'green' if success else 'red')
 
     # nD is the nodal displacements
     # a dictionary indexed by nodal indices, values are the [ux, uy, uz, theta_x, theta_y, theta_z] deformation vector
+    trans_tol, rot_tol = sc.get_nodal_deformation_tol()
+    max_trans, max_rot, max_trans_vid, max_rot_vid = sc.get_max_nodal_deformation()
+    # translation = np.max(np.linalg.norm([d[:3] for d in nD.values()], ord=2, axis=1))
+    # rotation = np.max(np.linalg.norm([d[3:] for d in nD.values()], ord=2, axis=1))
+    cprint('Max translation deformation: {0:.5f} m / {1:.5} = {2:.5}, at node #{3}'.format(
+        max_trans, trans_tol, max_trans / trans_tol, max_trans_vid), 'cyan')
+    cprint('Max rotation deformation: {0:.5f} rad / {1:.5} = {2:.5}, at node #{3}'.format(
+        max_rot, rot_tol, max_rot / rot_tol, max_rot_vid), 'cyan')
     
     # Compliance is the elastic energy: https://en.wikipedia.org/wiki/Elastic_energy
+    # The inverse of stiffness is flexibility or compliance
     # the higher this value is, the more flexible a structure is
     # we want this value to be low
     compliance = sc.get_compliance()
+    cprint('Elastic energy: {}'.format(compliance), 'cyan')
 
     # volume can be computed by simply summing over `cross sectional area * bar length`
 
@@ -176,6 +179,16 @@ def analyze_truss(problem, viewer=True, align_axis=None):
             y = [nodes[n1].point[1], nodes[n2].point[1]]
             z = [nodes[n1].point[2], nodes[n2].point[2]]
             ax.plot3D(x, y, z, 'black', linewidth=0.5)
+        # draw deformed elems
+        for e in elems:
+            n1, n2 = e.end_node_inds
+            e_id = e.elem_ind
+            x = np.array([nodes[n1].point[0] + exagg * nD[n1][0], nodes[n2].point[0] + exagg * nD[n2][0]])
+            y = np.array([nodes[n1].point[1] + exagg * nD[n1][1], nodes[n2].point[1] + exagg * nD[n2][1]])
+            z = np.array([nodes[n1].point[2] + exagg * nD[n1][2], nodes[n2].point[2] + exagg * nD[n2][2]])
+            axial_e_reaction = eR[e_id][0][0]
+            color = 'blue' if axial_e_reaction < 0 else 'red'
+            ax.plot3D(x, y, z, c=color, linewidth=0.5)
         # draw supports
         support_pts = np.array([nodes[s.node_ind].point for s in supps])
         ax.scatter3D(support_pts[:,0], support_pts[:,1], support_pts[:,2], c='brown')
@@ -184,7 +197,7 @@ def analyze_truss(problem, viewer=True, align_axis=None):
             node_point = nodes[pl.node_ind].point
             force = np.array(pl.force)
             force *= 0.05/norm(force)
-            ax.quiver(*node_point, *force, lw=1, color='blue')
+            ax.quiver(*node_point, *force, lw=1, color='purple')
 
         ax.set_title('Truss')
         ax.set_ylabel("Y")
@@ -199,15 +212,17 @@ def main():
     parser.add_argument('-p', '--problem', default='cantilever_beam_truss',
                         help='The name of the problem to solve')
     parser.add_argument('-v', '--viewer', action='store_true', 
-        help='Enables the viewer, default False')
-    parser.add_argument('--bc_align_axis', type=int, default=None,
-                        help='axis value used to determine BC.')
+                        help='Enables the viewer, default False')
+    parser.add_argument('-s', '--save', action='store_true', 
+                        help='Save conmech model, default False')
+    parser.add_argument('--exagg', type=float, default=10.0,
+                        help='Deformation exaggeration ratio.')
     args = parser.parse_args()
 
-    analyze_truss(args.problem, viewer=args.viewer, align_axis=args.bc_align_axis)
+    analyze_truss(args.problem, viewer=args.viewer, save_model=args.save, exagg=args.exagg)
 
 # Issue:
-# python .\examples\scripts\run.py -v --bc_align_axis 0
+# python .\examples\scripts\run.py -v
 
 if __name__ == '__main__':
     main()

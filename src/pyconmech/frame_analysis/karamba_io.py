@@ -11,8 +11,12 @@ from io_base import Node, Element, Support, Joint, CrossSec, Material, Model, Lo
 
 # https://ironpython.net/documentation/dotnet/dotnet.html
 import clr
-clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba.gha")
-clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\KarambaCommon.dll")
+try:
+    clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba.gha")
+    clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\KarambaCommon.dll")
+except:
+    clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba\Karamba.gha")
+    clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba\KarambaCommon.dll")
 
 import feb # Karamba's C++ library (undocumented in the API)
 import Karamba
