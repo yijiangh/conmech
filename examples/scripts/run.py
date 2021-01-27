@@ -91,7 +91,7 @@ def solid_cir_crosssec(r, elem_tags=None):
 
 ################################################
 
-def analyze_truss(problem, viewer=True, save_model=False, exagg=1.0):
+def analyze_truss(problem, viewer=True, save_model=False, exagg=1.0, write=False):
     problem_path = os.path.join(HERE, problem)
 
     # * parse nodes from txt file
@@ -125,12 +125,12 @@ def analyze_truss(problem, viewer=True, save_model=False, exagg=1.0):
     model = Model(nodes, elems, supps, joints, materials, cross_secs,  model_name=problem)
     loadcase = LoadCase(point_loads=point_loads)
     if save_model:
-        save_path = os.path.join(problem_path, problem + '.json')
+        save_path = os.path.abspath(os.path.join(problem_path, problem + '.json'))
         with open(save_path, 'w') as f:
             json.dump(model.to_data(), f, indent=None)
         cprint('Model saved to {}'.format(save_path), 'green')
 
-        lc_save_path = os.path.join(problem_path, problem + '_loadcase.json')
+        lc_save_path = os.path.abspath(os.path.join(problem_path, problem + '_loadcase.json'))
         with open(lc_save_path, 'w') as f:
             json.dump(loadcase.to_data(), f, indent=None)
         cprint('Load Case saved to {}'.format(lc_save_path), 'green')
@@ -166,8 +166,22 @@ def analyze_truss(problem, viewer=True, save_model=False, exagg=1.0):
     # we want this value to be low
     compliance = sc.get_compliance()
     cprint('Elastic energy: {}'.format(compliance), 'cyan')
-
     # volume can be computed by simply summing over `cross sectional area * bar length`
+
+    if write:
+        rdata = {
+            'solve_success' : bool(success),
+            'elastic_energy' : float(compliance),
+            'nodal_displacement' : { nid : list(nd) for nid, nd in nD.items()},
+            'support_reaction' :   { nid : list(fr) for nid, fr in fR.items()},
+            'element_reaction' :   { eid : [list(er[0]), list(er[1])] for eid, er in eR.items()},
+            'max_trans' : max_trans,
+            'max_trans_nid' : int(max_trans_vid),
+        }
+        result_path = os.path.abspath(os.path.join(problem_path, problem + '_result.json'))
+        with open(result_path, 'w') as f:
+            json.dump(rdata, f, indent=None)
+        cprint('Analysis result saved to {}'.format(result_path), 'green')
 
     if viewer:
         fig = plt.figure()
@@ -215,11 +229,13 @@ def main():
                         help='Enables the viewer, default False')
     parser.add_argument('-s', '--save', action='store_true', 
                         help='Save conmech model, default False')
+    parser.add_argument('-w', '--write', action='store_true', 
+                        help='Write conmech analysis result, default False')
     parser.add_argument('--exagg', type=float, default=10.0,
                         help='Deformation exaggeration ratio.')
     args = parser.parse_args()
 
-    analyze_truss(args.problem, viewer=args.viewer, save_model=args.save, exagg=args.exagg)
+    analyze_truss(args.problem, viewer=args.viewer, save_model=args.save, exagg=args.exagg, write=args.write)
 
 # Issue:
 # python .\examples\scripts\run.py -v
