@@ -88,17 +88,18 @@ def test_2Dbeam_stiffness_matrix_parsed(test_data_dir, engine):
     # R_xa, R_ya, Rm_za, R_yb
     # textbook moment reaction unit kN m
     R_ans = np.array([-3.6, -3.3, -8.8, 6.85])
-    node_a_fr = fR[0]['reaction']
-    node_b_fr = fR[1]['reaction']
-    node_c_fr = fR[2]['reaction']
+    node_a_fr = np.array(fR[0]['reaction'])
+    node_b_fr = np.array(fR[1]['reaction'])
+    node_c_fr = np.array(fR[2]['reaction'])
     # // (God knows what type of hand-calc precision the authors were using...)
     # assert_aleq_gmz_array(R_ans, R[[0, 1, 5, 6+1]], precision=0)
-    assert_aleq_gmz_array(R_ans, np.array([node_a_fr[0], node_a_fr[1], node_a_fr[5], node_b_fr[1]]), precision=0)
-
+    assert_aleq_gmz_array(R_ans, np.array([node_a_fr[0], node_a_fr[1], node_a_fr[5], node_b_fr[1]]), precision=0) 
+ 
     eR0 = eR[0]['reaction']
     eR1 = eR[1]['reaction']
-    assert_array_almost_equal(node_a_fr, eR0[0])
-    assert_array_almost_equal(node_b_fr, np.array(eR0[1]) + np.array(eR1[0]))
+    # Equilibrium: element reaction + support reaction = 0
+    assert_array_almost_equal(-node_a_fr, eR0[0])
+    assert_array_almost_equal(-node_b_fr, np.array(eR0[1]) + np.array(eR1[0]))
 
     K_full = sc.get_global_stiffness_matrix()
     u_test = np.hstack([nD0, nD1, nD2])

@@ -123,7 +123,7 @@ class NumpyStiffness(StiffnessBase):
             self._element_lumped_nload_list = {}
 
     def set_load(self, nodal_forces):
-        """[summary]
+        """Point load at nodes, in global coord system
         
         Parameters
         ----------
@@ -263,7 +263,7 @@ class NumpyStiffness(StiffnessBase):
         U_m = np.zeros(n_free_dof)
         self._stored_compliance = 0.0
 
-        # solve
+        # * solve
         if norm(nodal_load_P_tmp) > DOUBLE_EPS:
             P_perm = Perm.dot(nodal_load_P_tmp) 
             P_m = P_perm[0:n_free_dof]
@@ -386,7 +386,8 @@ class NumpyStiffness(StiffnessBase):
         self._stored_eR = np.zeros((len(exist_element_ids), 1+12), dtype=float)
         for i, e in enumerate(exist_element_ids):
             Ue = U[self._id_map[e]]
-            eRF = self._rot_list[e].dot(self._element_k_list[e].dot(Ue))
+            # ! note the sign change here to make it as internal reaction
+            eRF = - self._rot_list[e].dot(self._element_k_list[e].dot(Ue))
             self._stored_eR[i, :] = np.hstack([[e], eRF])
 
         self._stored_existing_ids = np.copy(exist_element_ids)

@@ -46,5 +46,6 @@ from .stiffness_checker import *
 from .io_base import *
 # from .result_compare_utils import *
 # from .numpy_stiffness import *
+from .utils import solve_linear_elastic_from_data
 
 __all__ = [name for name in dir() if not name.startswith('_')]

@@ -261,10 +261,12 @@ def repetitive_test_equilibrium(frame_file_path, engine, parsed_pt_loads=None, i
     for e_id in existing_e_ids:
         e = sc.elements[e_id]
         K_eL = local_stiffness_mats[e_id]
-        eD_G = np.hstack([ nD[e[0]],    nD[e[1]] ])
+        # element deformation in global coord
+        eD_G = np.hstack([nD[e[0]], nD[e[1]]])
+        # element deformation in local coord
         eD_L = eR_LG_mats[e_id].dot(eD_G)
-        eR_L = np.hstack([ eR[e_id][0], eR[e_id][1] ])
-        assert_almost_equal(K_eL.dot(eD_L), eR_L)
+        eR_L = np.hstack([eR[e_id][0], eR[e_id][1]])
+        assert_almost_equal(-K_eL.dot(eD_L), eR_L)
     cprint('Passed', 'green')
 
     print('='*10)
@@ -276,7 +278,7 @@ def repetitive_test_equilibrium(frame_file_path, engine, parsed_pt_loads=None, i
         eD_G = np.hstack([ nD[e[0]],    nD[e[1]] ])
         eR_L = np.hstack([ eR[e_id][0], eR[e_id][1] ])
         eR_G = eR_LG_mats[e_id].transpose().dot(eR_L)
-        assert_almost_equal(K_eG.dot(eD_G), eR_G)
+        assert_almost_equal(-K_eG.dot(eD_G), eR_G)
     cprint('Passed', 'green')
 
     #########################
@@ -313,7 +315,7 @@ def repetitive_test_equilibrium(frame_file_path, engine, parsed_pt_loads=None, i
                 cprint('{}'.format(err_msg), 'red')
                 fail_number += 1
         else:
-            assert_almost_equal(fixity_reaction + nodal_loads[n_id], internal_force)
+            assert_almost_equal(fixity_reaction + nodal_loads[n_id], - internal_force)
     cprint('Passed : {}/{}'.format(len(existing_node_ids)-fail_number, len(existing_node_ids)), 'green' if fail_number==0 else 'yellow')
 
     # test nodal force equilibrium, from nodal deformation
@@ -338,34 +340,36 @@ def repetitive_test_equilibrium(frame_file_path, engine, parsed_pt_loads=None, i
 
             eR_LG = eR_LG_mats[e_id]
             K_eL = local_stiffness_mats[e_id]
-            e_reaction = multi_dot([eR_LG.transpose(), K_eL, eR_LG, eD_G])
+            e_reaction = -multi_dot([eR_LG.transpose(), K_eL, eR_LG, eD_G])
 
             K_eG = global_stiffness_mats[e_id]
-            e_reaction_rep = multi_dot([K_eG, eD_G])
+            e_reaction_rep = - multi_dot([K_eG, eD_G])
             assert_almost_equal(e_reaction, e_reaction_rep)
             
             e_reaction_node = e_reaction[local_id*6 : local_id*6 + 6]
             e_reaction_node_sum += e_reaction_node
         if debug:
             try:
-                assert_almost_equal(fixity_reaction + nodal_loads[n_id], e_reaction_node_sum)
+                # equilibrium: support reaction + load + internal reaction = 0
+                assert_almost_equal(fixity_reaction + nodal_loads[n_id], -e_reaction_node_sum)
             except AssertionError as err_msg:
                 print('----\nnode #{}, fixed: {}, connected elements {},\nfix + load : {},\ninternal_force : {}, \neq_diff {}'.format(
                     n_id, n_id in sc.fix_node_ids, connected_e_ids, 
-                    fixity_reaction + nodal_loads[n_id], e_reaction_node_sum,
-                    fixity_reaction + nodal_loads[n_id] - e_reaction_node_sum))
+                    fixity_reaction + nodal_loads[n_id], -e_reaction_node_sum,
+                    fixity_reaction + nodal_loads[n_id] -e_reaction_node_sum))
                 cprint('{}'.format(err_msg), 'red')
                 fail_number += 1
         else:
-            assert_almost_equal(fixity_reaction + nodal_loads[n_id], e_reaction_node_sum)
+            # equilibrium: support reaction + load + internal reaction = 0
+            assert_almost_equal(fixity_reaction + nodal_loads[n_id], -e_reaction_node_sum)
     cprint('Passed : {}/{}'.format(len(existing_node_ids)-fail_number, len(existing_node_ids)), 'green' if fail_number==0 else 'yellow')
 
 
 @pytest.mark.equil_check
 @pytest.mark.parametrize("test_case, load_case", 
+    # [('topopt-100', 'self_weight'),])
     [('tower', 'self_weight'), ('tower', 'point_load'), ('tower', 'self_weight+point_load'),
      ('topopt-100', 'self_weight'), ('topopt-100', 'point_load'), ('topopt-100', 'self_weight+point_load')])
-    # [('topopt-100', 'self_weight'),])
 def test_nodal_equilibrium(test_case, load_case, engine, debug):
     trans_tol = 1e-3
     if test_case == 'tower':

@@ -267,6 +267,9 @@ class Joint(object):
             'elem_tags' : self.elem_tags,
         }
 
+    def __repr__(self):
+        return '{}(#{},{})'.format(self.__class__.__name__, self.elem_tags, self.c_conditions)
+
 # TODO: assumed to be converted to meter-based unit
 class CrossSec(object):
     def __init__(self, A, Jx, Iy, Iz, elem_tags=None, family='unnamed', name='unnamed'):

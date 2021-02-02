@@ -15,8 +15,11 @@ try:
     clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba.gha")
     clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\KarambaCommon.dll")
 except:
-    clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba\Karamba.gha")
-    clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba\KarambaCommon.dll")
+    try:
+        clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba\Karamba.gha")
+        clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba\KarambaCommon.dll")
+    except:
+        raise RuntimeError("Karamba Plug-in path (where Karamba.gha and KarambaCommon.dll resides) not found!")
 
 import feb # Karamba's C++ library (undocumented in the API)
 import Karamba
@@ -51,7 +54,7 @@ class KarambaNode(Node):
             return Karamba.Nodes.Node(self.node_ind, Point3(*self.point))
         else:
             raise ValueError
-
+    
 class KarambaElement(Element):
     @classmethod
     def from_karamba(cls, kelement):

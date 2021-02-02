@@ -1,0 +1,154 @@
+{
+ "model_name": "2D_truss", 
+ "unit": "meter", 
+ "generate_time": "2021-02-01 20:24:11.998000", 
+ "node_num": 3, 
+ "element_num": 2, 
+ "nodes": [
+  {
+   "node_ind": 0, 
+   "point": [
+    -10.0, 
+    0.0, 
+    0.0
+   ], 
+   "is_grounded": false
+  }, 
+  {
+   "node_ind": 1, 
+   "point": [
+    0.0, 
+    0.0, 
+    5.0
+   ], 
+   "is_grounded": false
+  }, 
+  {
+   "node_ind": 2, 
+   "point": [
+    10.0, 
+    0.0, 
+    0.0
+   ], 
+   "is_grounded": false
+  }
+ ], 
+ "elements": [
+  {
+   "elem_tag": "beams", 
+   "bending_stiff": true, 
+   "elem_ind": 0, 
+   "end_node_inds": [
+    0, 
+    1
+   ]
+  }, 
+  {
+   "elem_tag": "beams_truss", 
+   "bending_stiff": true, 
+   "elem_ind": 1, 
+   "end_node_inds": [
+    2, 
+    1
+   ]
+  }
+ ], 
+ "supports": [
+  {
+   "node_ind": 0, 
+   "condition": [
+    true, 
+    true, 
+    true, 
+    true, 
+    true, 
+    true
+   ]
+  }, 
+  {
+   "node_ind": 1, 
+   "condition": [
+    false, 
+    true, 
+    false, 
+    true, 
+    false, 
+    true
+   ]
+  }, 
+  {
+   "node_ind": 2, 
+   "condition": [
+    true, 
+    true, 
+    true, 
+    true, 
+    true, 
+    true
+   ]
+  }
+ ], 
+ "joints": [], 
+ "materials": [
+  {
+   "G3": 80760000.0, 
+   "density": 78.5, 
+   "G12": 80760000.0, 
+   "family": "Steel", 
+   "mu": 0.30014858841010406, 
+   "E": 210000000.0, 
+   "elem_tags": [
+    null
+   ], 
+   "name": "Steel", 
+   "type_name": "ISO", 
+   "fy": 235000.0
+  }
+ ], 
+ "cross_secs": [
+  {
+   "Iy": 2.1106547193827362e-06, 
+   "family": "RO", 
+   "Iz": 2.1106547193827362e-06, 
+   "A": 0.0013860706787638157, 
+   "elem_tags": [
+    null
+   ], 
+   "Jx": 4.2213094387654724e-06, 
+   "name": "RO114.3/4"
+  }, 
+  {
+   "Iy": 3.3194666666666672e-06, 
+   "family": "Hey", 
+   "Iz": 1.3341666666666669e-06, 
+   "A": 0.002, 
+   "elem_tags": [
+    "beams_truss"
+   ], 
+   "Jx": 3.6630108993439872e-08, 
+   "name": "Yo"
+  }
+ ], 
+ "loadcases": {
+  "0": {
+   "eloads": [], 
+   "gravity": null, 
+   "ploads": [
+    {
+     "node_ind": 1, 
+     "force": [
+      -0.0, 
+      -0.0, 
+      -10.0
+     ], 
+     "moment": [
+      0.0, 
+      0.0, 
+      0.0
+     ], 
+     "loadcase": 0
+    }
+   ]
+  }
+ }
+}
