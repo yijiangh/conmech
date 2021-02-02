@@ -10,6 +10,7 @@ import sys
 
 import os
 import json
+import warnings
 from collections import defaultdict, OrderedDict
 import numpy as np
 from numpy.linalg import norm
@@ -325,6 +326,43 @@ class StiffnessChecker(object):
                 e_r[1] = np.array(row[7:13])
                 eR[e_id] = e_r
         return success, nD, fR, eR
+
+    def get_sigma_max_per_element(self, existing_ids=[]):
+        """Compute maximum axial normal stress [kN/m2] calculated from `sig = N/A +- My/(Iyy/z_max) +- Mz/(Izz/y_max)`
+
+        Parameters
+        ----------
+        existing_ids : list, optional
+            [description], by default []
+
+        Returns
+        -------
+        dict
+            {e_id : sig_max}, negative if compressive, positive if tensile
+        """
+        # TODO need Resistance moment Wy [m^3] about the local Y axis for the extreme point on the local Z axis
+        # i.e. Iyy / z_max
+        # ! only support solid, round cross sec for now!!
+        warnings.warn('Maximal stress computation only support solid, round cross sec for now!')
+        _, _, _, eR = self.get_solved_results(existing_ids)
+        sigma_max = {}
+        for e_id, er in eR.items():
+            cross_sec = self.get_element_crosssec(e_id)
+            # axial stress = N / A
+            N = er[0][0]
+            My = max(abs(er[0][4]), abs(er[1][4]))
+            Mz = max(abs(er[0][5]), abs(er[1][5]))
+            r = np.sqrt(cross_sec.A / np.pi)
+            # assert abs(np.pi * r**4 / 4 - cross_sec.Iy) < 1e-12 and abs(np.pi * r**4 / 4 - cross_sec.Iz) < 1e-12, \
+            #     'Iy {}, Iz {}, should-be {}, Maximal stress computation only support solid, round cross sec for now!!'.format(
+            #         cross_sec.Iy, cross_sec.Iz, np.pi * r**4 / 4
+            #     )
+            Wy = cross_sec.Iy / r
+            Wz = cross_sec.Iy / r
+            sigma = N / cross_sec.A
+            sign = 1.0 if sigma > 0 else -1.0
+            sigma_max[e_id] = sign * (abs(sigma) + My/Wy + Mz/Wz)
+        return sigma_max
 
     def get_max_nodal_deformation(self):
         """Get max nodal deformation info

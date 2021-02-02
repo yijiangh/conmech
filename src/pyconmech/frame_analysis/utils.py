@@ -32,13 +32,17 @@ def solve_linear_elastic_from_data(model_data, loadcase_data, verbose=True):
         max_trans, trans_tol, max_trans / trans_tol, max_trans_vid), 'cyan')
     cprint('Max rotation deformation: {0:.5f} rad / {1:.5} = {2:.5}, at node #{3}'.format(
         max_rot, rot_tol, max_rot / rot_tol, max_rot_vid), 'cyan')
+
+    sigma_max = sc.get_sigma_max_per_element()
+    sig_max_eid = np.argmax(np.abs(np.array([sigma_max[i] for i in range(len(sigma_max))])))
+    cprint('Max axial normal stress: {} [kN/m^2] at element #{}'.format(sigma_max[sig_max_eid], sig_max_eid), 'cyan')
     
     # Compliance is the elastic energy: https://en.wikipedia.org/wiki/Elastic_energy
     # The inverse of stiffness is flexibility or compliance
     # the higher this value is, the more flexible a structure is
     # we want this value to be low
     compliance = sc.get_compliance()
-    cprint('Elastic energy: {}'.format(compliance), 'cyan')
+    cprint('Elastic energy: {} [kN m]'.format(compliance), 'cyan')
     # volume can be computed by simply summing over `cross sectional area * bar length`
 
     rdata = {
@@ -49,6 +53,7 @@ def solve_linear_elastic_from_data(model_data, loadcase_data, verbose=True):
         'element_reaction' :   { eid : [list(er[0]), list(er[1])] for eid, er in eR.items()},
         'max_trans' : max_trans,
         'max_trans_nid' : int(max_trans_vid),
+        'sigma_max' : sigma_max,
     }
 
     # if write:

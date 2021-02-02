@@ -159,13 +159,17 @@ def analyze_truss(problem, viewer=True, save_model=False, exagg=1.0, write=False
         max_trans, trans_tol, max_trans / trans_tol, max_trans_vid), 'cyan')
     cprint('Max rotation deformation: {0:.5f} rad / {1:.5} = {2:.5}, at node #{3}'.format(
         max_rot, rot_tol, max_rot / rot_tol, max_rot_vid), 'cyan')
+
+    sigma_max = sc.get_sigma_max_per_element()
+    sig_max_eid = np.argmax(np.abs(np.array([sigma_max[i] for i in range(len(sigma_max))])))
+    cprint('Max axial normal stress: {} [kN/m^2] at element #{}'.format(sigma_max[sig_max_eid], sig_max_eid), 'cyan')
     
     # Compliance is the elastic energy: https://en.wikipedia.org/wiki/Elastic_energy
     # The inverse of stiffness is flexibility or compliance
     # the higher this value is, the more flexible a structure is
     # we want this value to be low
     compliance = sc.get_compliance()
-    cprint('Elastic energy: {}'.format(compliance), 'cyan')
+    cprint('Elastic energy: {} [kN m]'.format(compliance), 'cyan')
     # volume can be computed by simply summing over `cross sectional area * bar length`
 
     if write:
@@ -177,6 +181,7 @@ def analyze_truss(problem, viewer=True, save_model=False, exagg=1.0, write=False
             'element_reaction' :   { eid : [list(er[0]), list(er[1])] for eid, er in eR.items()},
             'max_trans' : max_trans,
             'max_trans_nid' : int(max_trans_vid),
+            'sigma_max' : sigma_max,
         }
         result_path = os.path.abspath(os.path.join(problem_path, problem + '_result.json'))
         with open(result_path, 'w') as f:

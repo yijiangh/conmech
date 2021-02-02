@@ -16,6 +16,7 @@ Unreleased
 - An example run script is added to the `examples`
 - Added a direct call to `StiffnessChecker` in GHPython, via compas RPC proxy.
 - Added `utils` module, providing function call access to stiffness checker computation.
+- Added `StiffnessChecker.get_sigma_max_per_element`, only support rounded cross sec.
 
 **changed**
 
