@@ -12,12 +12,12 @@ from io_base import Node, Element, Support, Joint, CrossSec, Material, Model, Lo
 # https://ironpython.net/documentation/dotnet/dotnet.html
 import clr
 try:
-    clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba.gha")
-    clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\KarambaCommon.dll")
+    clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 7\Plug-ins\Karamba.gha")
+    clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 7\Plug-ins\KarambaCommon.dll")
 except:
     try:
-        clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba\Karamba.gha")
-        clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 6\Plug-ins\Karamba\KarambaCommon.dll")
+        clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 7\Plug-ins\Karamba\Karamba.gha")
+        clr.AddReferenceToFileAndPath("C:\Program Files\Rhino 7\Plug-ins\Karamba\KarambaCommon.dll")
     except:
         raise RuntimeError("Karamba Plug-in path (where Karamba.gha and KarambaCommon.dll resides) not found!")
 
@@ -31,7 +31,7 @@ import Karamba.CrossSections
 import Karamba.Materials
 import Karamba.Supports
 import Karamba.Loads
-from Karamba.Utilities import MessageLogger, UnitsConversionFactories
+# from Karamba.Utilities import MessageLogger, UnitsConversionFactories
 import KarambaCommon
 #
 import System
@@ -46,7 +46,7 @@ class KarambaNode(Node):
     def from_karamba(cls, knode, is_grounded=False):
         point = [knode.pos.X, knode.pos.Y, knode.pos.Z]
         return cls(point, knode.ind, is_grounded)
-    
+
     def to_karamba(self, type='Point3'):
         if type == 'Point3':
             return Point3(*self.point)
@@ -54,11 +54,11 @@ class KarambaNode(Node):
             return Karamba.Nodes.Node(self.node_ind, Point3(*self.point))
         else:
             raise ValueError
-    
+
 class KarambaElement(Element):
     @classmethod
     def from_karamba(cls, kelement):
-        return cls(list(kelement.node_inds), kelement.ind, elem_tag=kelement.id, 
+        return cls(list(kelement.node_inds), kelement.ind, elem_tag=kelement.id,
             bending_stiff=kelement.bending_stiff)
 
     def to_karamba(self, type='builderbeam'):
@@ -82,7 +82,7 @@ class KarambaJoint(Joint):
     @classmethod
     def from_karamba(cls, kjoint):
         assert kjoint.dofs == 6
-        # condition is If null there is no joint for the corresponding DOF. 
+        # condition is If null there is no joint for the corresponding DOF.
         return cls(list(kjoint.c_condition(0)) + list(kjoint.c_condition(1)), list(kjoint.elemIds))
 
     def to_karamba(self):
@@ -115,13 +115,15 @@ class KarambaMaterialIsotropic(Material):
     @classmethod
     def from_karamba(cls, km):
         assert km.typeName() == 'ISO', 'Input should be a Isotropic material!'
-        return cls(km.E(), km.G12(), km.fy(), km.gamma(), elem_tags=list(km.elemIds), 
+        return cls(km.E(), km.G12(), km.fy(), km.gamma(), elem_tags=list(km.elemIds),
             family=km.family, name=km.name, type_name=km.typeName(), G3=km.G3())
 
     def to_karamba(self):
         steel_alphaT = 1e-5 #1/deg
+        # ! assuming equal compressive and transile strength now
         km = Karamba.Materials.FemMaterial_Isotrop(
-	        self.family, self.name, self.E, self.G12, self.G3, self.density, self.fy, steel_alphaT, None) #Color.FromName("SlateBlue")
+	        self.family, self.name, self.E, self.G12, self.G3, self.density, self.fy, self.fy,
+                Karamba.Materials.FemMaterial.FlowHypothesis.mises, steel_alphaT, None) #Color.FromName("SlateBlue")
         for tag in self.elem_tags:
             if tag is not None:
                 km.AddBeamId(tag)
@@ -130,19 +132,18 @@ class KarambaMaterialIsotropic(Material):
 class KarambaPointLoad(PointLoad):
     @classmethod
     def from_karamba(cls, kf):
-        return cls([kf.force.X, kf.force.Y, kf.force.Z], 
+        return cls([kf.force.X, kf.force.Y, kf.force.Z],
                    [kf.moment.X, kf.moment.Y, kf.moment.Z], kf.node_ind, kf.loadcase)
 
     def to_karamba(self, corotate=False):
         # corotate = true the pointload corotates with the node
-        pl = Karamba.Loads.PointLoad(self.node_ind, Vector3(*self.force), Vector3(*self.moment), corotate)
-        pl.loadcase = self.loadcase
+        pl = Karamba.Loads.PointLoad(self.node_ind, Vector3(*self.force), Vector3(*self.moment), str(self.loadcase), corotate)
         return pl
 
 class KarambaUniformlyDistLoad(UniformlyDistLoad):
     @classmethod
     def from_karamba(cls, kf):
-        return cls([kf.Q.X, kf.Q.Y, kf.Q.Z], 
+        return cls([kf.Q.X, kf.Q.Y, kf.Q.Z],
                    [kf.Load.X, kf.Load.Y, kf.Load.Z], kf.beamIds, loadcase=kf.loadcase)
 
     def to_karamba(self):
@@ -186,7 +187,7 @@ class KarambaLoadCase(LoadCase):
         km.gravities.TryGetValue(lc, k_grav)
         if k_grav.Value is not None:
             gravity_load = KarambaGravityLoad.from_karamba(k_grav.Value)
-        
+
         return cls(point_loads, uniform_element_loads, gravity_load)
 
     def to_karamba(self):
@@ -208,7 +209,7 @@ class KarambaModel(Model):
         kjoints = [KarambaJoint.from_data(j.to_data()) for j in model.joints]
         kmaterials = [KarambaMaterialIsotropic.from_data(m.to_data()) for m in model.materials]
         kcrosssecs = [KarambaCrossSec.from_data(cs.to_data()) for cs in model.crosssecs]
-        return cls(knodes, kelements, ksupports, kjoints, kmaterials, kcrosssecs, 
+        return cls(knodes, kelements, ksupports, kjoints, kmaterials, kcrosssecs,
             unit=model.unit, model_name=model.model_name)
 
     @classmethod
@@ -231,10 +232,10 @@ class KarambaModel(Model):
                     if k_supp.position.DistanceTo(k_g.position) < limit_distance:
                       knodes[k_supp.node_ind].is_grounded = True
 
-        return cls(knodes, kelements, ksupports, kjoints, kmaterials, kcrosssecs, 
+        return cls(knodes, kelements, ksupports, kjoints, kmaterials, kcrosssecs,
             unit="meter", model_name=model_name)
 
-    def to_karamba(self, loadcase, limit_dist=1e-6):
+    def to_karamba(self, loadcase=None, limit_dist=1e-6):
         mass = clr.Reference[float]()
         cog = clr.Reference[Point3]()
         warning_flag = clr.Reference[bool]()
@@ -254,8 +255,11 @@ class KarambaModel(Model):
         in_materials = List[Karamba.Materials.FemMaterial]([m.to_karamba() for m in self.materials])
         in_joints = List[Karamba.Joints.Joint]([j.to_karamba() for j in self.joints])
 
-        kloadcase = KarambaLoadCase.from_loadcase(loadcase)
-        in_loads = kloadcase.to_karamba()
+        if loadcase:
+            kloadcase = KarambaLoadCase.from_loadcase(loadcase)
+            in_loads = kloadcase.to_karamba()
+        else:
+            in_loads = [Karamba.Loads.Load()]
 
         Karamba.Models.AssembleModel.solve(
         	in_points,

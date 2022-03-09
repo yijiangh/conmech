@@ -62,7 +62,7 @@ class Model(object):
                 if len(jt_ids) > 1:
                     warnings.warn('{} joints (#{}) assigned to the same element tag {}. Assume using the first one!'.format(len(jt_ids), jt_ids, etag))
         self.joint_id_from_etag = {e_tag : list(ids)[0] for e_tag, ids in joint_id_from_etag.items()}
-        
+
 
         assert len(materials) > 0
         self.materials = materials
@@ -105,8 +105,8 @@ class Model(object):
 
     @classmethod
     def from_data(cls, data, verbose=False):
-        model_name = data['model_name']
-        unit = data['unit']
+        model_name = data.get('model_name', '')
+        unit = data.get('unit', 'meter')
         # length scale for vertex positions
         scale = LENGTH_SCALE_CONVERSION[unit]
         unit = 'meter'
@@ -137,7 +137,7 @@ class Model(object):
         if num_grounded_nodes == 0:
             warnings.warn('The structure must have at lease one grounded node!')
         if verbose:
-            print('Model: {} | Original unit: {} | Generated time: {}'.format(model_name, data['unit'], 
+            print('Model: {} | Original unit: {} | Generated time: {}'.format(model_name, data['unit'],
                 data['generate_time'] if 'generate_time' in data else ''))
             print('Nodes: {} | Elements: {} | Supports: {} | Joints: {} | Materials: {} | Cross Secs: {} | Tag Ground: {} '.format(
                 len(nodes), len(elements), len(supports), len(joints), len(materials), len(crosssecs), num_grounded_nodes))
@@ -171,7 +171,7 @@ class LoadCase(object):
             json_data = json.loads(f.read())
         json_data = json_data['loadcases'] if 'loadcases' in json_data else json_data
         return cls.from_data(json_data[str(lc_ind)])
-    
+
     @classmethod
     def from_data(cls, data):
         point_loads = [PointLoad.from_data(pl) for pl in data['ploads']]
@@ -187,7 +187,7 @@ class LoadCase(object):
         return data
 
     def __repr__(self):
-        return '{}(#pl:{},#el:{},gravity:{})'.format(self.__class__.__name__, len(self.point_loads), 
+        return '{}(#pl:{},#el:{},gravity:{})'.format(self.__class__.__name__, len(self.point_loads),
             len(self.uniform_element_loads), self.gravity_load)
 
 ##############################################
@@ -314,7 +314,7 @@ def G2mu(G, E):
 class Material(object):
     def __init__(self, E, G12, fy, density, elem_tags=None, family='unnamed', name='unnamed', type_name='ISO', G3=None):
         self.E = E
-        # in-plane shear modulus 
+        # in-plane shear modulus
         self.G12 = G12
         # transverse shear modulus
         self.G3 = G3 or G12
@@ -395,7 +395,7 @@ class UniformlyDistLoad(object):
         }
 
     def __repr__(self):
-        return '{}(element_tags {} | q {} | load {} | lc#{})'.format(self.__class__.__name__, 
+        return '{}(element_tags {} | q {} | load {} | lc#{})'.format(self.__class__.__name__,
             self.elem_tags, self.q, self.load, self.loadcase)
 
 class GravityLoad(object):
