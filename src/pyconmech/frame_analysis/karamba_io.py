@@ -21,6 +21,7 @@ except:
     except:
         raise RuntimeError("Karamba Plug-in path (where Karamba.gha and KarambaCommon.dll resides) not found!")
 
+# https://scripting.karamba3d.com/
 import feb # Karamba's C++ library (undocumented in the API)
 import Karamba
 import Karamba.Models.Model
@@ -31,7 +32,6 @@ import Karamba.CrossSections
 import Karamba.Materials
 import Karamba.Supports
 import Karamba.Loads
-# from Karamba.Utilities import MessageLogger, UnitsConversionFactories
 import KarambaCommon
 #
 import System
@@ -115,14 +115,14 @@ class KarambaMaterialIsotropic(Material):
     @classmethod
     def from_karamba(cls, km):
         assert km.typeName() == 'ISO', 'Input should be a Isotropic material!'
-        return cls(km.E(), km.G12(), km.fy(), km.gamma(), elem_tags=list(km.elemIds),
+        return cls(km.E(), km.G12(), km.fc(), km.ft(), km.gamma(), elem_tags=list(km.elemIds),
             family=km.family, name=km.name, type_name=km.typeName(), G3=km.G3())
 
     def to_karamba(self):
         steel_alphaT = 1e-5 #1/deg
         # ! assuming equal compressive and transile strength now
         km = Karamba.Materials.FemMaterial_Isotrop(
-	        self.family, self.name, self.E, self.G12, self.G3, self.density, self.fy, self.fy,
+	        self.family, self.name, self.E, self.G12, self.G3, self.density, self.ft, self.fc,
                 Karamba.Materials.FemMaterial.FlowHypothesis.mises, steel_alphaT, None) #Color.FromName("SlateBlue")
         for tag in self.elem_tags:
             if tag is not None:
@@ -133,7 +133,7 @@ class KarambaPointLoad(PointLoad):
     @classmethod
     def from_karamba(cls, kf):
         return cls([kf.force.X, kf.force.Y, kf.force.Z],
-                   [kf.moment.X, kf.moment.Y, kf.moment.Z], kf.node_ind, kf.loadcase)
+                   [kf.moment.X, kf.moment.Y, kf.moment.Z], kf.node_ind, kf.LcName)
 
     def to_karamba(self, corotate=False):
         # corotate = true the pointload corotates with the node
@@ -144,7 +144,7 @@ class KarambaUniformlyDistLoad(UniformlyDistLoad):
     @classmethod
     def from_karamba(cls, kf):
         return cls([kf.Q.X, kf.Q.Y, kf.Q.Z],
-                   [kf.Load.X, kf.Load.Y, kf.Load.Z], kf.beamIds, loadcase=kf.loadcase)
+                   [kf.Load.X, kf.Load.Y, kf.Load.Z], kf.beamIds, loadcase=kf.LcName)
 
     def to_karamba(self):
         # Karamba.Loads.LoadOrientation.global
@@ -154,7 +154,7 @@ class KarambaUniformlyDistLoad(UniformlyDistLoad):
 class KarambaGravityLoad(GravityLoad):
     @classmethod
     def from_karamba(cls, kf):
-        return cls([kf.force.X, kf.force.Y, kf.force.Z], kf.loadcase)
+        return cls([kf.force.X, kf.force.Y, kf.force.Z], kf.LcName)
 
     def to_karamba(self):
         return Karamba.Loads.GravityLoad(Vector3(*self.force), self.loadcase)
@@ -174,19 +174,22 @@ class KarambaLoadCase(LoadCase):
         assert lc < km.numLC
         point_loads = []
         for pl in km.ploads:
-            if pl.loadcase == lc:
+            if pl.LcName == lc or pl.LcName == str(lc):
                 point_loads.append(KarambaPointLoad.from_karamba(pl))
 
         uniform_element_loads = []
         for el in km.eloads:
-            if el.loadcase == lc and isinstance(el, Karamba.Loads.UniformlyDistLoad):
+            if (el.LcName == lc or el.LcName == str(lc)) and isinstance(el, Karamba.Loads.UniformlyDistLoad):
                 uniform_element_loads.append(KarambaUniformlyDistLoad.from_karamba(el))
 
         gravity_load = None
-        k_grav = clr.Reference[Karamba.Loads.GravityLoad]()
-        km.gravities.TryGetValue(lc, k_grav)
-        if k_grav.Value is not None:
-            gravity_load = KarambaGravityLoad.from_karamba(k_grav.Value)
+        k_grav = None
+        # k_grav = clr.Reference[Karamba.Loads.GravityLoad]()
+        # km.gravities.TryGetValue(str(lc), k_grav)
+        if km.gravities.ContainsKey(str(lc)):
+            k_grav = km.gravities[str(lc)]
+        if k_grav is not None:
+            gravity_load = KarambaGravityLoad.from_karamba(k_grav)
 
         return cls(point_loads, uniform_element_loads, gravity_load)
 
@@ -219,6 +222,7 @@ class KarambaModel(Model):
 
     @classmethod
     def from_karamba(cls, km, grounded_supports=None, model_name='', limit_distance=1e-6):
+        # grounded_supports: list of Karamba.Supports.Support
         knodes = [KarambaNode.from_karamba(kn) for kn in km.nodes]
         kelements = [KarambaElement.from_karamba(e) for e in km.elems]
         ksupports = [KarambaSupport.from_karamba(s) for s in km.supports]

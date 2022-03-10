@@ -176,7 +176,7 @@ class LoadCase(object):
     def from_data(cls, data):
         point_loads = [PointLoad.from_data(pl) for pl in data['ploads']]
         uniform_element_loads = [UniformlyDistLoad.from_data(el) for el in data['eloads']]
-        gravity_load = None if 'gravity' not in data else data['gravity']
+        gravity_load = None if 'gravity' not in data else GravityLoad.from_data(data['gravity'])
         return cls(point_loads, uniform_element_loads, gravity_load)
 
     def to_data(self):
@@ -312,15 +312,15 @@ def G2mu(G, E):
 
 # TODO: assumed to be converted to kN/m2, kN/m3
 class Material(object):
-    def __init__(self, E, G12, fy, density, elem_tags=None, family='unnamed', name='unnamed', type_name='ISO', G3=None):
+    def __init__(self, E, G12, fc, ft, density, elem_tags=None, family='unnamed', name='unnamed', type_name='ISO', G3=None):
         self.E = E
         # in-plane shear modulus
         self.G12 = G12
         # transverse shear modulus
         self.G3 = G3 or G12
         self.mu = G2mu(G12, E)
-        # material strength in the specified direction (local x direction)
-        self.fy = fy
+        self.fc = fc # material compressive strength in the specified direction in base units, by default [kN/m2]
+        self.ft = ft # material tensile strength in the specified direction in base units, by default [kN/m2].
         self.density = density
         self.elem_tags = elem_tags if elem_tags else [None]
         self.family = family
@@ -329,7 +329,7 @@ class Material(object):
 
     @classmethod
     def from_data(cls, data):
-        return cls(data['E'], data['G12'], data['fy'], data['density'], data['elem_tags'], data['family'], data['name'], data['type_name'], data.get('G3', None))
+        return cls(data['E'], data['G12'], data['fc'], data['ft'], data['density'], data['elem_tags'], data['family'], data['name'], data['type_name'], data.get('G3', None))
 
     def to_data(self):
         return  {
@@ -337,7 +337,8 @@ class Material(object):
             'G12' : self.G12,
             'G3' : self.G3,
             'mu' : self.mu,
-            'fy' : self.fy,
+            'fc' : self.fc,
+            'ft' : self.ft,
             'density' : self.density,
             'elem_tags' : self.elem_tags,
             'family' : self.family,
