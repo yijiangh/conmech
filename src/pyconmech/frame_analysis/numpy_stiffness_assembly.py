@@ -305,9 +305,9 @@ def global2local_transf_matrix(end_vert_u, end_vert_v, rot_y2x=0.0):
             # cross product is not defined, in this case
             # it's just a rotation about the global z axis
             # in x-y plane
-            R[0, 2] = -c_z
+            R[0, 2] = c_z
             R[1, 1] = 1
-            R[2, 0] = c_z
+            R[2, 0] = -c_z
         else:
             # local x_axis = element's vector
             new_x = np.array([c_x, c_y, c_z])
