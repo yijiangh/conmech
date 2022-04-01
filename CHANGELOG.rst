@@ -13,14 +13,17 @@ Unreleased
 
 **added**
 
-- An example run script is added to the `examples`
-- Added a direct call to `StiffnessChecker` in GHPython, via compas RPC proxy.
-- Added `utils` module, providing function call access to stiffness checker computation.
-- Added `StiffnessChecker.get_sigma_max_per_element`, only support rounded cross sec.
+* An example run script is added to the `examples`
+* Added a direct call to `StiffnessChecker` in GHPython, via compas RPC proxy.
+* Added `utils` module, providing function call access to stiffness checker computation.
+* Added `StiffnessChecker.get_sigma_max_per_element`, only support rounded cross sec.
 
 **changed**
 
-- The element reactions' sign is flipped, so equilibrium is expressed as `element reaction + external force + support reaction = 0`
+* Changed using the default element tag `''` to assign a default, distinctive element tag for each element.
+* Changed how we parse karamba model's crosssecs and materials if they are specified through element but directly as an input to the assemble component.
+* Changed `stiffness_base`'s' `get_element_crosssec` and `get_element_material` function to raise error if e_tag is not assigned.
+* The element reactions' sign is flipped, so equilibrium is expressed as `element reaction + external force + support reaction = 0`
 
 **fixed**
 

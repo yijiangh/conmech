@@ -4,6 +4,9 @@ import datetime
 import warnings
 from collections import defaultdict, OrderedDict
 
+def get_defalut_element_id_format(elem_id):
+    return '__conmech_default_e{}'.format(elem_id)
+
 '''length scale conversion to meter'''
 LENGTH_SCALE_CONVERSION = {
     'millimeter': 1e-3,
@@ -63,7 +66,6 @@ class Model(object):
                     warnings.warn('{} joints (#{}) assigned to the same element tag {}. Assume using the first one!'.format(len(jt_ids), jt_ids, etag))
         self.joint_id_from_etag = {e_tag : list(ids)[0] for e_tag, ids in joint_id_from_etag.items()}
 
-
         assert len(materials) > 0
         self.materials = materials
         material_id_from_etag = defaultdict(set)
@@ -72,7 +74,8 @@ class Model(object):
                 material_id_from_etag[e_tag].add(i)
         for etag, m_ids in material_id_from_etag.items():
             if len(m_ids) > 1:
-                warnings.warn('{} materials (#{}) assigned to the same element tag {}. Assume using the first one!'.format(len(m_ids), m_ids, etag))
+                mat_names = ['{}-{}'.format(self.materials[mid].family, self.materials[mid].name) for mid in m_ids]
+                warnings.warn('{} materials ({}) assigned to the same element tag {}. Assume using the first one!'.format(len(m_ids), mat_names, etag))
         self.material_id_from_etag = {e_tag : list(ids)[0] for e_tag, ids in material_id_from_etag.items()}
 
         assert len(crosssecs) > 0
@@ -83,7 +86,8 @@ class Model(object):
                 crosssec_id_from_etag[e_tag].add(i)
         for etag, cs_ids in crosssec_id_from_etag.items():
             if len(cs_ids) > 1:
-                warnings.warn('{} cross secs (#{}) assigned to the same element tag {}. Assume using the first one!'.format(len(cs_ids), cs_ids, etag))
+                cs_names = ['{}-{}'.format(self.crosssecs[csid].family,self.crosssecs[csid].name) for csid in cs_ids]
+                warnings.warn('{} cross secs ({}) assigned to the same element tag {}. Assume using the first one!'.format(len(cs_ids), cs_names, etag))
         self.crosssec_id_from_etag = {e_tag : list(ids)[0] for e_tag, ids in crosssec_id_from_etag.items()}
 
     @property
@@ -176,7 +180,7 @@ class LoadCase(object):
     def from_data(cls, data):
         point_loads = [PointLoad.from_data(pl) for pl in data['ploads']]
         uniform_element_loads = [UniformlyDistLoad.from_data(el) for el in data['eloads']]
-        gravity_load = None if 'gravity' not in data else GravityLoad.from_data(data['gravity'])
+        gravity_load = None if 'gravity' not in data or data['gravity'] is None else GravityLoad.from_data(data['gravity'])
         return cls(point_loads, uniform_element_loads, gravity_load)
 
     def to_data(self):
@@ -277,7 +281,7 @@ class CrossSec(object):
         self.Jx = Jx
         self.Iy = Iy
         self.Iz = Iz
-        self.elem_tags = elem_tags if elem_tags else [None]
+        self.elem_tags = elem_tags or []
         self.family = family
         self.name = name
 
@@ -322,7 +326,7 @@ class Material(object):
         self.fc = fc # material compressive strength in the specified direction in base units, by default [kN/m2]
         self.ft = ft # material tensile strength in the specified direction in base units, by default [kN/m2].
         self.density = density
-        self.elem_tags = elem_tags if elem_tags else [None]
+        self.elem_tags = elem_tags or []
         self.family = family
         self.name = name
         self.type_name = type_name

@@ -130,21 +130,23 @@ class StiffnessBase(object):
     # element attributes
     def get_element_crosssec(self, elem_id):
         e_tag = self._elements[elem_id].elem_tag
+        assert e_tag in self._crosssec_id_from_etag
         if e_tag in self._crosssec_id_from_etag:
             cs_id = self._crosssec_id_from_etag[e_tag]
-        else:
-            warnings.warn('No cross section assigned for element tag |{}|, using the default tag'.format(e_tag))
-            cs_id = self._crosssec_id_from_etag[None]
+        # else:
+        #     # warnings.warn('No cross section assigned for element tag |{}|, using the default tag'.format(e_tag))
+        #     cs_id = self._crosssec_id_from_etag[None] if None in self._crosssec_id_from_etag else self._crosssec_id_from_etag['']
         return self._crosssecs[cs_id]
 
     def get_element_material(self, elem_id):
         e_tag = self._elements[elem_id].elem_tag
+        assert e_tag in self._material_id_from_etag
         if e_tag in self._material_id_from_etag:
             m_id = self._material_id_from_etag[e_tag]
-        else:
+        # else:
             # TODO: default material, if no key is found
-            warnings.warn('No material assigned for element tag |{}|, using the default tag'.format(e_tag))
-            m_id = self._material_id_from_etag[None]
+            # warnings.warn('No material assigned for element tag |{}|, using the default tag'.format(e_tag))
+            # m_id = self._material_id_from_etag[None] if None in self._material_id_from_etag else self._material_id_from_etag['']
         return self._materials[m_id]
 
     def get_element_joint(self, elem_id):

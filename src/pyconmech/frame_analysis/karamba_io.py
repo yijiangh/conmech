@@ -5,7 +5,7 @@ assert 'ironpython' in sys.version.lower() and os.name == 'nt', 'Karamba only av
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(THIS_DIR))
 from io_base import Node, Element, Support, Joint, CrossSec, Material, Model, LoadCase, \
-    PointLoad, UniformlyDistLoad, GravityLoad
+    PointLoad, UniformlyDistLoad, GravityLoad, get_defalut_element_id_format
 
 ###############################################
 
@@ -58,7 +58,13 @@ class KarambaNode(Node):
 class KarambaElement(Element):
     @classmethod
     def from_karamba(cls, kelement):
-        return cls(list(kelement.node_inds), kelement.ind, elem_tag=kelement.id,
+        if kelement.id == '' and kelement.crosec:
+            # * if element has attribute crosec, we create an element identifier for it 
+            # https://www.karamba3d.com/help/2-2-0/html/652823a9-ab3d-f789-e9bc-d5e71a03d372.htm
+            element_id = get_defalut_element_id_format(kelement.ind)
+        else:
+            element_id = kelement.id
+        return cls(list(kelement.node_inds), kelement.ind, elem_tag=element_id,
             bending_stiff=kelement.bending_stiff)
 
     def to_karamba(self, type='builderbeam'):
@@ -221,17 +227,31 @@ class KarambaModel(Model):
         return cls.from_model(model)
 
     @classmethod
-    def from_karamba(cls, km, grounded_supports=None, model_name='', limit_distance=1e-6):
+    def from_karamba(cls, karamba_model, grounded_supports=None, model_name='', limit_distance=1e-6):
         # grounded_supports: list of Karamba.Supports.Support
-        knodes = [KarambaNode.from_karamba(kn) for kn in km.nodes]
-        kelements = [KarambaElement.from_karamba(e) for e in km.elems]
-        ksupports = [KarambaSupport.from_karamba(s) for s in km.supports]
-        kjoints = [KarambaJoint.from_karamba(j) for j in km.joints]
-        kmaterials = [KarambaMaterialIsotropic.from_karamba(m) for m in km.materials]
-        kcrosssecs = [KarambaCrossSec.from_karamba(cs) for cs in km.crosecs]
+        knodes = [KarambaNode.from_karamba(kn) for kn in karamba_model.nodes]
+        kmaterials = [KarambaMaterialIsotropic.from_karamba(m) for m in karamba_model.materials]
+        kcrosssecs = [KarambaCrossSec.from_karamba(cs) for cs in karamba_model.crosecs]
+
+        kelements = [KarambaElement.from_karamba(e) for e in karamba_model.elems]
+        for ke, e in zip(kelements, karamba_model.elems):
+            if e.crosec and e.id == '':
+                for kcs, cs in zip(kcrosssecs, karamba_model.crosecs):
+                    if cs == e.crosec and ke.elem_tag not in kcs.elem_tags:
+                        if '' in kcs.elem_tags:
+                            kcs.elem_tags.pop(kcs.elem_tags.index(''))
+                        kcs.elem_tags.append(ke.elem_tag)
+                for kmat, mat in zip(kmaterials, karamba_model.materials):
+                    if mat == e.crosec.material and ke.elem_tag not in kmat.elem_tags:
+                        if '' in kmat.elem_tags:
+                            kmat.elem_tags.pop(kmat.elem_tags.index(''))
+                        kmat.elem_tags.append(ke.elem_tag)
+ 
+        ksupports = [KarambaSupport.from_karamba(s) for s in karamba_model.supports]
+        kjoints = [KarambaJoint.from_karamba(j) for j in karamba_model.joints]
 
         if grounded_supports is not None:
-            for k_supp in km.supports:
+            for k_supp in karamba_model.supports:
                 for k_g in grounded_supports:
                     if k_supp.position.DistanceTo(k_g.position) < limit_distance:
                       knodes[k_supp.node_ind].is_grounded = True
